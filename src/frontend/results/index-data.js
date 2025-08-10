@@ -1,5 +1,21 @@
 window.templatesData = [
   {
+    "timestamp": 1628170800000,
+    "dashboardPath": "/results/microsoft-template-example/index.html",
+    "dataPath": "/results/microsoft-template-example/data.json",
+    "repoUrl": "https://github.com/microsoft/template-example",
+    "ruleSet": "default",
+    "compliance": {
+    "percentage": 85,
+    "issues": 3,
+    "passed": 17
+  },
+    "scannedBy": [
+    "Template Doctor"
+  ],
+    "relativePath": "microsoft-template-example"
+  },
+  {
     "timestamp": "2025-07-25T10:14:02.435Z",
     "dashboardPath": "1753438442443-dashboard.html",
     "dataPath": "1753438442443-data.js",
