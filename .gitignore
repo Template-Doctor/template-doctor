@@ -16,4 +16,9 @@ playwright-report/
 local.settings.json
 **/local.settings.json
 
-__azurite*
+# Emulator
+__azurite_db_*
+__azurite**.json
+__blobstorage__/
+__queuestorage__/
+__**/
