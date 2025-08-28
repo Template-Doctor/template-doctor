@@ -11,6 +11,8 @@
  * @param {boolean} demoMode - If true, runs in demo mode showing successful validation
  */
 function initGithubWorkflowValidation(containerId, templateUrl, onStatusChange, demoMode = false) {
+  // We'll use the provided demoMode value, allowing testing of both behaviors
+  
   const container = document.getElementById(containerId);
   if (!container) {
     console.error(`Container element with ID "${containerId}" not found`);
@@ -26,6 +28,18 @@ function initGithubWorkflowValidation(containerId, templateUrl, onStatusChange, 
   const apiBase = (window.TemplateDoctorConfig && window.TemplateDoctorConfig.apiBase)
     ? window.TemplateDoctorConfig.apiBase
     : window.location.origin;
+    
+  // Construct API endpoints based on environment
+  // For Azure Static Web Apps, the API path should be '/api/validate-template'
+  // For local development with Functions emulator, we need to use port 7071
+  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  
+  // Override apiBase for local development to use Functions port 7071
+  const localApiBase = isLocalhost ? 'http://localhost:7071' : apiBase;
+  const apiPathPrefix = 'api'; // Using 'api' for both to simplify
+  
+  // Normalize the apiBase to ensure correct path joining
+  const apiBaseNormalized = localApiBase.endsWith('/') ? localApiBase : localApiBase + '/';
 
   // Extract owner/repo from template URL
   let repoName = '';
@@ -146,6 +160,25 @@ function initGithubWorkflowValidation(containerId, templateUrl, onStatusChange, 
  * @param {boolean} demoMode - If true, runs in demo mode showing successful validation
  */
 async function runGithubWorkflowValidation(templateUrl, apiBase, onStatusChange, demoMode = false) {
+  // Construct API endpoints based on environment
+  // For Azure Static Web Apps, the API path should be '/api/validate-template'
+  // For local development with Functions emulator, we need to use port 7071
+  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  
+  // Override apiBase for local development to use Functions port 7071
+  const localApiBase = isLocalhost ? 'http://localhost:7071' : apiBase;
+  const apiPathPrefix = 'api'; // Using 'api' for both to simplify
+  
+  // Normalize the apiBase to ensure correct path joining
+  const apiBaseNormalized = localApiBase.endsWith('/') ? localApiBase : localApiBase + '/';
+  
+  // Debug log the URL construction
+  console.log('API Base:', apiBase);
+  console.log('Local API Base:', localApiBase);
+  console.log('API Base Normalized:', apiBaseNormalized);
+  console.log('API Path Prefix:', apiPathPrefix);
+  console.log('Full API URL:', `${apiBaseNormalized}${apiPathPrefix}/validate-template`);
+  
   const resultsElem = document.getElementById('githubValidationResults');
   const loadingElem = document.getElementById('githubValidationLoading');
   const outputElem = document.getElementById('githubValidationOutput');
@@ -182,12 +215,19 @@ async function runGithubWorkflowValidation(templateUrl, apiBase, onStatusChange,
     // IMPORTANT: Also trigger the real GitHub workflow in the background
     // This won't affect the demo UI but will let you show the real workflow running on GitHub
     console.log('Also triggering real workflow in the background...');
-    fetch(`${apiBase}/api/validate-template`, {
+    
+    // Create a properly formatted URL for the API
+    const apiUrl = new URL(`${apiPathPrefix}/validate-template`, apiBaseNormalized);
+    console.log(`Demo mode API URL: ${apiUrl.toString()}`);
+    
+    fetch(apiUrl.toString(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
+        // Send both parameter formats to support both environments
+        templateUrl: templateUrl,
         targetRepoUrl: templateUrl
       })
     })
@@ -335,15 +375,19 @@ async function runGithubWorkflowValidation(templateUrl, apiBase, onStatusChange,
   try {
     // Call the validate-template API to trigger the GitHub workflow
     console.log(`Validating template URL: ${templateUrl}`);
-    console.log(`API endpoint: ${apiBase}/api/validate-template`);
-    console.log(`Request payload:`, {targetRepoUrl: templateUrl});
     
-    const response = await fetch(`${apiBase}/api/validate-template`, {
+    // Create a properly formatted URL for the API
+    const apiUrl = new URL(`${apiPathPrefix}/validate-template`, apiBaseNormalized);
+    console.log(`Final API URL: ${apiUrl.toString()}`);
+    
+    const response = await fetch(apiUrl.toString(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
+        // Send both parameter formats to support both environments
+        templateUrl: templateUrl,
         targetRepoUrl: templateUrl
       })
     });
@@ -467,6 +511,15 @@ async function runGithubWorkflowValidation(templateUrl, apiBase, onStatusChange,
  * @param {Function} onStatusChange - Optional callback for status updates
  */
 async function pollGithubWorkflowStatus(runId, templateUrl, apiBase, onStatusChange) {
+  // Construct API endpoints based on environment
+  // For Azure Static Web Apps, the API path should be '/api/validate-template'
+  // For local development, it might need different formatting
+  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  const apiPathPrefix = isLocalhost ? 'api' : 'api'; // Using 'api' for both to simplify
+  
+  // Normalize the apiBase to ensure correct path joining
+  const apiBaseNormalized = apiBase.endsWith('/') ? apiBase : apiBase + '/';
+  
   const loadingElem = document.getElementById('githubValidationLoading');
   const outputElem = document.getElementById('githubValidationOutput');
   const progressElem = document.getElementById('githubValidationProgress').querySelector('.progress-bar-inner');
@@ -504,7 +557,11 @@ async function pollGithubWorkflowStatus(runId, templateUrl, apiBase, onStatusCha
       }
       
       // Call the validation-status API to check the current status
-      const statusResponse = await fetch(`${apiBase}/api/validation-status?runId=${runId}`, {
+      const statusUrl = new URL(`${apiPathPrefix}/validation-status`, apiBaseNormalized);
+      statusUrl.searchParams.append('runId', runId);
+      console.log(`Status check URL: ${statusUrl.toString()}`);
+      
+      const statusResponse = await fetch(statusUrl.toString(), {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'
@@ -630,6 +687,7 @@ window.GitHubWorkflowValidation = {
   
   // Demo mode helper for presentations and testing
   runDemo: function(containerId, templateUrl, onStatusChange) {
+    // Demo mode should work the same in both environments
     return initGithubWorkflowValidation(containerId, templateUrl, onStatusChange, true);
   }
 };

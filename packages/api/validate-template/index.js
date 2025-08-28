@@ -15,18 +15,23 @@ module.exports = async function (context, req) {
   }
   
   try {
-    const { targetRepoUrl, callbackUrl } = req.body || {};
+    // Accept both parameter formats for flexibility
+    const { targetRepoUrl, templateUrl, callbackUrl } = req.body || {};
+    // Use targetRepoUrl if provided, otherwise fall back to templateUrl
+    const repoUrl = targetRepoUrl || templateUrl;
     
     context.log('validate-template triggered with:');
     context.log(`targetRepoUrl: ${targetRepoUrl}`);
+    context.log(`templateUrl: ${templateUrl}`);
+    context.log(`Using repoUrl: ${repoUrl}`);
     context.log(`callbackUrl: ${callbackUrl || 'not provided'}`);
     
-    if (!targetRepoUrl) {
-      context.log.warn('Missing required parameter: targetRepoUrl');
+    if (!repoUrl) {
+      context.log.warn('Missing required parameter: targetRepoUrl or templateUrl');
       context.res = { 
         status: 400, 
         headers: { 'Access-Control-Allow-Origin': '*' },
-        body: { error: "targetRepoUrl is required" } 
+        body: { error: "targetRepoUrl or templateUrl is required" } 
       };
       return;
     }
@@ -44,7 +49,7 @@ module.exports = async function (context, req) {
     const payload = {
       ref: "main",
       inputs: {
-        target_validate_template_url: targetRepoUrl,
+        target_validate_template_url: repoUrl,
         callback_url: callbackUrl || "",
         run_id: runId,
         customValidators: "azd-up,azd-down"  // Only run azd-up and azd-down validators
@@ -76,10 +81,18 @@ module.exports = async function (context, req) {
     };
   } catch (err) {
     context.log.error("validate-template error:", err);
+    // Determine if this is a GitHub API error or other error
+    const isGitHubError = err.message && err.message.includes('GitHub dispatch failed');
+    
     context.res = { 
-      status: 500, 
+      status: isGitHubError ? 502 : 500, // Use 502 Bad Gateway for GitHub API errors
       headers: { 'Access-Control-Allow-Origin': '*' },
-      body: { error: err.message } 
+      body: { 
+        error: err.message,
+        type: isGitHubError ? 'github_api_error' : 'server_error',
+        details: isGitHubError ? 'Error communicating with GitHub API' : 'Internal server error',
+        timestamp: new Date().toISOString()
+      } 
     };
   }
 }

@@ -16,7 +16,7 @@ export $(grep -v '^#' "$ENV_FILE" | xargs)
 # ==========================
 # Derived values
 # ==========================
-IDENTITY_NAME="template-doctor-identity-UAMI"   # fixed UAMI name
+IDENTITY_NAME="template-doctor-identity-UAMIOIDC"   # fixed UAMI name
 RESOURCE_GROUP="${ACA_RESOURCE_GROUP}"     # reuse ACA RG
 SUBSCRIPTION_ID="${AZURE_SUBSCRIPTION_ID}"
 
@@ -73,16 +73,20 @@ az role assignment create \
 # ==========================
 # Add Federated Credential (all branches in workflow repo)
 # ==========================
-echo "🔹 Adding federated credential for ALL branches in $GITHUB_OWNER/$GITHUB_REPO..."
+# ==========================
+# Add Federated Credential
+# ==========================
+echo "🔹 Adding federated credential for main branch in $GITHUB_OWNER/$GITHUB_REPO..."
 
 az identity federated-credential create \
-  --name "gh-actions-all-branches" \
+  --name "gh-actions-main" \
   --identity-name "$IDENTITY_NAME" \
   --resource-group "$RESOURCE_GROUP" \
   --issuer "https://token.actions.githubusercontent.com" \
-  --subject "repo:${GITHUB_OWNER}/${GITHUB_REPO}:ref:refs/heads/*" || true
+  --subject "repo:${GITHUB_OWNER}/${GITHUB_REPO}:ref:refs/heads/main" \
+  --audiences "api://AzureADTokenExchange" || true
 
-echo "✅ Federated credential added for ALL branches"
+echo "✅ Federated credential added for main branch"
 
 # ==========================
 # Update .env with new values
