@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mock: validation-status</title>
+    <style>
+      body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif; margin: 24px; }
+      label { display: block; margin-top: 12px; font-weight: 600; }
+      input { width: 480px; max-width: 100%; padding: 8px; margin-top: 6px; }
+      button { margin-top: 16px; padding: 8px 14px; border-radius: 6px; border: 1px solid #0366d6; background: #0366d6; color: #fff; cursor: pointer; }
+      pre { background: #0d1117; color: #c9d1d9; padding: 12px; border-radius: 6px; overflow: auto; }
+      .row { margin-top: 8px; }
+      .hint { color: #57606a; font-size: 13px; }
+      a { color: #0969da; }
+    </style>
+  </head>
+  <body>
+    <h1>Mock tester: GET /api/validation-status</h1>
+    <p class="hint">This page calls the local Azure Functions host at <code>http://localhost:7071</code> so you can see server logs in your terminal.</p>
+
+    <div class="row">
+      <label for="runId">runId (required)</label>
+      <input id="runId" placeholder="e.g. 586a603d-5794-4923-8ad8-d506ca8cf90b" />
+    </div>
+
+    <div class="row">
+      <label for="githubRunId">githubRunId (optional)</label>
+      <input id="githubRunId" placeholder="e.g. 17322734726" />
+    </div>
+
+    <div class="row">
+      <label for="githubRunUrl">githubRunUrl (optional)</label>
+      <input id="githubRunUrl" placeholder="e.g. https://github.com/Template-Doctor/template-doctor/actions/runs/17322734726" />
+      <div class="hint">Paste the run URL when you have it; the API will parse the id.</div>
+    </div>
+
+    <div class="row">
+      <label for="baseUrl">Base URL</label>
+      <input id="baseUrl" value="http://localhost:7071" />
+      <div class="hint">Change if your Functions host runs on a different port.</div>
+    </div>
+
+    <div class="row">
+      <label for="owner">Override owner (optional)</label>
+      <input id="owner" placeholder="e.g. Template-Doctor" />
+      <div class="hint">If set, will be sent as a query param to help verify the API is targeting the right repo.</div>
+    </div>
+
+    <div class="row">
+      <label for="repo">Override repo (optional)</label>
+      <input id="repo" placeholder="e.g. template-doctor" />
+    </div>
+
+    <button id="go">Check Status</button>
+
+    <h2>Request</h2>
+    <pre id="req"></pre>
+
+    <h2>Response</h2>
+    <pre id="res"></pre>
+
+    <div id="link"></div>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+
+      $('go').addEventListener('click', async () => {
+        const runId = $('runId').value.trim();
+        const githubRunId = $('githubRunId').value.trim();
+  const baseUrl = $('baseUrl').value.replace(/\/$/, '');
+  const owner = $('owner').value.trim();
+  const repo = $('repo').value.trim();
+  const githubRunUrl = $('githubRunUrl').value.trim();
+
+        if (!runId) {
+          alert('Please enter a runId');
+          return;
+        }
+
+        const url = new URL('/api/validation-status', baseUrl);
+        url.searchParams.set('runId', runId);
+  if (githubRunId) url.searchParams.set('githubRunId', githubRunId);
+  if (githubRunUrl) url.searchParams.set('githubRunUrl', githubRunUrl);
+  if (owner) url.searchParams.set('owner', owner);
+  if (repo) url.searchParams.set('repo', repo);
+
+        $('req').textContent = `GET ${url.toString()}`;
+        $('res').textContent = 'Loading...';
+        $('link').innerHTML = '';
+
+        try {
+          const resp = await fetch(url.toString(), { headers: { 'Content-Type': 'application/json' } });
+          const text = await resp.text();
+          let parsed = null;
+          try { parsed = JSON.parse(text); } catch { /* raw text */ }
+
+          $('res').textContent = parsed ? JSON.stringify(parsed, null, 2) : text;
+          if (parsed && parsed.runUrl) {
+            $('link').innerHTML = `<p><a href="${parsed.runUrl}" target="_blank">Open GitHub run</a></p>`;
+          }
+        } catch (e) {
+          $('res').textContent = 'Error: ' + (e && e.message ? e.message : String(e));
+        }
+      });
+    </script>
+  </body>
+  </html>
