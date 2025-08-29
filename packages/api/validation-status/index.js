@@ -1,141 +1,133 @@
-const fetch = require('node-fetch');
+const { Octokit } = require('@octokit/rest');
 
-/**
- * Get the status of a template validation workflow run
- * 
- * @param {import('@azure/functions').Context} context
- * @param {import('@azure/functions').HttpRequest} req
- */
 module.exports = async function (context, req) {
-    function corsHeaders() {
-        return {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-        };
+  function corsHeaders() {
+    return {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+    };
+  }
+
+  if (req.method === 'OPTIONS') {
+    context.res = { status: 204, headers: corsHeaders() };
+    return;
+  }
+
+  try {
+    // Try to get runId from query or cookie
+    let runId = req.query.runId || req.params?.runId || req.query.localRunId;
+    // TODO(route-cleanup): If we decide to use path params, change the route to
+    // validation-status/{runId} in function.json and rely solely on bindingData/params
+    // for runId instead of query/cookie fallbacks.
+    if (!runId && req.headers && req.headers.cookie) {
+      const m = req.headers.cookie.match(/(?:^|;\s*)td_runId=([^;]+)/);
+      if (m && m[1]) runId = decodeURIComponent(m[1]);
+    }
+    if (!runId) {
+      context.res = {
+        status: 400,
+        headers: corsHeaders(),
+        body: { error: "Missing required parameter: runId" }
+      };
+      return;
     }
 
-    // Handle CORS preflight requests
-    if (req.method === 'OPTIONS') {
+    // Prefer explicit githubRunId if client provided
+    let githubRunId = req.query.githubRunId || null;
+    let runUrl = req.query.githubRunUrl || null;
+
+    const [owner, repo] = (process.env.GITHUB_REPOSITORY || "Template-Doctor/template-doctor").split("/");
+    const token = process.env.GH_WORKFLOW_TOKEN;
+    const branch = process.env.GITHUB_REPO_BRANCH || 'main';
+    // The workflow file in this repo is at .github/workflows/validation-template.yml
+    const workflowFile = process.env.GITHUB_WORKFLOW_FILE || 'validation-template.yml';
+
+    // Allow unauthenticated fallback for public repos to avoid hard dependency on GH_WORKFLOW_TOKEN in PROD
+    let octokit;
+    if (token) {
+      octokit = new Octokit({ auth: token, userAgent: 'TemplateDoctorApp' });
+    } else {
+      context.log.warn('GH_WORKFLOW_TOKEN not set; using unauthenticated GitHub API (rate-limited).');
+      octokit = new Octokit({ userAgent: 'TemplateDoctorApp' });
+    }
+
+    // If we don't have a GitHub run id, try to discover it by correlating run metadata to local runId
+    if (!githubRunId) {
+      let discoveredRun = null;
+      try {
+        const runsResp = await octokit.actions.listWorkflowRuns({ owner, repo, workflow_id: workflowFile, branch, event: 'workflow_dispatch', per_page: 50 });
+        const candidates = runsResp.data.workflow_runs || [];
+        // Prefer most recent first
+        for (const r of candidates) {
+          const title = r.display_title || r.name || '';
+          const commitMsg = (r.head_commit && r.head_commit.message) ? String(r.head_commit.message) : '';
+          if ((title && String(title).includes(runId)) || commitMsg.includes(runId)) {
+            discoveredRun = r; break;
+          }
+        }
+      } catch (wfErr) {
+        context.log.warn(`listWorkflowRuns failed for ${workflowFile}: ${wfErr.message}`);
+      }
+
+      if (!discoveredRun) {
+        const repoRuns = await octokit.actions.listWorkflowRunsForRepo({ owner, repo, per_page: 50, branch, event: 'workflow_dispatch' });
+        const candidates = repoRuns.data.workflow_runs || [];
+        for (const r of candidates) {
+          const title = r.display_title || r.name || '';
+          const commitMsg = (r.head_commit && r.head_commit.message) ? String(r.head_commit.message) : '';
+          if ((title && String(title).includes(runId)) || commitMsg.includes(runId)) {
+            discoveredRun = r; break;
+          }
+        }
+      }
+
+      if (discoveredRun) {
+        githubRunId = discoveredRun.id;
+        runUrl = discoveredRun.html_url;
+        context.log(`Discovered workflow run ${githubRunId} for local runId ${runId}`);
+      } else {
         context.res = {
-            status: 204,
-            headers: corsHeaders()
+          status: 200,
+          headers: corsHeaders(),
+          body: { runId, status: 'pending', conclusion: null }
         };
         return;
+      }
     }
 
-    context.log('API - Validation status function triggered');
-    context.log(`Query params: ${JSON.stringify(req.query)}`);
+    // Fetch the workflow run details
+    const runResp = await octokit.actions.getWorkflowRun({ owner, repo, run_id: Number(githubRunId) });
+    const ghData = runResp.data;
 
-    try {
-        // Get run ID from query parameters
-        const runId = req.query.runId;
-        if (!runId) {
-            context.log.warn('Missing required parameter: runId');
-            context.res = {
-                status: 400,
-                headers: corsHeaders(),
-                body: { error: "Missing required parameter: runId" }
-            };
-            return;
-        }
-
-        context.log(`Processing status request for runId: ${runId}`);
-
-        // For stability, always return a simulated response for now
-        // This avoids the 500 error while we troubleshoot the actual status retrieval
-        
-        // Create a deterministic pseudo-random status based on the runId
-        // This ensures the same runId always gets the same status (for consistent testing)
-        const runIdSum = runId.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
-        const statusSeed = runIdSum % 100; // 0-99
-
-        let status, conclusion, results;
-        
-        // Generate consistent status based on the runId
-        if (statusSeed < 30) {
-            // Workflow is still running
-            status = 'in_progress';
-            conclusion = null;
-            results = null;
-        } else if (statusSeed < 80) {
-            // Workflow completed successfully
-            status = 'completed';
-            conclusion = 'success';
-            results = {
-                passed: true,
-                summary: "All validation checks passed successfully.",
-                details: [
-                    { category: "azd-up", status: "pass", message: "Successfully provisioned with azd up" },
-                    { category: "azd-down", status: "pass", message: "Successfully cleaned up with azd down" }
-                ]
-            };
-        } else {
-            // Workflow completed with failures
-            status = 'completed';
-            conclusion = 'failure';
-            results = {
-                passed: false,
-                summary: "Some validation checks failed. See details for more information.",
-                details: [
-                    { category: "azd-up", status: "fail", message: "Failed to provision with azd up", issues: [
-                        "ClientAssertionCredential authentication failed",
-                        "No configured federated identity credentials"
-                    ]},
-                    { category: "azd-down", status: "warn", message: "Could not fully validate azd down due to azd up failure" }
-                ]
-            };
-        }
-
-        // GitHub repository info
-        const GITHUB_REPO = process.env.GITHUB_REPOSITORY || 'Template-Doctor/template-doctor';
-        
-        // Create a deterministic workflow run URL based on the runId
-        const runNumber = runIdSum % 1000000;
-        const runUrl = `https://github.com/${GITHUB_REPO}/actions/runs/${runNumber}`;
-        
-        context.log(`Returning status for runId ${runId}: ${status}, conclusion: ${conclusion}`);
-        
-        // Return the validation status
-        context.res = {
-            status: 200,
-            headers: corsHeaders(),
-            body: {
-                runId: runId,
-                status: status,
-                conclusion: conclusion,
-                runUrl: runUrl,
-                startTime: new Date(Date.now() - (runIdSum % 3600000)).toISOString(),
-                endTime: status === 'completed' ? new Date().toISOString() : null,
-                results: results
-            }
-        };
-    } catch (error) {
-        context.log.error(`Error in validation-status function: ${error.message}`);
-        context.log.error(`Stack: ${error.stack}`);
-        
-        // Even on error, return a valid response to avoid breaking the client
-        // This ensures we don't return a 500 status which could cause the UI to show an error
-        // Instead, we return a 200 with an "in_progress" status so the UI will continue to poll
-        // This is better UX because:
-        // 1. Many errors are transient and the next poll might succeed
-        // 2. The GitHub workflow may still be running despite our API having issues
-        // 3. If the validation never completes, the UI will eventually timeout and show a timeout message
-        const runId = req.query.runId || 'unknown';
-        
-        context.log.warn(`Returning fallback status for runId ${runId} due to error`);
-        
-        // Return a generic "in progress" status
-        context.res = {
-            status: 200, // Return 200 even on error to avoid breaking the client
-            headers: corsHeaders(),
-            body: {
-                runId: runId,
-                status: 'in_progress',
-                conclusion: null,
-                message: 'Validation in progress (fallback response)',
-                error: process.env.NODE_ENV === 'development' ? error.message : 'An internal error occurred, but validation is likely still in progress'
-            }
-        };
-    }
+    context.res = {
+      status: 200,
+      headers: corsHeaders(),
+      body: {
+        runId,
+        githubRunId,
+        status: ghData.status,
+        conclusion: ghData.conclusion,
+        runUrl: runUrl || ghData.html_url,
+        startTime: ghData.run_started_at,
+        endTime: ghData.updated_at
+      }
+    };
+  } catch (err) {
+    context.log.error("validation-status error:", err);
+    
+    // Return proper error status code instead of masking errors with 200
+    const isGitHubError = err.status || (err.message && err.message.toLowerCase().includes('github'));
+    
+    context.res = {
+      status: isGitHubError ? 502 : 500, // 502 for GitHub API issues, 500 for other errors
+      headers: corsHeaders(),
+      body: { 
+        error: err.message,
+        type: isGitHubError ? 'github_api_error' : 'server_error',
+        errorCode: isGitHubError ? 'GITHUB_API_ERROR' : 'SERVER_ERROR',
+        timestamp: new Date().toISOString()
+      }
+    };
+  }
 };

@@ -143,7 +143,9 @@ jobs:
             "status": "${{ steps.check_result.outputs.RESULT }}",
             "templateUrl": "${{ matrix.repo_url }}",
             "summary": ${{ toJSON(steps.check_result.outputs.summary) }},
-            "artifactUrl": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts"
+            "artifactUrl": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts",
+            "githubRunId": "${{ github.run_id }}",
+            "githubRunUrl": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           }
           EOF
           )

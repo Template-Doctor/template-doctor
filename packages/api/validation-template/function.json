@@ -5,8 +5,12 @@
       "type": "httpTrigger",
       "direction": "in",
       "name": "req",
-      "methods": ["get", "options"],
-      "route": "health-check"
+      "methods": [
+        "get",
+        "post",
+        "options"
+      ],
+      "route": "validation-template"
     },
     {
       "type": "http",
