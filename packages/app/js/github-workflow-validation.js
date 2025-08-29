@@ -59,10 +59,14 @@ function initGithubWorkflowValidation(containerId, templateUrl, onStatusChange) 
         <div class="validation-spinner-container">
           <i class="fas fa-spinner fa-spin validation-spinner"></i>
           <div class="status-message">GitHub workflow has been triggered. This may take a few minutes to complete.</div>
+          <label class="job-logs-toggle" style="margin-top: 10px; font-size: 14px; color: #24292e;">
+            <input type="checkbox" id="includeJobLogsChk" /> Show per-job logs links
+          </label>
           <button id="githubCancelValidationBtn" class="btn btn-danger" style="margin-top: 15px; display: none;">Cancel Validation</button>
         </div>
         <div id="validationWorkflowLink" class="workflow-link" style="display: none;"></div>
         <div id="validationLogs" class="validation-logs" style="display: none;"></div>
+        <div id="validationJobLogs" class="validation-job-logs" style="display: none;"></div>
       </div>
       <div id="githubValidationOutput" style="display: none;">
         <h4>Validation Results</h4>
@@ -198,6 +202,21 @@ function initGithubWorkflowValidation(containerId, templateUrl, onStatusChange) 
       background-color: #f1aeb5;
       cursor: not-allowed;
     }
+    .validation-job-logs {
+      margin-top: 12px;
+      background: #f6f8fa;
+      border: 1px solid #e1e4e8;
+      border-radius: 6px;
+      padding: 12px;
+      color: #24292e;
+      width: 100%;
+    }
+    .validation-job-logs h5 {
+      margin: 0 0 8px 0;
+      font-size: 14px;
+    }
+    .validation-job-logs ul { margin: 0; padding-left: 18px; }
+    .validation-job-logs li { margin: 4px 0; }
     
     /* Custom styling for details/summary elements */
     details {
@@ -265,6 +284,7 @@ async function runGithubWorkflowValidation(templateUrl, apiBase, onStatusChange)
   const logsElem = document.getElementById('validationLogs');
   const runValidationBtn = document.getElementById('runGithubValidationBtn');
   const cancelValidationBtn = document.getElementById('githubCancelValidationBtn');
+  const jobLogsElem = document.getElementById('validationJobLogs');
   
   // Variable to store full error data for later use
   let fullErrorData = null;
@@ -563,29 +583,128 @@ async function runGithubWorkflowValidation(templateUrl, apiBase, onStatusChange)
             'X-Client-ID': callId
           },
           body: JSON.stringify({
-            runId: runId
+            // Provide both local runId (for logging) and resolved GitHub correlation if available
+            runId: runId,
+            githubRunId: (function() {
+              try {
+                const stored = localStorage.getItem(`validation_${runId}`);
+                if (stored) {
+                  const parsed = JSON.parse(stored);
+                  return parsed.githubRunId || null;
+                }
+              } catch (e) { /* ignore */ }
+              return null;
+            })(),
+            githubRunUrl: (function() {
+              try {
+                const stored = localStorage.getItem(`validation_${runId}`);
+                if (stored) {
+                  const parsed = JSON.parse(stored);
+                  return parsed.githubRunUrl || null;
+                }
+              } catch (e) { /* ignore */ }
+              return null;
+            })()
           })
         });
         
         if (!cancelResponse.ok) {
           let errorMessage = cancelResponse.statusText;
-          let errorDetails = '';
-          
+          let errorBody = null;
           try {
-            const errorData = await cancelResponse.json();
-            if (errorData && errorData.error) {
-              errorMessage = errorData.error;
-              errorDetails = JSON.stringify(errorData, null, 2);
+            errorBody = await cancelResponse.json();
+            if (errorBody && errorBody.error) {
+              errorMessage = errorBody.error;
             }
           } catch (e) {
-            // If we can't parse JSON, try to get text
-            try {
-              errorDetails = await cancelResponse.text();
-            } catch (textError) {
-              errorDetails = 'Could not read error details';
-            }
+            // Try as text if not JSON
+            try { errorMessage = await cancelResponse.text(); } catch {}
           }
-          
+
+          // If backend couldn't discover yet, try to resolve run id and retry once automatically
+          const looksRecoverable = /could not discover run/i.test(String(errorMessage)) || /Missing githubRunId/i.test(String(errorMessage));
+          if (looksRecoverable) {
+            const logTime = new Date().toISOString();
+            logsElem.innerHTML += `[${logTime}] Cancel failed because run id was not yet resolved. Will try to resolve and retry...\n`;
+            logsElem.scrollTop = logsElem.scrollHeight;
+            if (window.NotificationSystem) {
+              window.NotificationSystem.showInfo(
+                'Retrying Cancellation',
+                'Resolving workflow run and retrying cancel...',
+                5000
+              );
+            }
+
+            try {
+              // Call status endpoint to resolve githubRunId, without waiting for next poll cycle
+              const quickStatusUrl = new URL(`${apiPathPrefix}/validation-status`, apiBaseNormalized);
+              quickStatusUrl.searchParams.append('runId', runId);
+              const quickResp = await fetch(quickStatusUrl.toString(), { headers: { 'Content-Type': 'application/json' } });
+              if (quickResp.ok) {
+                const quickData = await quickResp.json();
+                if (quickData && quickData.githubRunId) {
+                  // Persist for future
+                  try {
+                    localStorage.setItem(`validation_${runId}`, JSON.stringify({ githubRunId: quickData.githubRunId, githubRunUrl: quickData.runUrl || null }));
+                  } catch {}
+                  const logTime2 = new Date().toISOString();
+                  logsElem.innerHTML += `[${logTime2}] Resolved GitHub run id: ${quickData.githubRunId}. Retrying cancel...\n`;
+                  logsElem.scrollTop = logsElem.scrollHeight;
+
+                  // Small delay to let GitHub accept cancel
+                  await new Promise(r => setTimeout(r, 2000));
+
+                  const retryCancelUrl = new URL(`${apiPathPrefix}/validation-cancel`, apiBaseNormalized);
+                  const retryResp = await fetch(retryCancelUrl.toString(), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Client-ID': callId },
+                    body: JSON.stringify({ runId, githubRunId: quickData.githubRunId, githubRunUrl: quickData.runUrl || null })
+                  });
+                  if (retryResp.ok) {
+                    const cancelData = await retryResp.json();
+                    logsElem.innerHTML += `[${new Date().toISOString()}] Cancellation request sent. ${cancelData.message || ''}\n`;
+                    logsElem.scrollTop = logsElem.scrollHeight;
+                    if (window.NotificationSystem) {
+                      window.NotificationSystem.showSuccess(
+                        'Cancellation Requested',
+                        'Resolved run id and sent cancel request.',
+                        6000
+                      );
+                    }
+
+                    if (onStatusChange) {
+                      onStatusChange({ status: 'cancelled', runId, message: 'Validation workflow cancelled' });
+                    }
+                    // Show cancelled UI
+                    outputElem.style.display = 'block';
+                    loadingElem.style.display = 'none';
+                    const summaryElem = document.getElementById('githubValidationSummary');
+                    summaryElem.className = 'validation-summary';
+                    summaryElem.innerHTML = `
+          <strong>Cancelled:</strong> The validation workflow has been cancelled.
+          <p>Run ID: ${runId}</p>
+        `;
+                    runValidationBtn.disabled = false;
+                    runValidationBtn.innerHTML = 'Run Validation';
+                    return; // Recovery succeeded; exit handler
+                  }
+                }
+              }
+              else {
+                if (window.NotificationSystem) {
+                  window.NotificationSystem.showWarning(
+                    'Could not resolve run id yet',
+                    'Please wait a few seconds and try cancellation again.',
+                    6000
+                  );
+                }
+              }
+            } catch (e) {
+              // Ignore and fall through to throw below
+            }
+
+          }
+
           throw new Error(`Failed to cancel: ${cancelResponse.status} - ${errorMessage}`);
         }
         
@@ -632,13 +751,16 @@ async function runGithubWorkflowValidation(templateUrl, apiBase, onStatusChange)
             8000
           );
         }
-        
-        // Show error in status message
-        statusMessageElem.innerHTML += `
-          <div style="color: #d73a49; margin-top: 10px; padding: 8px; background-color: #ffeef0; border-radius: 4px; border: 1px solid #f9d0d0;">
-            <strong>Error cancelling:</strong> ${error.message}
-          </div>
-        `;
+
+        // Optionally surface error near spinner if present
+        const statusMessageElemRef = document.querySelector('#githubValidationLoading .status-message');
+        if (statusMessageElemRef) {
+          statusMessageElemRef.innerHTML += `
+            <div style="color: #d73a49; margin-top: 10px; padding: 8px; background-color: #ffeef0; border-radius: 4px; border: 1px solid #f9d0d0;">
+              <strong>Error cancelling:</strong> ${error.message}
+            </div>
+          `;
+        }
         
         // Re-enable cancel button in case of error, with different text
         cancelValidationBtn.disabled = false;
@@ -818,6 +940,8 @@ async function pollGithubWorkflowStatus(runId, templateUrl, apiBase, onStatusCha
   const logsElem = document.getElementById('validationLogs');
   const runValidationBtn = document.getElementById('runGithubValidationBtn');
   const cancelValidationBtn = document.getElementById('githubCancelValidationBtn');
+  const jobLogsElem = document.getElementById('validationJobLogs');
+  const includeJobLogsChk = document.getElementById('includeJobLogsChk');
   
   let complete = false;
   let attempts = 0;
@@ -869,6 +993,12 @@ async function pollGithubWorkflowStatus(runId, templateUrl, apiBase, onStatusCha
       statusUrl.searchParams.append('runId', runId);
       if (knownGithubRunId) {
         statusUrl.searchParams.append('githubRunId', knownGithubRunId);
+      }
+      // ask backend to include ephemeral logs archive URL
+      statusUrl.searchParams.append('includeLogsUrl', '1');
+      // optionally include per-job logs when enabled in UI
+      if (includeJobLogsChk && includeJobLogsChk.checked) {
+        statusUrl.searchParams.append('includeJobLogs', '1');
       }
       console.log(`Status check URL: ${statusUrl.toString()}`);
       
@@ -954,6 +1084,32 @@ async function pollGithubWorkflowStatus(runId, templateUrl, apiBase, onStatusCha
             </a>
           `;
         }
+      }
+
+      // If logs url is available, render a quick link once
+      if (statusData.logsArchiveUrl) {
+        const logsLinkContainer = document.getElementById('validationWorkflowLink');
+        if (logsLinkContainer && !logsLinkContainer.dataset.hasLogsLink) {
+          logsLinkContainer.dataset.hasLogsLink = '1';
+          logsLinkContainer.style.display = 'block';
+          const currentHtml = logsLinkContainer.innerHTML || '';
+          const sep = currentHtml ? ' &nbsp;|&nbsp; ' : '';
+          logsLinkContainer.innerHTML = `${currentHtml}${sep}<a href="${statusData.logsArchiveUrl}" target="_blank"><i class="fas fa-file-archive"></i> Download logs</a>`;
+        }
+      }
+
+      // Render per-job logs list if available
+      if (statusData.jobLogs && Array.isArray(statusData.jobLogs)) {
+        const items = statusData.jobLogs.map(j => {
+          const badge = j.conclusion ? j.conclusion : (j.status || 'unknown');
+          const link = j.logsUrl ? ` - <a href="${j.logsUrl}" target="_blank">logs</a>` : '';
+          return `<li><strong>${j.name}</strong> <em>(${badge})</em>${link}</li>`;
+        }).join('');
+        jobLogsElem.style.display = 'block';
+        jobLogsElem.innerHTML = `<h5>Job logs</h5><ul>${items}</ul>`;
+      } else if (jobLogsElem) {
+        jobLogsElem.style.display = 'none';
+        jobLogsElem.innerHTML = '';
       }
 
       // Add log entry with status data
