@@ -15,7 +15,7 @@ Most organizations can use the default GITHUB_TOKEN. Some enterprises block PR c
       contents: write
       pull-requests: write
     ```
-  - In Org/Repo settings → Actions → General → Workflow permissions:
+  - In Org AND Repo settings → Actions → General → Workflow permissions:
     - Read and write permissions
     - Allow GitHub Actions to create and approve pull requests (must be checked if using `GITHUB_TOKEN`).
 
