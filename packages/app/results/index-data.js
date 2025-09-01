@@ -8,7 +8,25 @@
   // Only populate the data if the user is authenticated
   if (!window.templatesData) {
     // Initialize templatesData if it doesn't exist yet
-    window.templatesData = [];
+    window.templatesData = [
+  {
+    "timestamp": "2025-09-01T12:37:35.320Z",
+    "dashboardPath": "1756730275324-dashboard.html",
+    "dataPath": "1756730275324-data.js",
+    "repoUrl": "https://github.com/anfibiacreativa/rag-postgres-openai-python",
+    "collection": "aigallery",
+    "ruleSet": "dod",
+    "compliance": {
+      "percentage": 19,
+      "issues": 43,
+      "passed": 11
+    },
+    "scannedBy": [
+      "anfibiacreativa"
+    ],
+    "relativePath": "anfibiacreativa-rag-postgres-openai-python/1756730275324-dashboard.html"
+  }
+];
   }
   
   const cfg = window.TemplateDoctorConfig || {};
