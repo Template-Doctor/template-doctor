@@ -41,9 +41,9 @@ module.exports = async function (context, req) {
       },
       DEFAULT_RULE_SET: defaultRuleSet,
       REQUIRE_AUTH_FOR_RESULTS: requireAuthForResults,
-      AUTO_SAVE_RESULTS: autoSaveResults
-      , ARCHIVE_ENABLED: archiveEnabled
-      , ARCHIVE_COLLECTION: archiveCollection
+      AUTO_SAVE_RESULTS: autoSaveResults,
+      ARCHIVE_ENABLED: archiveEnabled,
+      ARCHIVE_COLLECTION: archiveCollection
     }
   };
 };
