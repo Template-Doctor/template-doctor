@@ -79,7 +79,7 @@ jobs:
         run: echo "PR created using ACTIONS_BOT_TOKEN path"
 
       - name: Create Pull Request (GITHUB_TOKEN fallback)
-        if: ${{ secrets.ACTIONS_BOT_TOKEN == '' }}
+        if: ${{ !secrets.ACTIONS_BOT_TOKEN }}
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -100,7 +100,7 @@ jobs:
           base: main
 
       - name: Debug token path (fallback)
-        if: ${{ always() && secrets.ACTIONS_BOT_TOKEN == '' }}
+        if: ${{ always() && !secrets.ACTIONS_BOT_TOKEN }}
         run: echo "PR created using GITHUB_TOKEN fallback path"
 
       - name: PR Creation Status
