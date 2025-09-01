@@ -19,15 +19,7 @@ module.exports = async function (context, req) {
       return;
     }
 
-    // Determine target repo (prefer owner/name first, then GITHUB_REPOSITORY, then optional overrides)
-    const owner = process.env.GITHUB_REPO_OWNER;
-    const name = process.env.GITHUB_REPO_NAME;
-    const repoSlug =
-      (owner && name ? `${owner}/${name}` : null) ||
-      process.env.GITHUB_REPOSITORY ||
-      process.env.GITHUB_ACTION_REPO ||
-      process.env.TD_GITHUB_ACTION_REPO ||
-      `${process.env.GITHUB_REPO_OWNER || 'Template-Doctor'}/${process.env.GITHUB_REPO_NAME || 'template-doctor'}`;
+      'Template-Doctor/template-doctor';
     const apiUrl = `https://api.github.com/repos/${repoSlug}/dispatches`;
 
     const body = req.body || {};
