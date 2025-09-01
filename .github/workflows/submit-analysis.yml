@@ -100,7 +100,7 @@ jobs:
           base: main
 
       - name: Debug token path (fallback)
-        if: ${{ always() && secrets.ACTIONS_BOT_TOKEN == '' }}
+        if: ${{ always() && !secrets.ACTIONS_BOT_TOKEN }}
         run: echo "PR created using GITHUB_TOKEN fallback path"
 
       - name: PR Creation Status
