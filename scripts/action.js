@@ -59,6 +59,7 @@ async function run() {
       dashboardPath: `${fileTimestamp}-dashboard.html`,
       dataPath: `${fileTimestamp}-data.js`,
       repoUrl,
+      collection: 'aigallery',
       ruleSet,
       compliance: {
         percentage: percentageCompliant,
@@ -107,7 +108,8 @@ async function run() {
       existing.timestamp = timestamp;
       existing.dashboardPath = templateData.dashboardPath;
       existing.dataPath = templateData.dataPath;
-      existing.ruleSet = ruleSet;
+  existing.ruleSet = ruleSet;
+  existing.collection = 'aigallery';
       existing.compliance = templateData.compliance;
       existing.relativePath = templateData.relativePath;
       if (canonicalOriginUpstream) {

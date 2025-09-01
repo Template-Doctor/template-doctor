@@ -10,4 +10,6 @@
   "defaultRuleSet": "dod",
   "requireAuthForResults": true,
   "autoSaveResults": false
+  , "archiveEnabled": false
+  , "archiveCollection": "aigallery"
 }
