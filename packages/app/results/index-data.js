@@ -101,7 +101,25 @@
   // Only populate the data if the user is authenticated
   if (!window.templatesData) {
     // Initialize templatesData if it doesn't exist yet
-    window.templatesData = [ ...seed];
+    window.templatesData = [
+  {
+    "timestamp": "2025-09-02T08:53:27.297Z",
+    "dashboardPath": "1756803229305-dashboard.html",
+    "dataPath": "1756803229305-data.js",
+    "repoUrl": "https://github.com/anfibiacreativa/signalr-ai-streaming",
+    "collection": "aigallery",
+    "ruleSet": "dod",
+    "compliance": {
+      "percentage": 25,
+      "issues": 33,
+      "passed": 12
+    },
+    "scannedBy": [
+      "anfibiacreativa"
+    ],
+    "relativePath": "anfibiacreativa-signalr-ai-streaming/1756803229305-dashboard.html"
+  }
+];
   }
   
   const cfg = window.TemplateDoctorConfig || {};
