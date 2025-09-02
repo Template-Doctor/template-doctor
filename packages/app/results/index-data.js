@@ -101,7 +101,25 @@
   // Only populate the data if the user is authenticated
   if (!window.templatesData) {
     // Initialize templatesData if it doesn't exist yet
-    window.templatesData = [ ...seed];
+    window.templatesData = [
+  {
+    "timestamp": "2025-09-02T09:57:52.235Z",
+    "dashboardPath": "1756807088343-dashboard.html",
+    "dataPath": "1756807088343-data.js",
+    "repoUrl": "https://github.com/AzureCosmosDB/cosmosdb-nosql-copilot",
+    "collection": "aigallery",
+    "ruleSet": "dod",
+    "compliance": {
+      "percentage": 16,
+      "issues": 54,
+      "passed": 11
+    },
+    "scannedBy": [
+      "anfibiacreativa"
+    ],
+    "relativePath": "AzureCosmosDB-cosmosdb-nosql-copilot/1756807088343-dashboard.html"
+  }
+];
   }
   
   const cfg = window.TemplateDoctorConfig || {};
