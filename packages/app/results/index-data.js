@@ -101,7 +101,25 @@
   // Only populate the data if the user is authenticated
   if (!window.templatesData) {
     // Initialize templatesData if it doesn't exist yet
-    window.templatesData = [ ...seed];
+    window.templatesData = [
+  {
+    "timestamp": "2025-09-02T08:42:27.569Z",
+    "dashboardPath": "1756802571801-dashboard.html",
+    "dataPath": "1756802571801-data.js",
+    "repoUrl": "https://github.com/pinecone-io/pinecone-assistant-azd",
+    "collection": "aigallery",
+    "ruleSet": "dod",
+    "compliance": {
+      "percentage": 32,
+      "issues": 26,
+      "passed": 13
+    },
+    "scannedBy": [
+      "anfibiacreativa"
+    ],
+    "relativePath": "pinecone-io-pinecone-assistant-azd/1756802571801-dashboard.html"
+  }
+];
   }
   
   const cfg = window.TemplateDoctorConfig || {};
