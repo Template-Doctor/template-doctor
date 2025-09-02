@@ -101,7 +101,25 @@
   // Only populate the data if the user is authenticated
   if (!window.templatesData) {
     // Initialize templatesData if it doesn't exist yet
-    window.templatesData = [ ...seed];
+    window.templatesData = [
+  {
+    "timestamp": "2025-09-02T09:58:32.601Z",
+    "dashboardPath": "1756807129866-dashboard.html",
+    "dataPath": "1756807129866-data.js",
+    "repoUrl": "https://github.com/anfibiacreativa/contoso-creative-writer",
+    "collection": "aigallery",
+    "ruleSet": "dod",
+    "compliance": {
+      "percentage": 16,
+      "issues": 88,
+      "passed": 18
+    },
+    "scannedBy": [
+      "anfibiacreativa"
+    ],
+    "relativePath": "anfibiacreativa-contoso-creative-writer/1756807129866-dashboard.html"
+  }
+];
   }
   
   const cfg = window.TemplateDoctorConfig || {};
