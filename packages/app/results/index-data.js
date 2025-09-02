@@ -101,7 +101,25 @@
   // Only populate the data if the user is authenticated
   if (!window.templatesData) {
     // Initialize templatesData if it doesn't exist yet
-    window.templatesData = [ ...seed];
+    window.templatesData = [
+  {
+    "timestamp": "2025-09-02T09:57:27.550Z",
+    "dashboardPath": "1756807062626-dashboard.html",
+    "dataPath": "1756807062626-data.js",
+    "repoUrl": "https://github.com/anfibiacreativa/azure-openai-keyless-python",
+    "collection": "aigallery",
+    "ruleSet": "dod",
+    "compliance": {
+      "percentage": 64,
+      "issues": 5,
+      "passed": 10
+    },
+    "scannedBy": [
+      "anfibiacreativa"
+    ],
+    "relativePath": "anfibiacreativa-azure-openai-keyless-python/1756807062626-dashboard.html"
+  }
+];
   }
   
   const cfg = window.TemplateDoctorConfig || {};
