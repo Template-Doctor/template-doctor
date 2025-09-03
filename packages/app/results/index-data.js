@@ -101,7 +101,25 @@
   // Only populate the data if the user is authenticated
   if (!window.templatesData) {
     // Initialize templatesData if it doesn't exist yet
-    window.templatesData = [ ...seed];
+    window.templatesData = [
+  {
+    "timestamp": "2025-09-03T09:45:11.054Z",
+    "dashboardPath": "1756892731041-dashboard.html",
+    "dataPath": "1756892731041-data.js",
+    "repoUrl": "https://github.com/owner/repo-one",
+    "collection": "aigallery",
+    "ruleSet": "dod",
+    "compliance": {
+      "percentage": 0,
+      "issues": 1,
+      "passed": 2
+    },
+    "scannedBy": [
+      "test-user"
+    ],
+    "relativePath": "owner-repo-one/1756892731041-dashboard.html"
+  }
+];
   }
   
   const cfg = window.TemplateDoctorConfig || {};
