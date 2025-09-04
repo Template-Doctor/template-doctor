@@ -101,7 +101,25 @@
   // Only populate the data if the user is authenticated
   if (!window.templatesData) {
     // Initialize templatesData if it doesn't exist yet
-    window.templatesData = [ ...seed];
+    window.templatesData = [
+  {
+    "timestamp": "2025-09-04T14:51:38.788Z",
+    "dashboardPath": "1756997521304-dashboard.html",
+    "dataPath": "1756997521304-data.js",
+    "repoUrl": "https://github.com/anfibiacreativa/get-started-with-ai-agents",
+    "collection": "aigallery",
+    "ruleSet": "dod",
+    "compliance": {
+      "percentage": 21,
+      "issues": 44,
+      "passed": 13
+    },
+    "scannedBy": [
+      "anfibiacreativa"
+    ],
+    "relativePath": "anfibiacreativa-get-started-with-ai-agents/1756997521304-dashboard.html"
+  }
+];
   }
   
   const cfg = window.TemplateDoctorConfig || {};
