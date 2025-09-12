@@ -13,9 +13,9 @@
     archiveEnabled: false,
     archiveCollection: 'aigallery',
     // Optional: explicit workflow host repo to dispatch to (owner/repo)
-  dispatchTargetRepo: '',
-  // Optional: enable AI enrichment on issue bodies (set via env/config)
-  issueAIEnabled: false,
+    dispatchTargetRepo: '',
+    // Optional: enable AI enrichment on issue bodies (set via env/config)
+    issueAIEnabled: false,
   };
 
   // Initialize with defaults so consumers have something synchronously
