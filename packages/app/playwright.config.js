@@ -26,7 +26,7 @@ module.exports = defineConfig({
   ],
 
   webServer: {
-    command: 'python3 -m http.server 8080',
+    command: 'python3 -m http.server 4000',
     url: 'http://localhost:4000',
     reuseExistingServer: true, // Reuse server to avoid port conflicts
     timeout: 120000, // Allow more time for server to start
