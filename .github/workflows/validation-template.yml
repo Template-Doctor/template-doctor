@@ -73,7 +73,7 @@ jobs:
           head -c 400 quotas.json || true
           echo -e "\n----------------------------------"
 
-            if ! jq -e 'type=="array"' quotas.json >/dev/null 2>&1; then
+          if ! jq -e 'type=="array"' quotas.json >/dev/null 2>&1; then
             echo "Quotas file is not a JSON array; defaulting to swedencentral" >&2
             echo "AZURE_LOCATION=swedencentral" >> $GITHUB_ENV
             exit 0
