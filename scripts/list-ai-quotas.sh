@@ -6,10 +6,10 @@
 # How to run:
 # az login
 # az account set --subscription "<subscription_id>"
-# bash ./listAIQuotas.sh
-# bash ./listAIQuotas.sh -s "<subscription_id>"
-# bash ./listAIQuotas.sh -m "OpenAI.Standard.gpt-35-turbo:1106,0301,0613" -s "<subscription_id>"
-# bash ./listAIQuotas.sh -m "OpenAI.Standard.gpt-35-turbo OpenAi.Standard.gpt-4:1106-Preview" -s "<subscription_id>"
+# bash ./list-ai-quotas.sh
+# bash ./list-ai-quotas.sh -s "<subscription_id>"
+# bash ./list-ai-quotas.sh -m "OpenAI.Standard.gpt-35-turbo:1106,0301,0613" -s "<subscription_id>"
+# bash ./list-ai-quotas.sh -m "OpenAI.Standard.gpt-35-turbo OpenAi.Standard.gpt-4:1106-Preview" -s "<subscription_id>"
 
 set -e
 set -u
