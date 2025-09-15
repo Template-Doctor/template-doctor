@@ -53,13 +53,39 @@ jobs:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      AZURE_ENV_NAME: template-doctor-${{ github.run_id }}-${{ github.run_attempt }}
-      AZURE_LOCATION: eastus
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Install Azure CLI
+        run: curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+
+      - name: Determine Azure Location
+        run: |
+          chmod +x ./scripts/list-ai-quotas.sh
+          ./scripts/list-ai-quotas.sh > quotas.json
+          preferred_regions=("eastus2" "westus" "centralus" "swedencentral" "westeurope")
+          location=""
+          for region in "${preferred_regions[@]}"; do
+            available=$(jq -r --arg region "$region" '.[] | select(.location==$region and .currentValue < .limit) | .location' quotas.json)
+            if [[ -n "$available" ]]; then
+              location="$region"
+              break
+            fi
+          done
+          location=${location:-swedencentral}
+          echo "AZURE_LOCATION=$location" >> $GITHUB_ENV
+          echo "Chosen Azure location: $location"
+
+      - name: Shorten Environment Name
+        run: |
+          short_run_id=$(echo "${{ github.run_id }}" | cut -c1-3)
+          short_attempt=$(echo "${{ github.run_attempt }}" | cut -c1-3)
+          env_name="tdoc-${short_run_id}-${short_attempt}"
+          echo "AZURE_ENV_NAME=$env_name" >> $GITHUB_ENV
+          echo "Shortened AZURE_ENV_NAME: $env_name"
 
       - name: Parse repo name
         id: parse_repo_name
