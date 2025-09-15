@@ -14,8 +14,12 @@
 set -e
 set -u
 
+JSON_MODE=false
+OUTPUT_FILE=""
+
 get_quotas() {
     local fetched_quotas_table=("location,Model,Available Version,Remaining Quotas,Total Quotas")
+    local json_items=()
     
     for location in "${locations[@]}"; do
         echo "Fetching quotas for location $location..." >&2
@@ -65,7 +69,25 @@ get_quotas() {
                 
                 available_versions_str=$(printf "; %s" "${available_versions[@]}")
                 available_versions_str=${available_versions_str:1}
-                fetched_quotas_table+=("$location,$model_fullname,$available_versions_str,$(echo "$limit - $current_value" | bc),$limit")
+                                # Compute remaining quotas safely
+                                local remaining
+                                if [[ "$limit" =~ ^[0-9]+$ && "$current_value" =~ ^[0-9]+$ ]]; then
+                                    remaining=$((limit - current_value))
+                                else
+                                    remaining=$(echo "$limit - $current_value" | bc)
+                                fi
+                                fetched_quotas_table+=("$location,$model_fullname,$available_versions_str,$remaining,$limit")
+
+                                if [ "$JSON_MODE" = true ]; then
+                                    IFS=';' read -r -a _vers_split <<< "$available_versions_str"
+                                    local vers_parts=()
+                                    for v in "${_vers_split[@]}"; do
+                                        v_trim=$(echo "$v" | xargs)
+                                        [ -n "$v_trim" ] && vers_parts+=("\"$v_trim\"")
+                                    done
+                                    local versions_json="[${vers_parts[*]}]"
+                                    json_items+=("{\"location\":\"$location\",\"model\":\"$model_fullname\",\"versions\":$versions_json,\"currentValue\":$current_value,\"limit\":$limit,\"remaining\":$remaining}")
+                                fi
 
                 # skip the rest of the candidate_models
                 break
@@ -78,7 +100,21 @@ get_quotas() {
         echo "No quotas found for the candidate models" >&2
         return
     fi
-    printf "%s\n" "${fetched_quotas_table[@]}"
+        if [ "$JSON_MODE" = true ]; then
+                local count=${#json_items[@]}
+                if [ $count -eq 0 ]; then
+                    echo '[]'
+                else
+                    printf '['
+                    for i in "${!json_items[@]}"; do
+                        printf '%s' "${json_items[$i]}"
+                        if [ $i -lt $((count-1)) ]; then printf ','; fi
+                    done
+                    printf ']'
+                fi
+        else
+                printf "%s\n" "${fetched_quotas_table[@]}"
+        fi
 }
 
 check_az() {
@@ -120,11 +156,21 @@ while (( "$#" )); do
             subscription="$2"
             shift 2
         ;;
+        --json)
+            JSON_MODE=true
+            shift 1
+        ;;
+        -o|--output)
+            OUTPUT_FILE="$2"
+            shift 2
+        ;;
         -h|--help)
-            echo "Usage: $0 [-m|--models <model>] [-s|--subscription <subscription>]"
+            echo "Usage: $0 [-m|--models <model>] [-s|--subscription <subscription>] [--json] [-o|--output <file>]"
             echo "Options:"
             echo "  -m|--models <model>         List of candidate models to check. Default: OpenAI.Standard.gpt-35-turbo:* OpenAI.Standard.gpt-4:1106-Preview"
             echo "  -s|--subscription <subscription>  Azure subscription ID to use. Default: Current subscription"
+            echo "  --json                      Output JSON array instead of table"
+            echo "  -o|--output <file>          Write output to file (works with both modes)"
             echo "  -h|--help                 Show help"
             exit 0
         ;;
@@ -156,7 +202,20 @@ else
 fi
 
 quotas=$(get_quotas)
-printf "%s\n" "${quotas[@]}" | column -s, -t
+if [ "$JSON_MODE" = true ]; then
+    if [ -n "$OUTPUT_FILE" ]; then
+        printf "%s" "$quotas" > "$OUTPUT_FILE"
+        echo "Wrote JSON quotas to $OUTPUT_FILE"
+    else
+        printf "%s\n" "$quotas"
+    fi
+else
+    if [ -n "$OUTPUT_FILE" ]; then
+        printf "%s\n" "$quotas" > "$OUTPUT_FILE"
+        echo "Wrote quotas table to $OUTPUT_FILE"
+    fi
+    printf "%s\n" "$quotas" | column -s, -t
+fi
 
 # Switch back to the original subscription if we switched
 if [ -n "$switched_subscription" ]; then
