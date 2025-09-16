@@ -433,7 +433,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const tableIndex = lines.indexOf(tableHeaderLine);
         for (let i = tableIndex + 1; i < lines.length; i++) {
           const ln = lines[i];
-            if (/^\|?\s*-+\s*\|/.test(ln)) continue; // separator row
+            if (/^\s*\|\s*[-:]+(\s*\|\s*[-:]+)*\s*\|?\s*$/.test(ln)) continue; // separator row
             if (!/\|/.test(ln)) {
               if (ln.trim() === '') break; // end table on blank
               continue;
