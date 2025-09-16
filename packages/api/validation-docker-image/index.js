@@ -49,7 +49,7 @@ module.exports = async function (context, req) {
     const timeout = new Promise((_, reject) => {
       const timeoutId = setTimeout(() => {
         clearTimeout(timeoutId);
-        reject(new Error('OSSF score check timed out after 3 minutes'));
+        reject(new Error('Docker images check timed out after 3 minutes'));
       }, 180000);
     });
 

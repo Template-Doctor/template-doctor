@@ -298,12 +298,20 @@ class GitHubApiClient {
     /**
      * Finds an artifact by its name containing the specified GUID
      * @param {string} inputGuid - GUID to search for in artifact names
+     * @param {string} [ownerRepo] - Repository in owner/repo format (optional, uses this.workflowOwnerRepo if not provided)
      * @returns {Promise<Object>} - The artifact item response
      */
-    async getArtifactsListItem(inputGuid) {
+    async getArtifactsListItem(inputGuid, ownerRepo) {
         try {
             if (!inputGuid || typeof inputGuid !== 'string') {
                 throw new Error('Invalid GUID provided for artifact search');
+            }
+
+            // Use provided ownerRepo or fallback to the instance's workflowOwnerRepo
+            const repoToUse = ownerRepo || this.workflowOwnerRepo;
+            
+            if (!repoToUse || typeof repoToUse !== 'string' || repoToUse.indexOf('/') === -1) {
+                throw new Error('Invalid ownerRepo format. Must be in format "owner/repo"');
             }
 
             const url = `${this.baseUrl}/repos/${this.workflowOwnerRepo}/actions/artifacts`;
@@ -314,7 +322,7 @@ class GitHubApiClient {
                 const contextData = {
                     url: url,
                     inputGuid: inputGuid,
-                    workflowOwnerRepo: this.workflowOwnerRepo
+                    ownerRepo: repoToUse
                 };
                 
                 const { error, errorContext, errorMessage } = await processGitHubApiError(
@@ -333,25 +341,7 @@ class GitHubApiClient {
             
             const data = await resp.json();
             if (data && Array.isArray(data.artifacts)) {
-                // Return the first artifact whose name includes the inputGuid
-                const foundArtifact = data.artifacts.find(artifact => typeof artifact.name === 'string' && artifact.name.includes(inputGuid));
-                if (foundArtifact) {
-                    return { error: null, data: foundArtifact };
-                }
-                
-                // Return specific error to indicate artifact not found but API call was successful
-                // Include useful context about what we searched for and what was available
-                return { 
-                    error: 'ARTIFACT_NOT_FOUND', 
-                    data: null, 
-                    shouldContinuePolling: true,
-                    context: {
-                        inputGuid: inputGuid,
-                        artifactsCount: data.artifacts.length,
-                        workflowOwnerRepo: this.workflowOwnerRepo,
-                        availableArtifactNames: data.artifacts.map(a => a.name).slice(0, 5) // Include first 5 artifact names for debugging
-                    }
-                };
+                return { error: null, data }
             }
             
             return { 
@@ -359,7 +349,7 @@ class GitHubApiClient {
                 data: null,
                 context: {
                     inputGuid: inputGuid,
-                    workflowOwnerRepo: this.workflowOwnerRepo,
+                    ownerRepo: repoToUse,
                     responseKeys: Object.keys(data || {})
                 }
             };
@@ -370,7 +360,7 @@ class GitHubApiClient {
             if (!err.context) {
                 err.context = {
                     inputGuid: inputGuid,
-                    workflowOwnerRepo: this.workflowOwnerRepo,
+                    ownerRepo: ownerRepo || this.workflowOwnerRepo,
                     errorType: err.name,
                     errorStack: err.stack
                 };
@@ -507,6 +497,70 @@ class GitHubApiClient {
         throw lastError;
     }
 
+    async getWorkflowRunByUniqueInputId(uniqueInputId) {
+        try {
+
+            // create utc date range from last 10 minutes
+            const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+            const isoDate = tenMinutesAgo.toISOString();
+
+            const url = `${this.baseUrl}/repos/${this.workflowOwnerRepo}/actions/workflows/${this.workflowId}/runs?per_page=100&branch=main&created:>=${isoDate}`;
+            this.context.log(`Searching for workflow runs with unique input ID: ${uniqueInputId}`);
+
+            const resp = await this.fetchWithGitHubAuth(url);
+            if (!resp.ok) {
+                const contextData = {
+                    url: url,
+                    uniqueInputId: uniqueInputId,
+                    ownerRepo: ownerRepo
+                };
+                const { error, errorContext, errorMessage } = await processGitHubApiError(
+                    resp,
+                    'search workflow runs by unique input ID',
+                    contextData,
+                    this.context
+                );
+                return {
+                    error: errorMessage,
+                    data: null,
+                    context: errorContext
+                };
+            }
+
+            const data = await resp.json();
+            const matchingRun = data.workflow_runs.find(run => run.head_commit.id === uniqueInputId);
+            if (matchingRun) {
+                return { error: null, data: matchingRun };
+            }
+
+            return {
+                error: 'No matching workflow run found',
+                data: null,
+                context: {
+                    uniqueInputId: uniqueInputId,
+                    ownerRepo: ownerRepo,
+                    url: url
+                }
+            };
+        } catch (err) {
+            this.context.log(`GitHub API client get workflow run by unique input ID error: ${err.message}`);
+
+            if (!err.context) {
+                err.context = {
+                    uniqueInputId: uniqueInputId,
+                    ownerRepo: ownerRepo,
+                    errorType: err.name,
+                    errorStack: err.stack
+                };
+            }
+
+            const enrichedError = new Error(err.message);
+            enrichedError.context = err.context;
+            throw enrichedError;
+        }
+    }
+
+
     /**
      * Gets details for a specific workflow run
      * @param {string} ownerRepo - Repository in owner/repo format
@@ -516,8 +570,8 @@ class GitHubApiClient {
     async getWorkflowRun(ownerRepo, runId) {
         try {
             // Validate input parameters
-            if (!ownerRepo || typeof ownerRepo !== 'string' || ownerRepo.indexOf('/') === -1) {
-                throw new Error('Invalid ownerRepo format. Must be in format "owner/repo"');
+            if (!runId || (isNaN(Number(runId)) && typeof runId !== 'number')) {
+                throw new Error(`Invalid runId provided for workflow run search: ${runId}`);
             }
 
             // GitHub workflow run ID should be a number or a string containing a number
@@ -525,7 +579,7 @@ class GitHubApiClient {
                 throw new Error(`Invalid runId provided for workflow run search: ${runId}`);
             }
 
-            const url = `${this.baseUrl}/repos/${ownerRepo}/actions/runs/${runId}`;
+            const url = `${this.baseUrl}/repos/${this.workflowOwnerRepo}/actions/runs/${runId}`;
             this.context.log(`Fetching workflow run details: ${url}`);
 
             const resp = await this.fetchWithGitHubAuth(url);

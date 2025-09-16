@@ -58,7 +58,7 @@ function addIssue(issues, id, severity, message, details = null) {
  * @param {number} [params.timeout=120000] - Maximum time to wait in milliseconds (default 2 minutes)
  * @returns {Promise<Object>} - Result object with success flag and artifact data
  */
-async function startWorkflowAndWaitForArtifact(client, context, issues, params) {
+async function startWorkflowAndWaitForRunId(client, context, issues, params) {
     const { 
         templateOwnerRepo, 
         workflowUrl, 
@@ -109,111 +109,33 @@ async function startWorkflowAndWaitForArtifact(client, context, issues, params) 
         // delay after workflow trigger - give workflow time to start
         await sleep(initialDelayAfterTrigger);
 
-        // poll github artifacts for repo for up to the polling timeout
-        const pollStart = Date.now();
-        let runStatus = undefined;
-        let attempt = 0;
+        // Call waitUntilRunStarted to get the run ID
+        context.log(`Waiting for workflow run to start for ${templateOwnerRepo} with GUID: ${requestGuid}`);
+        const runStartResult = await waitUntilRunStarted(client, context, requestGuid);
         
-        while (Date.now() - pollStart < timeout) {
-            runStatus = await client.getArtifactsListItem(requestGuid);
-            if (runStatus.error == null) {
-                return { success: true, runStatus };
-            }
-            
-            // Use switch statement for clearer error handling flow
-            switch (runStatus.error) {
-                case 'ARTIFACT_NOT_FOUND':
-                    // Only continue polling if specifically indicated
-                    if (runStatus.shouldContinuePolling) {
-                        // Calculate delay using exponential backoff with jitter
-                        attempt++;
-                        const baseDelay = Math.min(pollingInterval * Math.pow(backoffMultiplier, attempt - 1), maxPollingDelay);
-                        const jitter = Math.floor(baseDelay * jitterFactor * Math.random());
-                        const delay = baseDelay + jitter;
-                        
-                        context.log(`Waiting for ${templateOwnerRepo} artifact with request GUID: ${requestGuid} (attempt ${attempt}, next retry in ${Math.round(delay/1000)}s)`);
-                        // wait with exponential backoff before polling again
-                        await sleep(delay);
-                        // Continue to next iteration of the while loop
-                        continue;
-                    } else {
-                        // Artifact not found but polling was not indicated
-                        context.log(`Artifact not found for GUID ${requestGuid} and polling not indicated. Stopping polling.`);
-                        break;
-                    }
-                    
-                default:
-                    // Collect detailed diagnostic information for unexpected error types
-                    const errorDetails = {
-                        errorType: runStatus.error,
-                        errorTime: new Date().toISOString(),
-                        attemptsMade: attempt,
-                        elapsedTimeMs: Date.now() - pollStart,
-                        context: runStatus.context || {},
-                        requestGuid,
-                        templateOwnerRepo
-                    };
-                    
-                    context.log(`Unexpected error during artifact polling: ${runStatus.error}`, errorDetails);
-                    break;
-            }
-            
-            // If we reach here, we've either hit a default case or a non-polling ARTIFACT_NOT_FOUND
-            // Exit the polling loop
-            break;
-        }
-        
-        // If we get here, polling timed out or encountered an error
-        if (runStatus && runStatus.error) {
-            // Create a richer error message with more diagnostic information
-            let errorMessage = `Workflow artifact failed for request GUID: ${requestGuid}`;
-            let errorContext = runStatus.context || {
+        if (runStartResult.success && runStartResult.runId) {
+            // Successfully found a run ID
+            context.log(`Successfully found run ID ${runStartResult.runId} for GUID: ${requestGuid}`);
+            return runStartResult;
+        } else {
+            // No run ID found - create an issue with details
+            let errorMessage = `Failed to get workflow run ID for GUID: ${requestGuid}`;
+            let errorContext = runStartResult.context || {
                 workflowUrl, 
                 workflowFile, 
                 templateOwnerRepo, 
-                requestGuid,
-                originalError: runStatus.error
+                requestGuid
             };
             
-            // Add error-type specific details
-            switch (runStatus.error) {
-                case 'ARTIFACT_NOT_FOUND':
-                    errorMessage = `Workflow artifact not found for request GUID: ${requestGuid} after ${Date.now() - pollStart}ms of polling`;
-                    errorContext.pollingDurationMs = Date.now() - pollStart;
-                    errorContext.pollingAttempts = attempt;
-                    break;
-                    
-                case 'No artifacts array in response':
-                    errorMessage = `Invalid response format from GitHub API: No artifacts array found`;
-                    if (runStatus.context && runStatus.context.responseKeys) {
-                        errorMessage += `. Found keys: ${runStatus.context.responseKeys.join(', ')}`;
-                    }
-                    break;
-                    
-                default:
-                    // For unknown errors, include as much diagnostic info as possible
-                    errorMessage = `Unexpected error during artifact retrieval: ${runStatus.error}`;
-                    errorContext.pollingDurationMs = Date.now() - pollStart;
-                    errorContext.pollingAttempts = attempt;
-                    errorContext.pollingTimeoutMs = timeout;
-                    errorContext.timestamp = new Date().toISOString();
+            // Add error details from the result
+            if (runStartResult.error) {
+                errorMessage += `: ${runStartResult.error}`;
+                errorContext.originalError = runStartResult.error;
             }
             
             // Include the detailed context from the error
             addIssue(issues, 'docker-image-score-artifact-failed', 'error', errorMessage, errorContext);
-        } else {
-            // Timeout without a specific error
-            addIssue(issues, 'docker-image-score-artifact-timeout', 'error',
-                `Timed out waiting for artifact with GUID: ${requestGuid} after ${Math.round((Date.now() - pollStart) / 1000)}s`,
-                {
-                    workflowUrl,
-                    workflowFile,
-                    templateOwnerRepo,
-                    requestGuid,
-                    pollingAttempts: attempt,
-                    pollingDurationMs: Date.now() - pollStart,
-                    pollingTimeoutMs: timeout
-                });
+            return { success: false };
         }
         
         return { success: false };
@@ -232,6 +154,129 @@ async function startWorkflowAndWaitForArtifact(client, context, issues, params) 
             });
         return { success: false };
     }
+}
+
+/**
+ * Waits until a GitHub workflow run has started by polling for artifacts with the provided GUID
+ * @param {GitHubApiClient} client - GitHub API client instance
+ * @param {Object} context - Azure Function context for logging
+ * @param {string} inputGuid - The GUID to search for in artifacts
+ * @returns {Promise<Object>} - Result object with success flag and run ID if found
+ */
+async function waitUntilRunStarted(client, context, inputGuid) {
+    if (!inputGuid || typeof inputGuid !== 'string') {
+        throw new Error('Invalid GUID provided for artifact search');
+    }
+
+    const maxWaitTime = 30000; // 30 seconds timeout
+    const pollInterval = 5000; // 3 seconds between checks
+    const startTime = Date.now();
+    let attempts = 0;
+    let response = null;
+    let runId = null;
+
+    // Do-while loop to poll until we find artifacts or timeout
+    do {
+        attempts++;
+        try {
+            // Call getWorkflowRunByUniqueInputId to check for artifacts
+            response = await client.getWorkflowRunByUniqueInputId(inputGuid);
+
+            context.log(`Polling for runs with input GUID ${inputGuid} (attempt ${attempts}, elapsed time: ${Math.round((Date.now() - startTime) / 1000)}s)`);
+            
+            // If we found runs successfully
+            if (response.error === null && response.data && response.data.artifacts && Array.isArray(response.data.artifacts)) {
+                // Look for a specific artifact with name pattern "scan-started-<inputGuid>"
+                const scanStartedArtifact = response.data.artifacts.find(
+                    artifact => typeof artifact.name === 'string' && 
+                                artifact.name.startsWith('scan-started-') && 
+                                artifact.name.includes(inputGuid)
+                );
+                
+                if (scanStartedArtifact && scanStartedArtifact.workflow_run && scanStartedArtifact.workflow_run.id) {
+                    runId = scanStartedArtifact.workflow_run.id;
+                    context.log(`Found workflow run ID: ${runId} for scan-started artifact with GUID: ${inputGuid}`);
+                    return { 
+                        success: true, 
+                        runId: runId, 
+                        data: scanStartedArtifact
+                    };
+                } else {
+                    // If we can't find the specific scan-started artifact but have any artifact with a workflow_run.id
+                    const anyArtifactWithRunId = response.data.artifacts.find(
+                        artifact => artifact.workflow_run && artifact.workflow_run.id
+                    );
+                    
+                    if (anyArtifactWithRunId) {
+                        runId = anyArtifactWithRunId.workflow_run.id;
+                        context.log(`No scan-started artifact found, but got run ID: ${runId} from another artifact with GUID: ${inputGuid}`);
+                        return { 
+                            success: true, 
+                            runId: runId, 
+                            data: anyArtifactWithRunId 
+                        };
+                    }
+                    
+                    context.log(`Found ${response.data.artifacts.length} artifacts for GUID ${inputGuid} but none have the required workflow run ID`);
+                    return { 
+                        success: false, 
+                        error: 'RUN_ID_NOT_FOUND',
+                        data: response.data,
+                        context: {
+                            inputGuid,
+                            artifactsCount: response.data.artifacts.length,
+                            artifactNames: response.data.artifacts.map(a => a.name).slice(0, 5), // First 5 for debug
+                            attemptsMade: attempts,
+                            elapsedTimeMs: Date.now() - startTime
+                        }
+                    };
+                }
+            }
+            
+            // If there are no artifacts yet, or response has an error, continue polling
+            if (Date.now() - startTime < maxWaitTime) {
+                // Wait before trying again
+                await sleep(pollInterval);
+                // Continue to next iteration
+                continue;
+            }
+            
+            // If we reach here, we've timed out
+            context.log(`Error or end of polling for GUID ${inputGuid}: ${response.error}`);
+            break;
+            
+        } catch (err) {
+            context.log(`Error during artifact polling: ${err.message}`);
+            
+            // Add context to the error
+            const errorContext = {
+                inputGuid,
+                attemptsMade: attempts,
+                elapsedTimeMs: Date.now() - startTime,
+                errorType: err.name,
+                errorStack: err.stack
+            };
+            
+            return { 
+                success: false, 
+                error: err.message, 
+                context: errorContext 
+            };
+        }
+    } while (Date.now() - startTime < maxWaitTime);
+    
+    // If we get here, polling timed out or encountered an error
+    return {
+        success: false,
+        error: response ? response.error : 'TIMEOUT',
+        context: {
+            inputGuid,
+            attemptsMade: attempts,
+            elapsedTimeMs: Date.now() - startTime,
+            responseError: response ? response.error : null,
+            responseContext: response ? response.context : null
+        }
+    };
 }
 
 /**
@@ -398,7 +443,7 @@ async function getDockerImageScore(context, workflowToken, workflowUrl, workflow
         }
 
         // Start workflow and wait for artifact
-        const workflowResult = await startWorkflowAndWaitForArtifact(client, context, issues, {
+        const workflowResult = await startWorkflowAndWaitForRunId(client, context, issues, {
             templateOwnerRepo,
             workflowUrl,
             workflowFile,
@@ -409,25 +454,9 @@ async function getDockerImageScore(context, workflowToken, workflowUrl, workflow
         if (!workflowResult.success) {
             return; // Issue already added by startWorkflowAndWaitForArtifact
         }
-        
-        const runStatus = workflowResult.runStatus;
-        
-        // if the run completed but concluded with non-success, record a warning
-        if (!runStatus.data || !runStatus.data.workflow_run || !runStatus.data.workflow_run.id) {
-            addIssue(issues, 'docker-image-score-artifact-find-run-id-failed', 'error', 
-                `Workflow run id not found`, 
-                { 
-                    workflowUrl, 
-                    workflowFile, 
-                    templateOwnerRepo, 
-                    requestGuid,
-                    runStatusData: runStatus.data ? JSON.stringify(runStatus.data) : 'No data'
-                });
-            return;
-        }
 
         // Wait until the workflow run completes
-        const runId = runStatus.data.workflow_run.id;
+        const runId = workflowResult.runId;
         const waitResult = await waitUntilRunCompletes(client, context, issues, {
             runId,
             templateOwnerRepo,
@@ -516,5 +545,6 @@ async function getDockerImageScore(context, workflowToken, workflowUrl, workflow
 module.exports = { 
     getDockerImageScore,
     waitUntilRunCompletes,
-    startWorkflowAndWaitForArtifact
+    startWorkflowAndWaitForArtifact: startWorkflowAndWaitForRunId,
+    waitUntilRunStarted
 };
