@@ -101,25 +101,42 @@
   // Only populate the data if the user is authenticated
   if (!window.templatesData) {
     // Initialize templatesData if it doesn't exist yet
-    window.templatesData = [ ...seed];
+    window.templatesData = [
+  {
+    "timestamp": "2025-09-12T10:10:15.960Z",
+    "dashboardPath": "1757671832045-dashboard.html",
+    "dataPath": "1757671832045-data.js",
+    "repoUrl": "https://github.com/anfibiacreativa/get-started-with-ai-agents",
+    "collection": "aigallery",
+    "ruleSet": "partner",
+    "compliance": {
+      "percentage": 20,
+      "issues": 44,
+      "passed": 12
+    },
+    "scannedBy": [
+      "anfibiacreativa"
+    ],
+    "relativePath": "anfibiacreativa-get-started-with-ai-agents/1757671832045-dashboard.html"
+  }
+];
   }
   
   const cfg = window.TemplateDoctorConfig || {};
   const requireAuth = typeof cfg.requireAuthForResults === 'boolean' ? cfg.requireAuthForResults : true;
   const isAuthed = !!(window.GitHubAuth && window.GitHubAuth.isAuthenticated && window.GitHubAuth.isAuthenticated());
 
-  if (!requireAuth || isAuthed) {
-    console.log('#########[index-data] User is authenticated; using existing template data');
-
-    if (!Array.isArray(window.templatesData)) {
-      window.templatesData = [...seed];
-    }
-      window.templatesData = [...seed];
-
-  } else {
-    // If not authenticated, set an empty array
-    console.log('[index-data] User is not authenticated, setting empty template data');
-    window.templatesData = [];
+  // Non‑destructive hydration: always keep seed data available so previously scanned templates never "disappear".
+  // If auth gating is required, the UI layer can decide to hide rather than erase data.
+  if (!Array.isArray(window.templatesData) || window.templatesData.length === 0) {
+    window.templatesData = [...seed];
   }
-  console.log('[index-data] Template data loaded, entries:', window.templatesData.length);
+
+  if (requireAuth && !isAuthed) {
+    console.log('[index-data] Auth required but user not authenticated – leaving templatesData populated (UI may hide it).');
+    window.__TEMPLATE_RESULTS_DEFERRED = true;
+  } else {
+    window.__TEMPLATE_RESULTS_DEFERRED = false;
+  }
+  console.log('[index-data] Template data loaded (non-destructive). Entries:', window.templatesData.length, 'authRequired:', requireAuth, 'isAuthed:', isAuthed);
 })();
