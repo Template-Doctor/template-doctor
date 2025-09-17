@@ -14,8 +14,7 @@ function createGitHubHeaders() {
   };
 }
 
-async function fetchWithGitHubAuth(url, options = {}) {
-
+async function fetchWithGitHubAuth(url, options = {}, context = null) {
   const requestOptions = {
     ...options,
     headers: {
@@ -25,30 +24,96 @@ async function fetchWithGitHubAuth(url, options = {}) {
     signal: AbortSignal.timeout(options.timeout || fetchTimeout)
   };
 
-  return fetch(url, requestOptions);
+  if (context && context.log) {
+    context.log(`Making GitHub API request`, {
+      operation: 'fetchWithGitHubAuth',
+      url,
+      method: options.method || 'GET'
+    });
+  }
+
+  try {
+    return await fetch(url, requestOptions);
+  } catch (err) {
+    if (context && context.log && context.log.error) {
+      context.log.error(`Error in GitHub API request`, {
+        operation: 'fetchWithGitHubAuth',
+        url,
+        method: options.method || 'GET',
+        error: err.message,
+        stack: err.stack
+      });
+    }
+    throw err;
+  }
 }
 
-async function getWorkflowRun(workflowOwner, workflowRepo, workflowRunId) {
-
+async function getWorkflowRun(workflowOwner, workflowRepo, workflowRunId, context = null) {
   const workflowUrl = `https://api.github.com/repos/${encodeURIComponent(workflowOwner)}/${encodeURIComponent(workflowRepo)}/actions/runs/${workflowRunId}`;
 
-  return fetchWithGitHubAuth(workflowUrl);
+  if (context && context.log) {
+    context.log(`Fetching workflow run data`, {
+      operation: 'getWorkflowRun',
+      workflowOwner,
+      workflowRepo,
+      workflowRunId
+    });
+  }
+
+  return fetchWithGitHubAuth(workflowUrl, {}, context);
 }
 
-async function getWorkflowRunData(workflowOwner, workflowRepo, workflowRunId) {
+async function getWorkflowRunData(workflowOwner, workflowRepo, workflowRunId, context = null) {
+  if (context && context.log) {
+    context.log(`Getting workflow run data`, {
+      operation: 'getWorkflowRunData',
+      workflowOwner,
+      workflowRepo,
+      workflowRunId
+    });
+  }
 
-  const rawResponse = await getWorkflowRun(workflowOwner, workflowRepo, workflowRunId)
+  const rawResponse = await getWorkflowRun(workflowOwner, workflowRepo, workflowRunId, context);
 
   if (!rawResponse.ok) {
     const errText = await rawResponse.text();
+    if (context && context.log && context.log.error) {
+      context.log.error(`Failed to get workflow run data`, {
+        operation: 'getWorkflowRunData',
+        workflowOwner,
+        workflowRepo,
+        workflowRunId,
+        status: rawResponse.status,
+        error: errText
+      });
+    }
     throw new Error(`Trigger workflow failed: ${rawResponse.status} ${rawResponse.statusText} - ${errText}`);
   }
 
   const data = await rawResponse.json();
 
   if (!data) {
+    if (context && context.log && context.log.error) {
+      context.log.error(`Invalid response from GitHub`, {
+        operation: 'getWorkflowRunData',
+        workflowOwner,
+        workflowRepo,
+        workflowRunId
+      });
+    }
     throw new Error("Invalid response from GitHub when fetching workflow run data");
   }
+  
+  if (context && context.log) {
+    context.log(`Successfully retrieved workflow run data`, {
+      operation: 'getWorkflowRunData',
+      workflowOwner,
+      workflowRepo,
+      workflowRunId,
+      runStatus: data.status || 'unknown'
+    });
+  }
+  
   return data;
 }
 
@@ -95,7 +160,7 @@ module.exports = async function (context, req) {
     context.res = {
       status: 200,
       headers: { 'Access-Control-Allow-Origin': '*' },
-      body: { error: null, data: workflowRunData, context: { url: workflowUrl, uniqueInputId, ownerRepo: `${workflowOwner}/${workflowRepo}` } }
+      body: { error: null, data: workflowRunData, context: { workflowOrgRep, workflowRunId } }
     };
   } catch (error) {
     context.log.error('trigger-action: Error in trigger-action:', error);

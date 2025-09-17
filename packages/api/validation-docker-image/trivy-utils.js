@@ -301,12 +301,21 @@ function processTrivyResultsDetails(trivyResults, includeAllDetails = false) {
 
 /**
  * Extracts Trivy results from ZIP archive containing scan results
+ * @param {Object} context - Azure Functions context for logging
  * @param {ArrayBuffer} zipData - The ZIP file as an ArrayBuffer
+ * @param {string} [correlationId] - Optional ID to correlate logs across operations
  * @returns {Promise<Object>} - Parsed Trivy results
  */
-async function extractTrivyResults(zipData) {
+async function extractTrivyResults(context, zipData, correlationId = null) {
+    const requestId = correlationId || `trivy-extract-${Date.now()}`;
+    
     try {
-        const files = await extractFilesFromZip(zipData);
+        const files = await extractFilesFromZip(zipData, context, correlationId);
+        context.log(`Extracted ${Object.keys(files).length} files from ZIP archive`, { 
+            operation: 'extractTrivyResults',
+            fileCount: Object.keys(files).length,
+            requestId
+        });
 
         // Look for Trivy results files in the extracted files
         const trivyResults = {};
@@ -318,14 +327,31 @@ async function extractTrivyResults(zipData) {
                     const parsed = JSON.parse(content);
                     trivyResults[filename] = parsed;
                 } catch (parseErr) {
-                    console.warn(`Failed to parse JSON from ${filename}:`, parseErr);
+                    context.log.warn(`Failed to parse JSON from ${filename}`, {
+                        error: parseErr.message,
+                        stack: parseErr.stack,
+                        filename,
+                        operation: 'extractTrivyResults',
+                        requestId
+                    });
                 }
             }
         }
 
+        context.log(`Found ${Object.keys(trivyResults).length} valid Trivy result files`, {
+            operation: 'extractTrivyResults',
+            validFiles: Object.keys(trivyResults).length,
+            requestId
+        });
+        
         return trivyResults;
     } catch (err) {
-        console.error('Error extracting Trivy results:', err);
+        context.log.error(`Error extracting Trivy results`, {
+            error: err.message,
+            stack: err.stack,
+            operation: 'extractTrivyResults',
+            requestId
+        });
         throw new Error(`Failed to extract Trivy results: ${err.message}`);
     }
 }
@@ -527,19 +553,132 @@ function calculateTrivyScore(trivyResults) {
 }
 
 /**
- * Helper function to add issues consistently
+ * Helper function to add issues consistently with improved error classification
+ * @param {Array} issues - The issues array to add to
+ * @param {string} id - Unique identifier for the issue
+ * @param {string} severity - Severity level (critical, error, warning, info)
+ * @param {string} message - Human-readable message describing the issue
+ * @param {Object} details - Optional details about the issue
+ * @param {Object} context - Optional logging context
  */
-function addIssue(issues, id, severity, message, details = null) {
+function addIssue(issues, id, severity, message, details = null, context = null) {
+    // Determine issue type based on details and error pattern
+    let issueType = 'general';
+    let adjustedSeverity = severity;
+    
+    if (details) {
+        // Check for network errors
+        if (details.error && (
+            details.code === 'ECONNREFUSED' || 
+            details.code === 'ETIMEDOUT' || 
+            details.code === 'ENOTFOUND' ||
+            String(details.error).includes('network') ||
+            String(details.error).includes('connection') ||
+            String(details.error).includes('timeout')
+        )) {
+            issueType = 'network_error';
+            // Network errors are usually more critical than general errors
+            if (adjustedSeverity === 'warning') {
+                adjustedSeverity = 'error';
+            }
+        }
+        
+        // Check for permission/auth errors
+        else if (details.error && (
+            details.code === 'EACCES' ||
+            details.code === 'EPERM' ||
+            String(details.error).includes('permission') ||
+            String(details.error).includes('unauthorized') ||
+            String(details.error).includes('forbidden') ||
+            String(details.error).includes('auth')
+        )) {
+            issueType = 'permission_error';
+            // Auth errors are usually critical
+            if (adjustedSeverity === 'warning') {
+                adjustedSeverity = 'error';
+            }
+        }
+        
+        // Check for GitHub API errors
+        else if (details.error && (
+            String(details.error).includes('GitHub') ||
+            String(details.error).includes('rate limit') ||
+            String(details.error).includes('API')
+        )) {
+            issueType = 'github_api_error';
+        }
+        
+        // Check for file system errors
+        else if (details.error && (
+            details.code === 'ENOENT' ||
+            details.code === 'EISDIR' ||
+            String(details.error).includes('file') ||
+            String(details.error).includes('directory') ||
+            String(details.error).includes('not found')
+        )) {
+            issueType = 'filesystem_error';
+        }
+        
+        // Check for parsing errors
+        else if (details.error && (
+            String(details.error).includes('parse') ||
+            String(details.error).includes('JSON') ||
+            String(details.error).includes('syntax')
+        )) {
+            issueType = 'parsing_error';
+        }
+    }
+
     const issue = {
         id,
-        severity,
-        message
+        severity: adjustedSeverity,
+        type: issueType,
+        message,
+        timestamp: new Date().toISOString()
     };
 
     if (details) {
+        // If details contains an error property with just a message, enhance it
+        if (details.error && typeof details.error === 'string' && !details.stack) {
+            details.errorMessage = details.error;
+            delete details.error;
+        }
+        
         issue.details = details;
     } else if (arguments.length > 4 && arguments[4] !== null) {
         issue.error = arguments[4];
+    }
+    
+    // Log the issue if context is provided
+    if (context && context.log) {
+        const logLevel = adjustedSeverity === 'critical' ? 'error' : 
+                        adjustedSeverity === 'error' ? 'error' :
+                        adjustedSeverity === 'warning' ? 'warn' : 'info';
+        
+        // Use the appropriate log level method
+        if (logLevel === 'error' && context.log.error) {
+            context.log.error(`Issue [${id}] (${issueType}): ${message}`, { 
+                issueId: id, 
+                severity: adjustedSeverity,
+                type: issueType,
+                ...(details ? { details } : {})
+            });
+        } else if (logLevel === 'warn' && context.log.warn) {
+            context.log.warn(`Issue [${id}] (${issueType}): ${message}`, { 
+                issueId: id, 
+                severity: adjustedSeverity,
+                type: issueType,
+                ...(details ? { details } : {})
+            });
+        } else {
+            context.log(`Issue [${id}] (${issueType}): ${message}`, { 
+                issueId: id, 
+                severity: adjustedSeverity, 
+                type: issueType,
+                logLevel,
+                ...(details ? { details } : {})
+            });
+        }
     }
 
     issues.push(issue);
@@ -555,13 +694,16 @@ function addIssue(issues, id, severity, message, details = null) {
  * @param {number} maxScore - Maximum possible security score
  * @param {Array} issues - Array to add issues to
  * @param {Array} compliance - Array to add compliance information to
+ * @param {string} [correlationId] - Optional ID to correlate logs across operations
  * @returns {Promise<Object>} - Result of processing the repository scan
  */
 
 /* Trivy command which created .json 
 trivy repo --scanners vuln,secret,misconfig,license $REPO_NAME  --format json
 */
-async function processRepoScanArtifact(context, client, repoArtifact, templateOwnerRepo, artifact, maxScore, issues, compliance) {
+async function processRepoScanArtifact(context, client, repoArtifact, templateOwnerRepo, artifact, maxScore, issues, compliance, correlationId = null) {
+    const requestId = correlationId || `repo-scan-${repoArtifact.id || Date.now()}`;
+    
     try {
         const repoZipData = await client.getArtifactDownload(repoArtifact.archive_download_url);
 
@@ -573,18 +715,32 @@ async function processRepoScanArtifact(context, client, repoArtifact, templateOw
         }
 
         // Process the zip data to extract Trivy results and calculate score
-        context.log(`Repository scan artifact downloaded (${repoZipData.byteLength} bytes). Processing...`);
+        context.log(`Repository scan artifact downloaded`, {
+            operation: 'processRepoScanArtifact',
+            templateOwnerRepo,
+            bytesDownloaded: repoZipData.byteLength,
+            artifactName: repoArtifact.name,
+            correlationId: repoArtifact.id
+        });
 
         // Extract files from the ZIP archive
         const extractedFiles = await extractFilesFromZip(repoZipData);
-        context.log(`Extracted ${Object.keys(extractedFiles).length} files from repository scan artifact`);
+        context.log(`Extracted files from repository scan artifact`, {
+            operation: 'processRepoScanArtifact',
+            fileCount: Object.keys(extractedFiles).length,
+            templateOwnerRepo
+        });
 
         // Extract Trivy results from the files
-        const trivyResults = await extractTrivyResults(repoZipData);
-        context.log(`Found ${Object.keys(trivyResults).length} Trivy result files`);
+        const trivyResults = await extractTrivyResults(context, repoZipData);
+        context.log(`Processed Trivy result files`, {
+            operation: 'processRepoScanArtifact',
+            resultCount: Object.keys(trivyResults).length,
+            templateOwnerRepo
+        });
 
         // Call function to process Trivy results
-        const processedResults = processTrivyResultsDetails(trivyResults);
+        const processedResults = processTrivyResultsDetails(trivyResults, true);
 
         // Extract processed results
         const {
@@ -606,10 +762,26 @@ async function processRepoScanArtifact(context, client, repoArtifact, templateOw
             licenseDetails
         } = processedResults;
 
-        context.log(`Found ${totalMisconfigurations} total misconfigurations (Critical: ${criticalMisconfigurations}, High: ${highMisconfigurations}, Medium: ${mediumMisconfigurations}, Low: ${lowMisconfigurations})`);
-        context.log(`Found ${totalVulnerabilities} total vulnerabilities (Critical: ${criticalVulns}, High: ${highVulns}, Medium: ${mediumVulns}, Low: ${lowVulns})`);
-        if (secretsFound > 0) context.log(`Found ${secretsFound} potential secrets in repository`);
-        if (licenseIssues > 0) context.log(`Found ${licenseIssues} license compliance issues`);
+        context.log(`Analysis results`, {
+            operation: 'processRepoScanArtifact',
+            templateOwnerRepo,
+            misconfigurations: {
+                total: totalMisconfigurations,
+                critical: criticalMisconfigurations,
+                high: highMisconfigurations,
+                medium: mediumMisconfigurations,
+                low: lowMisconfigurations
+            },
+            vulnerabilities: {
+                total: totalVulnerabilities,
+                critical: criticalVulns,
+                high: highVulns,
+                medium: mediumVulns,
+                low: lowVulns
+            },
+            secrets: secretsFound,
+            licenseIssues: licenseIssues
+        });
 
         // Calculate comprehensive security score
         const securityResult = calculateTrivyScore(trivyResults);
@@ -812,11 +984,27 @@ async function processRepoScanArtifact(context, client, repoArtifact, templateOw
             }
         };
     } catch (err) {
-        context.log('Error processing repository scan artifact:', err);
+        context.log.error(`Error processing repository scan artifact`, {
+            operation: 'processRepoScanArtifact',
+            templateOwnerRepo,
+            artifactName: repoArtifact?.name,
+            error: err.message,
+            stack: err.stack,
+            code: err.code
+        });
+        
         addIssue(issues, 'docker-image-score-repo-artifact-processing-error', 'warning',
             'Failed to process repository scan artifact',
-            { error: err instanceof Error ? err.message : String(err) });
-        return { success: false, error: err.message };
+            { 
+                templateOwnerRepo,
+                artifactName: repoArtifact?.name,
+                error: err.message,
+                stack: err.stack,
+                code: err.code
+            }, 
+            context);
+            
+        return { success: false, error: err.message, errorDetails: { stack: err.stack, code: err.code } };
     }
 }
 
@@ -829,11 +1017,21 @@ async function processRepoScanArtifact(context, client, repoArtifact, templateOw
  * @param {number} maxScore - Maximum possible security score
  * @param {Array} issues - Array to add issues to
  * @param {Array} compliance - Array to add compliance information to
+ * @param {string} [correlationId] - Optional ID to correlate logs across operations
  * @returns {Promise<Object>} - Result of processing the image scan
  */
-async function processImageScanArtifact(context, client, imageArtifact, templateOwnerRepo, maxScore, issues, compliance) {
+async function processImageScanArtifact(context, client, imageArtifact, templateOwnerRepo, maxScore, issues, compliance, correlationId = null) {
+    const requestId = correlationId || `image-scan-${imageArtifact.id || Date.now()}`;
+    const imageName = imageArtifact.name.replace('scan-image-', '').replace(/-/g, '/');
+    
     try {
-        context.log(`Processing image scan artifact: ${imageArtifact.name}`);
+        context.log(`Processing image scan artifact`, {
+            operation: 'processImageScanArtifact',
+            templateOwnerRepo,
+            imageName,
+            artifactName: imageArtifact.name,
+            requestId
+        });
         // Extract image name and tag from artifact name
         const imageName = imageArtifact.name.replace('scan-image-', '').replace(/-/g, '/');
 
@@ -1056,13 +1254,32 @@ async function processImageScanArtifact(context, client, imageArtifact, template
         };
     } catch (err) {
         const imageName = imageArtifact.name.replace('scan-image-', '').replace(/-/g, '/');
-        context.log(`Error processing image scan artifact for ${imageName}:`, err);
+        context.log.error(`Error processing image scan artifact`, {
+            operation: 'processImageScanArtifact',
+            templateOwnerRepo,
+            imageName,
+            artifactName: imageArtifact?.name,
+            error: err.message,
+            stack: err.stack,
+            code: err.code
+        });
+        
         addIssue(issues, 'docker-image-image-artifact-processing-error', 'warning',
             `Failed to process image scan artifact for ${imageName}`,
-            { error: err instanceof Error ? err.message : String(err) });
+            { 
+                templateOwnerRepo,
+                imageName,
+                artifactName: imageArtifact?.name,
+                error: err.message,
+                stack: err.stack,
+                code: err.code
+            }, 
+            context);
+            
         return {
             success: false,
             error: err.message,
+            errorDetails: { stack: err.stack, code: err.code },
             imageName
         };
     }
@@ -1078,9 +1295,12 @@ async function processImageScanArtifact(context, client, imageArtifact, template
  * @param {number} maxScore - Maximum possible security score
  * @param {Array} issues - Array to add issues to
  * @param {Array} compliance - Array to add compliance information to
+ * @param {string} [correlationId] - Optional ID to correlate logs across operations
  * @returns {Promise<Object>} - Comprehensive security analysis result
  */
-async function processDockerImageArtifacts(context, client, artifact, templateOwnerRepo, artifacts, maxScore, issues, compliance) {
+async function processDockerImageArtifacts(context, client, artifact, templateOwnerRepo, artifacts, maxScore, issues, compliance, correlationId = null) {
+    const requestId = correlationId || `docker-artifacts-${artifact?.id || Date.now()}`;
+    
     try {
         if (!artifacts || !Array.isArray(artifacts) || artifacts.length === 0) {
             addIssue(issues, 'docker-image-score-no-artifacts', 'warning',
@@ -1111,14 +1331,14 @@ async function processDockerImageArtifacts(context, client, artifact, templateOw
 
         // Process the repository scan artifact
         const repoScanResult = await processRepoScanArtifact(
-            context, client, repoArtifact, templateOwnerRepo, artifact, maxScore, issues, compliance
+            context, client, repoArtifact, templateOwnerRepo, artifact, maxScore, issues, compliance, requestId
         );
 
         // Process each image scan artifact
         const imageScanResults = [];
         for (const imageArtifact of imageArtifacts) {
             const imageScanResult = await processImageScanArtifact(
-                context, client, imageArtifact, templateOwnerRepo, maxScore, issues, compliance
+                context, client, imageArtifact, templateOwnerRepo, maxScore, issues, compliance, requestId
             );
             imageScanResults.push(imageScanResult);
         }
@@ -1263,11 +1483,35 @@ async function processDockerImageArtifacts(context, client, artifact, templateOw
             }
         };
     } catch (err) {
-        context.log('Error processing Docker image artifacts:', err);
+        context.log.error(`Error processing Docker image artifacts`, {
+            operation: 'processDockerImageArtifacts',
+            templateOwnerRepo,
+            artifactCount: artifacts?.length || 0,
+            error: err.message,
+            stack: err.stack,
+            code: err.code,
+            requestId
+        });
+        
         addIssue(issues, 'docker-image-score-artifact-processing-error', 'warning',
             'Failed to process docker-image artifacts',
-            { error: err instanceof Error ? err.message : String(err) });
-        return { success: false, error: err.message };
+            { 
+                templateOwnerRepo,
+                error: err.message,
+                stack: err.stack,
+                code: err.code,
+                requestId
+            }, 
+            context);
+            
+        return { 
+            success: false, 
+            error: err.message,
+            errorDetails: { 
+                stack: err.stack, 
+                code: err.code 
+            }
+        };
     }
 }
 

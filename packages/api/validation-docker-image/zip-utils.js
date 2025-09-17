@@ -6,18 +6,43 @@ const yauzl = require("yauzl");
 /**
  * Extracts files from a ZIP archive contained in an ArrayBuffer
  * @param {ArrayBuffer} zipData - The ZIP file as an ArrayBuffer
+ * @param {Object} context - Azure Functions context for logging
+ * @param {string} [correlationId] - Optional ID to correlate logs across operations
  * @returns {Promise<Object>} - Object containing file contents, with filenames as keys
  */
-async function extractFilesFromZip(zipData) {
+async function extractFilesFromZip(zipData, context = null, correlationId = null) {
+    const requestId = correlationId || `zip-extract-${Date.now()}`;
+
     return new Promise((resolve, reject) => {
         // Convert ArrayBuffer to Buffer for yauzl
         const buffer = Buffer.from(zipData);
         const files = {};
 
+        if (context && context.log) {
+            context.log(`Extracting files from ZIP archive`, {
+                operation: 'extractFilesFromZip',
+                bufferSize: buffer.length,
+                requestId
+            });
+        }
+
         // Use yauzl to open the zip file from the buffer
         yauzl.fromBuffer(buffer, { lazyEntries: true }, (err, zipfile) => {
             if (err) {
-                reject(new Error(`Failed to open zip file: ${err.message}`));
+                const error = new Error(`Failed to open zip file: ${err.message}`);
+                error.code = err.code;
+
+                if (context && context.log && context.log.error) {
+                    context.log.error(`Failed to open zip file`, {
+                        operation: 'extractFilesFromZip',
+                        error: err.message,
+                        code: err.code,
+                        stack: err.stack,
+                        requestId
+                    });
+                }
+
+                reject(error);
                 return;
             }
 
@@ -31,6 +56,14 @@ async function extractFilesFromZip(zipData) {
                 // Read the entry
                 zipfile.openReadStream(entry, (err, readStream) => {
                     if (err) {
+                        if (context && context.log && context.log.warn) {
+                            context.log.warn(`Error opening read stream for file in ZIP`, {
+                                operation: 'extractFilesFromZip',
+                                fileName: entry.fileName,
+                                error: err.message,
+                                requestId
+                            });
+                        }
                         zipfile.readEntry();
                         return;
                     }
@@ -47,18 +80,44 @@ async function extractFilesFromZip(zipData) {
                     });
 
                     readStream.on("error", (err) => {
-                        console.error(`Error reading ${entry.fileName}: ${err.message}`);
+                        context.log.error(`Error reading file from ZIP`, {
+                            operation: 'extractFilesFromZip',
+                            fileName: entry.fileName,
+                            error: err.message,
+                            requestId
+                        });
+
                         zipfile.readEntry();
                     });
                 });
             });
 
             zipfile.on("end", () => {
+                if (context && context.log) {
+                    context.log(`ZIP extraction completed successfully`, {
+                        operation: 'extractFilesFromZip',
+                        fileCount: Object.keys(files).length,
+                        requestId
+                    });
+                }
                 resolve(files);
             });
 
             zipfile.on("error", (err) => {
-                reject(new Error(`Error reading zip file: ${err.message}`));
+                const error = new Error(`Error reading zip file: ${err.message}`);
+                error.code = err.code;
+
+                if (context && context.log && context.log.error) {
+                    context.log.error(`Error reading zip file`, {
+                        operation: 'extractFilesFromZip',
+                        error: err.message,
+                        code: err.code,
+                        stack: err.stack,
+                        requestId
+                    });
+                }
+
+                reject(error);
             });
 
             // Start reading entries
