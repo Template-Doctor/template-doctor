@@ -9,7 +9,6 @@ const workflowRepo = process.env.GITHUB_REPO_NAME || "template-doctor";
 const workflowFile = process.env.GITHUB_WORKFLOW_FILE || "validate-docker-images.yml";
 const gitHubApiVersion = "2022-11-28"; // GitHub API version for headers
 const fetchTimeout = 30000; // 30 seconds for fetch requests
-const runIdInputProperty = 'runId';
 
 function createGitHubHeaders() {
 

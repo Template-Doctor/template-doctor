@@ -2,8 +2,6 @@
  * Zip file utility functions for extracting and processing ZIP archives
  */
 const yauzl = require("yauzl");
-const { promisify } = require("util");
-const fs = require("fs");
 
 /**
  * Extracts files from a ZIP archive contained in an ArrayBuffer
