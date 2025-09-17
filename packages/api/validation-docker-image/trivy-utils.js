@@ -10,7 +10,7 @@ const { extractFilesFromZip } = require('./zip-utils');
  * @param {Object} trivyResults - Parsed Trivy results from extractTrivyResults
  * @returns {Object} - Detailed analysis of the scan results
  */
-function processTrivyResultsDetails(trivyResults) {
+function processTrivyResultsDetails(trivyResults, includeAllDetails = false) {
     // Aggregated counters for overall summary
     let totalMisconfigurations = 0;
     let criticalMisconfigurations = 0;
@@ -80,7 +80,7 @@ function processTrivyResultsDetails(trivyResults) {
         };
 
         // Extract image metadata if available
-        if (result.Metadata) {
+        if (result.Metadata && includeAllDetails) {
             artifactInfo.metadata = result.Metadata;
 
             // Size info
@@ -152,8 +152,10 @@ function processTrivyResultsDetails(trivyResults) {
                         };
 
                         // Add to global and per-artifact lists
-                        misconfigurationDetails.push(misconfigDetail);
-                        artifactInfo.misconfigurations.details.push(misconfigDetail);
+                        if(includeAllDetails){
+                            misconfigurationDetails.push(misconfigDetail);
+                            artifactInfo.misconfigurations.details.push(misconfigDetail);
+                        }
                     }
                 }
 
@@ -191,11 +193,15 @@ function processTrivyResultsDetails(trivyResults) {
 
                         // Add critical and high vulnerabilities to global details
                         if (vuln.Severity === 'CRITICAL' || vuln.Severity === 'HIGH') {
-                            vulnerabilityDetails.push(vulnDetail);
+                            if(includeAllDetails){
+                                vulnerabilityDetails.push(vulnDetail);
+                            }
                         }
 
                         // Add all vulnerabilities to per-artifact details
-                        artifactInfo.vulnerabilities.details.push(vulnDetail);
+                        if(includeAllDetails){
+                            artifactInfo.vulnerabilities.details.push(vulnDetail);
+                        }
                     }
                 }
 
@@ -212,8 +218,10 @@ function processTrivyResultsDetails(trivyResults) {
                             match: secret.Match ? secret.Match.substring(0, 10) + '...' : 'Hidden'
                         };
 
-                        secretDetails.push(secretDetail);
-                        artifactInfo.secrets.details.push(secretDetail);
+                        if(includeAllDetails){
+                            secretDetails.push(secretDetail);
+                            artifactInfo.secrets.details.push(secretDetail);
+                        }
                     }
                 }
 
@@ -231,8 +239,10 @@ function processTrivyResultsDetails(trivyResults) {
                                 target: scanResult.Target || 'unknown'
                             };
 
-                            licenseDetails.push(licenseDetail);
-                            artifactInfo.licenses.details.push(licenseDetail);
+                            if(includeAllDetails){
+                                licenseDetails.push(licenseDetail);
+                                artifactInfo.licenses.details.push(licenseDetail);
+                            }
                         }
                     }
                 }
