@@ -504,7 +504,7 @@ class GitHubApiClient {
             const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
             const isoDate = tenMinutesAgo.toISOString();
 
-            const url = `${this.baseUrl}/repos/${this.workflowOwnerRepo}/actions/workflows/${this.workflowId}/runs?per_page=100&branch=main&created:>=${isoDate}`;
+            const url = `${this.baseUrl}/repos/${this.workflowOwnerRepo}/actions/workflows/${this.workflowId}/runs?event=workflow_dispatch&per_page=100&branch=main&created:>=${isoDate}`;
             this.context.log(`Searching for workflow runs with unique input ID: ${uniqueInputId}`);
 
             const resp = await this.fetchWithGitHubAuth(url);
@@ -528,9 +528,9 @@ class GitHubApiClient {
             }
 
             const data = await resp.json();
-            const matchingRun = data.workflow_runs.find(run => run.head_commit.id === uniqueInputId);
+            const matchingRun = data.workflow_runs.find(run => run.title.includes(uniqueInputId));
             if (matchingRun) {
-                return { error: null, data: matchingRun };
+                return { error: null, data: matchingRun, context: { url: url, uniqueInputId: uniqueInputId, ownerRepo: ownerRepo } };
             }
 
             return {
@@ -563,11 +563,10 @@ class GitHubApiClient {
 
     /**
      * Gets details for a specific workflow run
-     * @param {string} ownerRepo - Repository in owner/repo format
      * @param {number|string} runId - The ID of the workflow run
      * @returns {Promise<Object>} - The workflow run details response
      */
-    async getWorkflowRun(ownerRepo, runId) {
+    async getWorkflowRun(runId) {
         try {
             // Validate input parameters
             if (!runId || (isNaN(Number(runId)) && typeof runId !== 'number')) {
@@ -589,7 +588,6 @@ class GitHubApiClient {
                 const contextData = {
                     url: url,
                     runId: runId,
-                    ownerRepo: ownerRepo
                 };
                 
                 const { error, errorContext, errorMessage } = await processGitHubApiError(
@@ -616,7 +614,6 @@ class GitHubApiClient {
                 data: null,
                 context: {
                     runId: runId,
-                    ownerRepo: ownerRepo,
                     url: url
                 }
             };
@@ -626,8 +623,6 @@ class GitHubApiClient {
             // If it's not one of our error objects with context, add context now
             if (!err.context) {
                 err.context = {
-                    runId: runId,
-                    ownerRepo: ownerRepo,
                     errorType: err.name,
                     errorStack: err.stack
                 };

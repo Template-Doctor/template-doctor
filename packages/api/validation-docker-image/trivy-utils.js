@@ -303,7 +303,7 @@ async function extractTrivyResults(zipData) {
 
         for (const [filename, content] of Object.entries(files)) {
             // Typically Trivy outputs JSON files with scan results
-            if (filename.endsWith('.json') && (filename.includes('trivy') || filename.includes('vuln'))) {
+            if (filename.endsWith('.json')) {
                 try {
                     const parsed = JSON.parse(content);
                     trivyResults[filename] = parsed;
@@ -553,7 +553,6 @@ trivy repo --scanners vuln,secret,misconfig,license $REPO_NAME  --format json
 */
 async function processRepoScanArtifact(context, client, repoArtifact, templateOwnerRepo, artifact, maxScore, issues, compliance) {
     try {
-        context.log(`Processing repository scan artifact: ${repoArtifact.name}`);
         const repoZipData = await client.getArtifactDownload(repoArtifact.archive_download_url);
 
         if (!repoZipData) {

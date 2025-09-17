@@ -1,4 +1,4 @@
-@token = {{$dotenv %GITHUB_TOKEN }}
+@token = {{$dotenv %GH_WORKFLOW_TOKEN }}
 @workflowRepo = diberry/template-doctor
 @workflowFile = validate-ossf-score.yml
 @repoAnalyzeScore = azure-samples/azure-search-static-web-app

@@ -180,57 +180,25 @@ async function waitUntilRunStarted(client, context, inputGuid) {
         attempts++;
         try {
             // Call getWorkflowRunByUniqueInputId to check for artifacts
-            response = await client.getWorkflowRunByUniqueInputId(inputGuid);
+            const { error, data, context } = await client.getWorkflowRunByUniqueInputId(inputGuid);
 
             context.log(`Polling for runs with input GUID ${inputGuid} (attempt ${attempts}, elapsed time: ${Math.round((Date.now() - startTime) / 1000)}s)`);
             
-            // If we found runs successfully
-            if (response.error === null && response.data && response.data.artifacts && Array.isArray(response.data.artifacts)) {
-                // Look for a specific artifact with name pattern "scan-started-<inputGuid>"
-                const scanStartedArtifact = response.data.artifacts.find(
-                    artifact => typeof artifact.name === 'string' && 
-                                artifact.name.startsWith('scan-started-') && 
-                                artifact.name.includes(inputGuid)
-                );
-                
-                if (scanStartedArtifact && scanStartedArtifact.workflow_run && scanStartedArtifact.workflow_run.id) {
-                    runId = scanStartedArtifact.workflow_run.id;
-                    context.log(`Found workflow run ID: ${runId} for scan-started artifact with GUID: ${inputGuid}`);
-                    return { 
-                        success: true, 
-                        runId: runId, 
-                        data: scanStartedArtifact
-                    };
-                } else {
-                    // If we can't find the specific scan-started artifact but have any artifact with a workflow_run.id
-                    const anyArtifactWithRunId = response.data.artifacts.find(
-                        artifact => artifact.workflow_run && artifact.workflow_run.id
-                    );
-                    
-                    if (anyArtifactWithRunId) {
-                        runId = anyArtifactWithRunId.workflow_run.id;
-                        context.log(`No scan-started artifact found, but got run ID: ${runId} from another artifact with GUID: ${inputGuid}`);
-                        return { 
-                            success: true, 
-                            runId: runId, 
-                            data: anyArtifactWithRunId 
-                        };
+            // If we found runId successfully
+            if (error === null && (data && data.id)) {
+                runId = data.id;
+                return {
+                    success: true,
+                    error: null,
+                    runId,
+                    context: {
+                        inputGuid,
+                        attemptsMade: attempts,
+                        elapsedTimeMs: Date.now() - startTime,
+                        responseError: response ? response.error : null,
+                        responseContext: response ? response.context : null
                     }
-                    
-                    context.log(`Found ${response.data.artifacts.length} artifacts for GUID ${inputGuid} but none have the required workflow run ID`);
-                    return { 
-                        success: false, 
-                        error: 'RUN_ID_NOT_FOUND',
-                        data: response.data,
-                        context: {
-                            inputGuid,
-                            artifactsCount: response.data.artifacts.length,
-                            artifactNames: response.data.artifacts.map(a => a.name).slice(0, 5), // First 5 for debug
-                            attemptsMade: attempts,
-                            elapsedTimeMs: Date.now() - startTime
-                        }
-                    };
-                }
+                };
             }
             
             // If there are no artifacts yet, or response has an error, continue polling
@@ -269,6 +237,7 @@ async function waitUntilRunStarted(client, context, inputGuid) {
     return {
         success: false,
         error: response ? response.error : 'TIMEOUT',
+        runId,
         context: {
             inputGuid,
             attemptsMade: attempts,
@@ -296,10 +265,8 @@ async function waitUntilRunStarted(client, context, inputGuid) {
 async function waitUntilRunCompletes(client, context, issues, params) {
     const { 
         runId, 
-        templateOwnerRepo, 
-        workflowUrl, 
-        workflowFile, 
         requestGuid,
+        templateOwnerRepo, 
         timeout = 300000 // Default 5 minute timeout
     } = params;
     
@@ -436,34 +403,9 @@ async function getDockerImageScore(context, workflowToken, workflowUrl, workflow
     }
 
     try {
-        const client = new GitHubApiClient(context, undefined, workflowToken, workflowUrl, workflowFile);
-        if (!client) {
-            addIssue(issues, 'docker-image-score-workflow-trigger-failed', 'warning', `GitHubApiClient client can't be created`);
-            return;
-        }
 
-        // Start workflow and wait for artifact
-        const workflowResult = await startWorkflowAndWaitForRunId(client, context, issues, {
-            templateOwnerRepo,
-            workflowUrl,
-            workflowFile,
-            requestGuid,
-            workflowToken
-        });
+
         
-        if (!workflowResult.success) {
-            return; // Issue already added by startWorkflowAndWaitForArtifact
-        }
-
-        // Wait until the workflow run completes
-        const runId = workflowResult.runId;
-        const waitResult = await waitUntilRunCompletes(client, context, issues, {
-            runId,
-            templateOwnerRepo,
-            workflowUrl,
-            workflowFile,
-            requestGuid
-        });
         
         if (!waitResult.success) {
             return; // Issue was already added by waitUntilRunCompletes
