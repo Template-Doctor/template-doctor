@@ -462,7 +462,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const compliantItem = {
           id: 'agents-doc-valid',
           category: 'agents',
-          message: `agents.md present and basic structure validated (${agentCount} agent${agentCount===1?'':'s'})`,
+          message: `agents.md present and basic structure validated (${agentCount} agent${agentCount === 1 ? '' : 's'})`,
           details: { agentCount, columns: headerCols }
         };
         adaptedData.compliance.compliant.push(compliantItem);
