@@ -60,11 +60,11 @@ async function getZipAsBuffer(downloadUrl, context = null) {
         throw error;
       }
 
-        context.log(`Following redirect to zip file`, {
-          operation: 'getZipAsBuffer',
-          originalUrl: downloadUrl,
-          redirectUrl: location
-        });
+      context.log(`Following redirect to zip file`, {
+        operation: 'getZipAsBuffer',
+        originalUrl: downloadUrl,
+        redirectUrl: location
+      });
 
       const fileResp = await fetch(location, {
         method: 'GET',
@@ -145,14 +145,15 @@ async function fetchWithGitHubAuth(url, options = {}, context = null) {
   }
 }
 
-async function processRepoArtifact(context, artifacts, correlationId = null){
+async function processRepoArtifact(context, artifacts, correlationId = null, includeAllDetails = false) {
   const repoUrl = await getRepoScanArtifactUrl(artifacts);
-  const buffer = await getZipAsBuffer(repoUrl, context); 
+  const buffer = await getZipAsBuffer(repoUrl, context);
   const repoScanJsonResult = await extractTrivyResults(context, buffer, correlationId);
-  const repoTrivyResults = processTrivyResultsDetails(repoScanJsonResult, true);
+
+  const repoTrivyResults = processTrivyResultsDetails(repoScanJsonResult, includeAllDetails);
   return repoTrivyResults;
 }
-async function processImageArtifact(context, artifacts, correlationId = null){
+async function processImageArtifact(context, artifacts, correlationId = null, includeAllDetails = false) {
   const imageUrls = await getImageArtifactUrls(artifacts);
   if (!imageUrls || imageUrls.length === 0) return [];
 
@@ -165,11 +166,11 @@ async function processImageArtifact(context, artifacts, correlationId = null){
   const imageJsonResults = await Promise.all(extractPromises);
 
   // Process details synchronously (or map -> processTrivyResultsDetails)
-  const imagesTrivyResults = imageJsonResults.map(r => processTrivyResultsDetails(r, true));
+  const imagesTrivyResults = imageJsonResults.map(r => processTrivyResultsDetails(r, includeAllDetails));
   return imagesTrivyResults;
 }
 
-async function processArtifacts(context, artifactsObj, correlationId = null) {
+async function processArtifacts(context, artifactsObj, correlationId = null, includeAllDetails = false) {
   const artifacts = artifactsObj && artifactsObj.artifacts ? artifactsObj.artifacts : null;
 
   if (!artifacts || !Array.isArray(artifacts) || artifacts.length === 0) {
@@ -177,13 +178,11 @@ async function processArtifacts(context, artifactsObj, correlationId = null) {
   }
 
   // Repo scan
-  const repoScanResult = await processRepoArtifact(context, artifacts, correlationId);
+  const repoScanResult = await processRepoArtifact(context, artifacts, correlationId, includeAllDetails);
 
   // Images
-  const imageScanResults = await processImageArtifact(context, artifacts, correlationId);
+  const imageScanResults = await processImageArtifact(context, artifacts, correlationId, includeAllDetails);
 
-  // ... continue your aggregation/score logic using repoScanResult and imageScanResults ...
-  // (return whatever structure your handler expects)
   return {
     repositoryScan: repoScanResult,
     imageScans: imageScanResults
@@ -216,6 +215,7 @@ module.exports = async function (context, req) {
 
   try {
     const { templateUrl } = req.body;
+    const includeAllDetails = req.body && req.body.includeAllDetails === false;
 
     if (!templateUrl) {
       context.log.warn({
@@ -223,12 +223,12 @@ module.exports = async function (context, req) {
         correlationId,
         operation: 'validation-docker-image'
       });
-      
+
       context.res = {
         status: 400,
-        body: { 
+        body: {
           error: "templateUrl is required",
-          type: "ValidationError" 
+          type: "ValidationError"
         }
       };
       return;
@@ -260,11 +260,11 @@ module.exports = async function (context, req) {
         templateUrl,
         operation: 'validation-docker-image'
       });
-      
+
       context.res = {
         status: triggerResult.status,
         headers: { 'Access-Control-Allow-Origin': '*' },
-        body: { 
+        body: {
           error: "Validation docker image api: Failed to trigger workflow or retrieve run ID",
           type: "WorkflowError"
         }
@@ -290,7 +290,7 @@ module.exports = async function (context, req) {
     while (attempts < maxAttempts) {
       await new Promise(res => setTimeout(res, delayMs));
       run = await getWorkflowRunData(workflowOwner, workflowRepo, runId);
-      
+
       context.log({
         message: 'Checking workflow status',
         correlationId,
@@ -300,7 +300,7 @@ module.exports = async function (context, req) {
         maxAttempts,
         operation: 'validation-docker-image'
       });
-      
+
       if (run.status === 'completed') break;
       attempts++;
     }
@@ -315,11 +315,11 @@ module.exports = async function (context, req) {
         maxAttempts,
         operation: 'validation-docker-image'
       });
-      
+
       context.res = {
         status: 504,
         headers: { 'Access-Control-Allow-Origin': '*' },
-        body: { 
+        body: {
           error: "Validation docker image api: Workflow run did not complete in expected time",
           type: "TimeoutError"
         }
@@ -344,18 +344,18 @@ module.exports = async function (context, req) {
         runId,
         operation: 'validation-docker-image'
       });
-      
+
       context.res = {
         status: 500,
         headers: { 'Access-Control-Allow-Origin': '*' },
-        body: { 
+        body: {
           error: "Validation docker image api: No artifacts found from workflow run",
-          type: "ArtifactError" 
+          type: "ArtifactError"
         }
       };
       return;
     }
-    
+
     context.log({
       message: 'Processing artifacts',
       correlationId,
@@ -363,9 +363,9 @@ module.exports = async function (context, req) {
       artifactCount: artifacts.artifacts.length,
       operation: 'validation-docker-image'
     });
-    
+
     // Pass context and correlation ID to processArtifacts
-    const complianceResults = await processArtifacts(context, artifacts, correlationId);
+    const complianceResults = await processArtifacts(context, artifacts, correlationId, includeAllDetails);
 
     context.log({
       message: 'Validation completed successfully',
@@ -374,13 +374,19 @@ module.exports = async function (context, req) {
       operation: 'validation-docker-image'
     });
 
+    const reportableArtifacts = artifacts?.artifacts?.map((artifact) => ({
+      name: artifact.name, id: artifact.id, url: artifact.url, download: artifact.archive_download_url
+    }));
+
     context.res = {
       status: 200,
       headers: { 'Access-Control-Allow-Origin': '*' },
       body: {
         templateUrl,
         runId: runRequestIdValue,
-        complianceResults
+        workflowRunUrl: `https://github.com/${workflowOwner}/${workflowRepo}/actions/runs/${runId}`,
+        complianceResults,
+        artifacts: reportableArtifacts || []
       }
     };
   } catch (err) {
