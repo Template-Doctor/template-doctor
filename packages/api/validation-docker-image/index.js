@@ -215,7 +215,7 @@ module.exports = async function (context, req) {
 
   try {
     const { templateUrl } = req.body;
-    const includeAllDetails = req.body && req.body.includeAllDetails === false;
+    const includeAllDetails = (req.body && req.body.includeAllDetails === true) ? true : false;
 
     if (!templateUrl) {
       context.log.warn({
