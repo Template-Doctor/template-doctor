@@ -537,6 +537,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (status === 'missing') {
           tile.style.background = '#ffe5e5';
           tile.style.border = '1px solid #d9534f';
+          
           // Inject action button if not present
           if (!tile.querySelector('.agents-action')) {
             const btn = document.createElement('button');
