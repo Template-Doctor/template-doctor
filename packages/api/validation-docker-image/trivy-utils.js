@@ -1054,7 +1054,7 @@ async function processImageScanArtifact(context, client, imageArtifact, template
         context.log(`Extracted ${Object.keys(extractedFiles).length} files from image scan artifact`);
 
         // Extract Trivy results from the files
-        const trivyResults = await extractTrivyResults(imageZipData);
+        const trivyResults = await extractTrivyResults(context, imageZipData, requestId);
         context.log(`Found ${Object.keys(trivyResults).length} Trivy result files for image ${imageName}`);
 
         // Analyze vulnerabilities in detail
