@@ -96,15 +96,15 @@ jobs:
           cat > "$META_FILE" <<EOF
 window.__TD_DYNAMIC_RESULTS = window.__TD_DYNAMIC_RESULTS || [];
 window.__TD_DYNAMIC_RESULTS.push({
-  timestamp: "${TS}",
-  dashboardPath: "${DASHBOARD_PATH}",
-  dataPath: "${DATA_PATH}",
-  repoUrl: "${REPO_URL}",
-  collection: "${COLLECTION}",
-  ruleSet: "${RULE_SET}",
+  timestamp: $(printf %s "$TS" | jq -R .),
+  dashboardPath: $(printf %s "$DASHBOARD_PATH" | jq -R .),
+  dataPath: $(printf %s "$DATA_PATH" | jq -R .),
+  repoUrl: $(printf %s "$REPO_URL" | jq -R .),
+  collection: $(printf %s "$COLLECTION" | jq -R .),
+  ruleSet: $(printf %s "$RULE_SET" | jq -R .),
   compliance: ${COMPLIANCE},
-  scannedBy: ["${USERNAME}"],
-  relativePath: "${RELATIVE_PATH}"
+  scannedBy: [$(printf %s "$USERNAME" | jq -R .)],
+  relativePath: $(printf %s "$RELATIVE_PATH" | jq -R .)
 });
 EOF
 
