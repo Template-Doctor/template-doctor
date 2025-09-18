@@ -80,12 +80,14 @@ async function extractFilesFromZip(zipData, context = null, correlationId = null
                     });
 
                     readStream.on("error", (err) => {
-                        context.log.error(`Error reading file from ZIP`, {
-                            operation: 'extractFilesFromZip',
-                            fileName: entry.fileName,
-                            error: err.message,
-                            requestId
-                        });
+                        if (context && context.log && context.log.error) {
+                            context.log.error(`Error reading file from ZIP`, {
+                                operation: 'extractFilesFromZip',
+                                fileName: entry.fileName,
+                                error: err.message,
+                                requestId
+                            });
+                        }
 
                         zipfile.readEntry();
                     });
