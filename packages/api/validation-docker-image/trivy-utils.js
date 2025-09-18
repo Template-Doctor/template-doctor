@@ -645,9 +645,7 @@ function addIssue(issues, id, severity, message, details = null, context = null)
         }
         
         issue.details = details;
-    } else if (arguments.length > 4 && arguments[4] !== null) {
-        issue.error = arguments[4];
-    }
+    } 
     
     // Log the issue if context is provided
     if (context && context.log) {
