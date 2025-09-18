@@ -166,7 +166,8 @@ function extractDeprecatedModels(html, includeFuture = false, includeAllModels =
             if (dateText.toLowerCase().includes('deprecated') || 
                 dateText.toLowerCase().includes('retired') || 
                 dateText.toLowerCase().includes('no longer available')) {
-              return new Date(0); // Return a very old date to mark as deprecated
+              console.log(`  Found text indicating model is already deprecated in ${dateName} column`);
+              return { isDeprecatedByText: true };
             }
             
             // Try to parse the date
@@ -175,7 +176,7 @@ function extractDeprecatedModels(html, includeFuture = false, includeAllModels =
               const potentialDate = new Date(dateText);
               if (!isNaN(potentialDate.getTime())) {
                 console.log(`  Parsed ${dateName} date: ${potentialDate.toISOString().split('T')[0]}`);
-                return potentialDate;
+                return { date: potentialDate };
               }
             } catch (e) {
               console.log(`  Could not parse ${dateName} date: "${dateText}"`);
@@ -185,29 +186,70 @@ function extractDeprecatedModels(html, includeFuture = false, includeAllModels =
         };
         
         // Process all date columns
-        const retirementDate = processDateCell(retirementDateColumnIndex, "Retirement");
-        const deprecationDate = processDateCell(deprecationDateColumnIndex, "Deprecation");
-        const legacyDate = processDateCell(legacyDateColumnIndex, "Legacy");
+        const retirementResult = processDateCell(retirementDateColumnIndex, "Retirement");
+        const deprecationResult = processDateCell(deprecationDateColumnIndex, "Deprecation");
+        const legacyResult = processDateCell(legacyDateColumnIndex, "Legacy");
         
-        // Determine if deprecated based on dates
-        if (retirementDate) {
-          isDeprecated = retirementDate <= today || includeFuture;
-          closestRelevantDate = retirementDate;
-        } 
-        if (deprecationDate) {
-          // If we already have a retirement date but it's in the future, check if deprecation is now
-          if (!isDeprecated || (closestRelevantDate && closestRelevantDate > today)) {
-            isDeprecated = deprecationDate <= today || includeFuture;
-            closestRelevantDate = deprecationDate;
+        // Helper function to determine deprecation status from multiple date results
+        const determineDeprecationStatus = (dateResults, today, includeFuture) => {
+          // First check if any result has explicit text indicating deprecation
+          for (const [type, result] of Object.entries(dateResults)) {
+            if (result?.isDeprecatedByText) {
+              console.log(`  Model is explicitly marked as deprecated in ${type} column text`);
+              return { isDeprecated: true, relevantDate: null, reason: `explicit ${type} text` };
+            }
           }
-        } 
-        if (legacyDate) {
-          // If we still haven't found a relevant date or existing dates are in the future
-          if (!isDeprecated || (closestRelevantDate && closestRelevantDate > today)) {
-            isDeprecated = legacyDate <= today || includeFuture;
-            closestRelevantDate = legacyDate;
+          
+          // No explicit text found, check actual dates in order of precedence
+          // Order of precedence: Retirement > Deprecation > Legacy
+          const datesByPrecedence = [
+            { type: 'Retirement', date: dateResults.retirement?.date },
+            { type: 'Deprecation', date: dateResults.deprecation?.date },
+            { type: 'Legacy', date: dateResults.legacy?.date }
+          ].filter(item => item.date); // Filter out undefined dates
+          
+          // Sort dates by their value (earliest first) to find the closest one
+          datesByPrecedence.sort((a, b) => a.date - b.date);
+          
+          // Check if any date indicates the model is deprecated
+          for (const item of datesByPrecedence) {
+            const isDateDeprecated = item.date <= today || includeFuture;
+            if (isDateDeprecated) {
+              console.log(`  Model is deprecated based on ${item.type} date: ${item.date.toISOString().split('T')[0]}`);
+              return { 
+                isDeprecated: true, 
+                relevantDate: item.date,
+                reason: `${item.type} date ${item.date.toISOString().split('T')[0]}`
+              };
+            }
           }
-        }
+          
+          // If we have dates but none indicate deprecation yet
+          if (datesByPrecedence.length > 0) {
+            const earliestDate = datesByPrecedence[0];
+            console.log(`  Model will be deprecated on ${earliestDate.type} date: ${earliestDate.date.toISOString().split('T')[0]}`);
+            return {
+              isDeprecated: includeFuture, // Only mark as deprecated if includeFuture is true
+              relevantDate: earliestDate.date,
+              reason: includeFuture ? `future ${earliestDate.type} date ${earliestDate.date.toISOString().split('T')[0]}` : 'not yet deprecated'
+            };
+          }
+          
+          // No relevant dates found
+          return { isDeprecated: false, relevantDate: null, reason: 'no dates found' };
+        };
+        
+        // Determine if the model is deprecated
+        const status = determineDeprecationStatus({
+          retirement: retirementResult,
+          deprecation: deprecationResult,
+          legacy: legacyResult
+        }, today, includeFuture);
+        
+        isDeprecated = status.isDeprecated;
+        closestRelevantDate = status.relevantDate;
+        
+        console.log(`  Is deprecated: ${isDeprecated}, Reason: ${status.reason}, Include future: ${includeFuture}`);
         
         console.log(`  Is deprecated: ${isDeprecated}, Include future: ${includeFuture}`);
         
