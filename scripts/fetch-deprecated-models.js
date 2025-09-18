@@ -257,20 +257,19 @@ function extractDeprecatedModels(html, includeFuture = false, includeAllModels =
         // Only add if it is deprecated and has a non-empty model name
         // If includeAllModels=true, we include all models regardless of name pattern
         // Otherwise, only include models that match our known patterns
+        const modelNameLower = modelName.toLowerCase();
         const matchesPattern = (
-            modelName.startsWith('gpt-') || 
-            modelName.startsWith('text-') || 
-            modelName.startsWith('code-') ||
-            modelName.startsWith('dall-e-') ||
-            modelName.startsWith('Mistral-') ||
-            modelName.startsWith('mistral-') ||
-            modelName.startsWith('Phi-') ||
-            modelName.startsWith('phi-') ||
-            modelName.includes('embedding') ||
-            modelName.includes('ada') ||
-            modelName.includes('babbage') ||
-            modelName.includes('curie') ||
-            modelName.includes('davinci')
+            modelNameLower.startsWith('gpt-') || 
+            modelNameLower.startsWith('text-') || 
+            modelNameLower.startsWith('code-') ||
+            modelNameLower.startsWith('dall-e-') ||
+            modelNameLower.startsWith('mistral-') ||
+            modelNameLower.startsWith('phi-') ||
+            modelNameLower.includes('embedding') ||
+            modelNameLower.includes('ada') ||
+            modelNameLower.includes('babbage') ||
+            modelNameLower.includes('curie') ||
+            modelNameLower.includes('davinci')
         );
         
         if (isDeprecated && modelName && (includeAllModels || matchesPattern)) {
