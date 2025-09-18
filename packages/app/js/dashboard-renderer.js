@@ -484,7 +484,12 @@ document.addEventListener('DOMContentLoaded', function () {
       } else if (cached.status === 'invalid') {
         adaptedData.compliance.issues.push({ id: 'agents-format-invalid', category: 'agents', severity: 'warning', message: 'agents.md formatting issues (cached)', details: cached.problems });
       } else if (cached.status === 'valid') {
-        adaptedData.compliance.compliant.push({ id: 'agents-doc-valid', category: 'agents', message: `agents.md valid (${cached.agentCount || 0} agent${cached.agentCount===1?'':'s'})` });
+        const agentLabel = (cached.agentCount === 1) ? 'agent' : 'agents';
+        adaptedData.compliance.compliant.push({
+          id: 'agents-doc-valid',
+          category: 'agents',
+          message: `agents.md valid (${cached.agentCount || 0} ${agentLabel})`
+        });
       }
     };
     // Badge creation from existing backend-provided or enrichment data
