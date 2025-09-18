@@ -1028,8 +1028,21 @@ document.addEventListener('DOMContentLoaded', function () {
       if (!issues || issues.length === 0) {
         return '<li class="item"><div class="item-message">No issues found. Great job!</div></li>';
       }
-      // Ensure agents-missing-file (if present) is first
-      const sorted = [...issues].sort((a,b) => (a.id === 'agents-missing-file' ? -1 : b.id === 'agents-missing-file' ? 1 : 0));
+      
+      // Define issue priorities (lower number = higher priority)
+      const issuePriorities = {
+        'agents-missing-file': 1, // Highest priority
+        // Add more issue types with priorities as needed
+        'default': 100 // Default priority for issues not specifically listed
+      };
+      
+      // Sort issues based on priority
+      const sorted = [...issues].sort((a, b) => {
+        const priorityA = issuePriorities[a.id] || issuePriorities['default'];
+        const priorityB = issuePriorities[b.id] || issuePriorities['default'];
+        return priorityA - priorityB;
+      });
+      
       return sorted
         .map((issue) => {
           // Special rendering for agents missing file
