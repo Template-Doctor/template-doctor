@@ -373,13 +373,24 @@ document.addEventListener('DOMContentLoaded', function () {
       for (const branch of candidateBranches) {
         try {
           // jsDelivr attempt
-            const cdnResp = await fetch(`https://cdn.jsdelivr.net/gh/${owner}/${repo}@${branch}/agents.md`, { cache: 'no-store' });
-            if (cdnResp.ok) {
-              content = await cdnResp.text();
-              break;
-            }
-          const rawResp = await fetch(`https://raw.githubusercontent.com/${owner}/${repo}/${branch}/agents.md`, { cache: 'no-store' });
-          if (rawResp.ok) {
+          let cdnResp;
+          try {
+            cdnResp = await fetch(`https://cdn.jsdelivr.net/gh/${owner}/${repo}@${branch}/agents.md`, { cache: 'no-store' });
+          } catch (e) {
+            cdnResp = null;
+          }
+          if (cdnResp && cdnResp.ok) {
+            content = await cdnResp.text();
+            break;
+          }
+          // raw.githubusercontent fallback
+          let rawResp;
+          try {
+            rawResp = await fetch(`https://raw.githubusercontent.com/${owner}/${repo}/${branch}/agents.md`, { cache: 'no-store' });
+          } catch (e) {
+            rawResp = null;
+          }
+          if (rawResp && rawResp.ok) {
             content = await rawResp.text();
             break;
           }
