@@ -418,7 +418,8 @@ document.addEventListener('DOMContentLoaded', function () {
       if (tableHeaderLine) {
         headerCols = tableHeaderLine.split('|').map(c => c.trim().toLowerCase()).filter(Boolean);
       }
-      const requiredCols = ['name', 'description', 'inputs', 'outputs', 'permissions']; // A)
+      // These columns are required in the agents table as per the agents.md specification.
+      const requiredCols = ['name', 'description', 'inputs', 'outputs', 'permissions'];
       const missingCols = requiredCols.filter(c => !headerCols.some(h => h === c));
       const hasTable = headerCols.length > 0;
       const problems = [];
