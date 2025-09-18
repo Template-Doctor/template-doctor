@@ -373,26 +373,16 @@ document.addEventListener('DOMContentLoaded', function () {
       for (const branch of candidateBranches) {
         try {
           // jsDelivr attempt
-          let cdnResp;
-          try {
-            cdnResp = await fetch(`https://cdn.jsdelivr.net/gh/${owner}/${repo}@${branch}/agents.md`, { cache: 'no-store' });
-          } catch (e) {
-            cdnResp = null;
-          }
-          if (cdnResp && cdnResp.ok) {
+          const cdnResp = await fetch(`https://cdn.jsdelivr.net/gh/${owner}/${repo}@${branch}/agents.md`, { cache: 'no-store' });
+          if (cdnResp.ok) {
             content = await cdnResp.text();
             break;
-          }
-          // raw.githubusercontent fallback
-          let rawResp;
-          try {
-            rawResp = await fetch(`https://raw.githubusercontent.com/${owner}/${repo}/${branch}/agents.md`, { cache: 'no-store' });
-          } catch (e) {
-            rawResp = null;
-          }
-          if (rawResp && rawResp.ok) {
-            content = await rawResp.text();
-            break;
+          } else {
+            const rawResp = await fetch(`https://raw.githubusercontent.com/${owner}/${repo}/${branch}/agents.md`, { cache: 'no-store' });
+            if (rawResp.ok) {
+              content = await rawResp.text();
+              break;
+            }
           }
         } catch (e) {
           // continue to next branch
@@ -428,7 +418,8 @@ document.addEventListener('DOMContentLoaded', function () {
       if (tableHeaderLine) {
         headerCols = tableHeaderLine.split('|').map(c => c.trim().toLowerCase()).filter(Boolean);
       }
-      const requiredCols = ['name', 'description', 'inputs', 'outputs', 'permissions']; // A)
+      // These columns are required in the agents table as per the agents.md specification.
+      const requiredCols = ['name', 'description', 'inputs', 'outputs', 'permissions'];
       const missingCols = requiredCols.filter(c => !headerCols.some(h => h === c));
       const hasTable = headerCols.length > 0;
       const problems = [];
@@ -443,15 +434,15 @@ document.addEventListener('DOMContentLoaded', function () {
         const tableIndex = lines.indexOf(tableHeaderLine);
         for (let i = tableIndex + 1; i < lines.length; i++) {
           const ln = lines[i];
-            if (/^\|?\s*-+\s*\|/.test(ln)) continue; // separator row
-            if (!/\|/.test(ln)) {
-              if (ln.trim() === '') break; // end table on blank
-              continue;
-            }
-            const cellParts = ln.split('|').map(c => c.trim());
-            if (cellParts.filter(Boolean).length >= 2) {
-              agentCount++;
-            }
+          if (/^\s*\|\s*[-:]+(\s*\|\s*[-:]+)*\s*\|?\s*$/.test(ln)) continue; // separator row
+          if (!/\|/.test(ln)) {
+            if (ln.trim() === '') break; // end table on blank
+            continue;
+          }
+          const cellParts = ln.split('|').map(c => c.trim());
+          if (cellParts.filter(Boolean).length >= 2) {
+            agentCount++;
+          }
         }
       }
 
@@ -472,7 +463,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const compliantItem = {
           id: 'agents-doc-valid',
           category: 'agents',
-          message: `agents.md present and basic structure validated (${agentCount} agent${agentCount===1?'':'s'})`,
+          message: `agents.md present and basic structure validated (${agentCount} agent${agentCount === 1 ? '' : 's'})`,
           details: { agentCount, columns: headerCols }
         };
         adaptedData.compliance.compliant.push(compliantItem);
@@ -494,7 +485,12 @@ document.addEventListener('DOMContentLoaded', function () {
       } else if (cached.status === 'invalid') {
         adaptedData.compliance.issues.push({ id: 'agents-format-invalid', category: 'agents', severity: 'warning', message: 'agents.md formatting issues (cached)', details: cached.problems });
       } else if (cached.status === 'valid') {
-        adaptedData.compliance.compliant.push({ id: 'agents-doc-valid', category: 'agents', message: `agents.md valid (${cached.agentCount || 0} agent${cached.agentCount===1?'':'s'})` });
+        const agentLabel = (cached.agentCount === 1) ? 'agent' : 'agents';
+        adaptedData.compliance.compliant.push({
+          id: 'agents-doc-valid',
+          category: 'agents',
+          message: `agents.md valid (${cached.agentCount || 0} ${agentLabel})`
+        });
       }
     };
     // Badge creation from existing backend-provided or enrichment data
@@ -1038,8 +1034,21 @@ document.addEventListener('DOMContentLoaded', function () {
       if (!issues || issues.length === 0) {
         return '<li class="item"><div class="item-message">No issues found. Great job!</div></li>';
       }
-      // Ensure agents-missing-file (if present) is first
-      const sorted = [...issues].sort((a,b) => (a.id === 'agents-missing-file' ? -1 : b.id === 'agents-missing-file' ? 1 : 0));
+      
+      // Define issue priorities (lower number = higher priority)
+      const issuePriorities = {
+        'agents-missing-file': 1, // Highest priority
+        // Add more issue types with priorities as needed
+        'default': 100 // Default priority for issues not specifically listed
+      };
+      
+      // Sort issues based on priority
+      const sorted = [...issues].sort((a, b) => {
+        const priorityA = issuePriorities[a.id] || issuePriorities['default'];
+        const priorityB = issuePriorities[b.id] || issuePriorities['default'];
+        return priorityA - priorityB;
+      });
+      
       return sorted
         .map((issue) => {
           // Special rendering for agents missing file
