@@ -289,7 +289,7 @@ module.exports = async function (context, req) {
 
     while (attempts < maxAttempts) {
       await new Promise(res => setTimeout(res, delayMs));
-      run = await getWorkflowRunData(workflowOwner, workflowRepo, runId);
+      run = await getWorkflowRunData(workflowOwner, workflowRepo, runId, context);
 
       context.log({
         message: 'Checking workflow status',
@@ -335,7 +335,7 @@ module.exports = async function (context, req) {
     });
 
     // get the artifacts data
-    const artifacts = await getArtifactsForRun(workflowOwner, workflowRepo, runId);
+    const artifacts = await getArtifactsForRun(workflowOwner, workflowRepo, runId, context);
 
     if (!artifacts || !artifacts.artifacts || artifacts.artifacts.length === 0) {
       context.log.error({
