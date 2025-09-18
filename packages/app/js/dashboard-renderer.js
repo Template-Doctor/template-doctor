@@ -1128,8 +1128,6 @@ document.addEventListener('DOMContentLoaded', function () {
         .join('');
     };
 
-    // (Removed old PR generation path in favor of issue-based workflow)
-
     /**
      * Renders HTML for passed items
      * @param {Array} passedItems - Array of passed item objects
