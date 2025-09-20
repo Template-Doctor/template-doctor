@@ -1,1 +1,1 @@
-results/scan-meta-backfill.js
+module.exports = require('./results/scan-meta-backfill.js');
