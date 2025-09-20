@@ -2731,10 +2731,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // Scroll to the analysis section to show the user it's happening
     // Use setTimeout to ensure this happens after the UI updates
     setTimeout(() => {
-      window.scrollTo({
-        top: analysisSection.offsetTop,
-        behavior: 'smooth'
-      });
+      if (analysisSection) {
+        window.scrollTo({
+          top: analysisSection.offsetTop,
+          behavior: 'smooth'
+        });
+      } else {
+        // Fall back to scroll to top if the section isn't found
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        console.warn('Analysis section element not found for scrolling');
+      }
     }, 100);
 
     // Save to recent
