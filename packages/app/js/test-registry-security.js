@@ -10,7 +10,11 @@ const analyzerPath = './analyzer.js';
 const analyzerContent = fs.readFileSync(analyzerPath, 'utf8');
 
 // Extract the Analyzer class code
-let analyzerClassCode = analyzerContent.match(/class Analyzer {[\s\S]*?}[\s\S]*?}/)[0];
+const analyzerClassMatch = analyzerContent.match(/class Analyzer {[\s\S]*?}[\s\S]*?}/);
+if (!analyzerClassMatch) {
+    throw new Error("Could not find Analyzer class in analyzer.js. Please check the file structure.");
+}
+let analyzerClassCode = analyzerClassMatch[0];
 
 // Create a simplified version of the Analyzer class for testing
 const testAnalyzer = `
