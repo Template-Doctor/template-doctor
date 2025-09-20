@@ -966,12 +966,7 @@ document.addEventListener('DOMContentLoaded', function () {
       // Check if we've already loaded the external stylesheet
       let externalStyleLoaded = false;
       const links = document.getElementsByTagName('link');
-      for (let i = 0; i < links.length; i++) {
-        if (links[i].href && links[i].href.includes('security-pill.css')) {
-          externalStyleLoaded = true;
-          break;
-        }
-      }
+      externalStyleLoaded = Array.from(links).some(link => link.href && link.href.includes('security-pill.css'));
       
       if (!externalStyleLoaded) {
         console.log('Adding external security-pill.css stylesheet');
