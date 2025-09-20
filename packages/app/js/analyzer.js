@@ -930,23 +930,38 @@ class TemplateAnalyzer {
   detectAuthenticationMethods(content) {
     const authMethods = [];
 
-    // Check for explicit connection strings with credentials (not just any connection string)
-    const connectionStringWithCreds = 
-      /connectionString.*=.*['"][^'"]*?(AccountKey=|Password=|UserName=|AccountEndpoint=)/i.test(content) || 
-      /['"]ConnectionString['"].*=.*['"][^'"]*?(AccountKey=|Password=|UserName=|AccountEndpoint=)/i.test(content);
+    // Helper function to test if content matches any of the patterns
+    const matchesAnyPattern = (patterns, text) => {
+      return patterns.some(pattern => pattern.test(text));
+    };
+
+    // Define named patterns for connection strings with credentials
+    const connectionStringPatterns = [
+      // Pattern 1: Regular property syntax with credentials
+      /connectionString.*=.*['"][^'"]*?(AccountKey=|Password=|UserName=|AccountEndpoint=)/i,
+      // Pattern 2: JSON property syntax with credentials
+      /['"]ConnectionString['"].*=.*['"][^'"]*?(AccountKey=|Password=|UserName=|AccountEndpoint=)/i
+    ];
+    
+    const connectionStringWithCreds = matchesAnyPattern(connectionStringPatterns, content);
     
     if (connectionStringWithCreds) {
       authMethods.push('Connection String with credentials');
     }
 
-    // Check for access keys (more specific patterns to avoid false positives)
-    const hasAccessKeys = 
-      /accessKey\s*:\s*[^;{}]*listKeys/i.test(content) || 
-      /['"]accessKey['"].*:.*listKeys/i.test(content) ||
-      /primaryKey\s*:\s*[^;{}]*listKeys/i.test(content) ||
-      /['"]primaryKey['"].*:.*listKeys/i.test(content) ||
-      /secondaryKey\s*:\s*[^;{}]*listKeys/i.test(content) ||
-      /['"]secondaryKey['"].*:.*listKeys/i.test(content);
+    // Define named patterns for access keys
+    const accessKeyPatterns = [
+      // Regular property syntax patterns
+      /accessKey\s*:\s*[^;{}]*listKeys/i,
+      /primaryKey\s*:\s*[^;{}]*listKeys/i,
+      /secondaryKey\s*:\s*[^;{}]*listKeys/i,
+      // JSON property syntax patterns
+      /['"]accessKey['"].*:.*listKeys/i,
+      /['"]primaryKey['"].*:.*listKeys/i,
+      /['"]secondaryKey['"].*:.*listKeys/i
+    ];
+    
+    const hasAccessKeys = matchesAnyPattern(accessKeyPatterns, content);
     
     if (hasAccessKeys) {
       authMethods.push('Access Key');
@@ -955,12 +970,25 @@ class TemplateAnalyzer {
     // Check for KeyVault secrets referenced without Managed Identity
     // Find resource blocks that reference KeyVault secrets
     const resourceBlocks = content.match(/resource\s+\w+\s+'[^']*'\s*{[^}]*}/gis) || [];
+    
+    // Define patterns for KeyVault secrets and identity properties
+    const keyVaultSecretPatterns = [
+      /keyVault.*\/secrets\//i,
+      /['"]secretUri['"]/i
+    ];
+    
+    const identityPatterns = [
+      /identity\s*:/i,
+      /identity\s*{/i
+    ];
+    
     let keyVaultSecretWithoutMI = false;
     
     for (const block of resourceBlocks) {
-      if (/keyVault.*\/secrets\//i.test(block) || /['"]secretUri['"]/i.test(block)) {
-        // Check if this block has an identity property
-        if (!/identity\s*:/i.test(block) && !/identity\s*{/i.test(block)) {
+      // Check if block references KeyVault secrets
+      if (matchesAnyPattern(keyVaultSecretPatterns, block)) {
+        // Check if this block lacks identity property
+        if (!matchesAnyPattern(identityPatterns, block)) {
           keyVaultSecretWithoutMI = true;
           break;
         }
@@ -971,22 +999,28 @@ class TemplateAnalyzer {
       authMethods.push('KeyVault Secret without Managed Identity');
     }
 
-    // Check for SAS tokens (more specific patterns)
-    const hasSasTokens = 
-      /sasToken\s*:/i.test(content) || 
-      /['"]sasToken['"].*:/i.test(content) ||
-      /sharedAccessSignature\s*:/i.test(content) ||
-      /SharedAccessKey\s*:/i.test(content);
+    // Define patterns for SAS tokens
+    const sasTokenPatterns = [
+      /sasToken\s*:/i,
+      /['"]sasToken['"].*:/i,
+      /sharedAccessSignature\s*:/i,
+      /SharedAccessKey\s*:/i
+    ];
+    
+    const hasSasTokens = matchesAnyPattern(sasTokenPatterns, content);
     
     if (hasSasTokens) {
       authMethods.push('SAS Token');
     }
 
-    // Check for Storage Account Keys (more specific patterns)
-    const hasStorageKeys = 
-      /storageAccountKey\s*:/i.test(content) || 
-      /['"]storageAccountKey['"].*:/i.test(content) ||
-      /listKeys\s*\([^)]*['"]Microsoft\.Storage\/storageAccounts/i.test(content);
+    // Define patterns for Storage Account Keys
+    const storageKeyPatterns = [
+      /storageAccountKey\s*:/i,
+      /['"]storageAccountKey['"].*:/i,
+      /listKeys\s*\([^)]*['"]Microsoft\.Storage\/storageAccounts/i
+    ];
+    
+    const hasStorageKeys = matchesAnyPattern(storageKeyPatterns, content);
     
     if (hasStorageKeys) {
       authMethods.push('Storage Account Key');

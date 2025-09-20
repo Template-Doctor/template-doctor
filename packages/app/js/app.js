@@ -3291,6 +3291,22 @@ function tryReinitializeServices() {
     const dashboardScript = document.createElement('script');
     dashboardScript.src = '/js/dashboard-renderer.js';
     dashboardScript.async = true;
+    
+    // Add load event listener to track successful loading
+    dashboardScript.onload = () => {
+      debug('app', 'Dashboard renderer script loaded successfully');
+      // Optionally initialize the dashboard here if needed
+      if (typeof window.DashboardRenderer !== 'undefined') {
+        appDashboard = new window.DashboardRenderer();
+      }
+    };
+    
+    // Add error event listener to handle loading failures
+    dashboardScript.onerror = (error) => {
+      console.error('Failed to load dashboard renderer script:', error);
+      showNotification('Warning: Dashboard renderer could not be loaded. Some features may be unavailable.', 'warning');
+    };
+    
     document.head.appendChild(dashboardScript);
   }
 
@@ -3301,6 +3317,22 @@ function tryReinitializeServices() {
     const githubScript = document.createElement('script');
     githubScript.src = '/js/github.js';
     githubScript.async = true;
+    
+    // Add load event listener to track successful loading
+    githubScript.onload = () => {
+      debug('app', 'GitHub client script loaded successfully');
+      // Optionally initialize the GitHub client here if needed
+      if (typeof window.GitHubClient !== 'undefined') {
+        appGithub = new window.GitHubClient();
+      }
+    };
+    
+    // Add error event listener to handle loading failures
+    githubScript.onerror = (error) => {
+      console.error('Failed to load GitHub client script:', error);
+      showNotification('Warning: GitHub client could not be loaded. Repository analysis features may be unavailable.', 'warning');
+    };
+    
     document.head.appendChild(githubScript);
   }
 
