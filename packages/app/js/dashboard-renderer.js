@@ -1146,8 +1146,8 @@ document.addEventListener('DOMContentLoaded', function () {
             category = 'General Issue';
           }
           
-          // Check if this is a security-related issue - debug to console
-          console.log(`Checking security for issue: ${issue.id}, message: ${issue.message}`);
+          // Check if this is a security-related issue
+          this.debug(`Checking security for issue: ${issue.id}`, { message: issue.message });
           
           // More explicit security detection logic for debugging
           const hasBicepAuthId = issue.id.includes('bicep-alternative-auth') || issue.id.includes('bicep-missing-auth');
@@ -1161,7 +1161,14 @@ document.addEventListener('DOMContentLoaded', function () {
           // Use the explicit securityIssue flag if present, otherwise use our detection logic
           const isSecurityIssue = hasSecurityFlag || hasBicepAuthId || hasSecurityRecommendation || hasManagedIdentityMessage || hasSecurity;
           
-          console.log(`Security check results: securityFlag=${hasSecurityFlag}, bicepAuth=${hasBicepAuthId}, securityRec=${hasSecurityRecommendation}, managedIdentityMsg=${hasManagedIdentityMessage}, securityMsg=${hasSecurity}, FINAL=${isSecurityIssue}`); 
+          this.debug('Security check results', { 
+            securityFlag: hasSecurityFlag,
+            bicepAuth: hasBicepAuthId,
+            securityRec: hasSecurityRecommendation,
+            managedIdentityMsg: hasManagedIdentityMessage,
+            securityMsg: hasSecurity,
+            FINAL: isSecurityIssue
+          });
 
           // Generate a fix hint based on the issue type
           let fixHint;

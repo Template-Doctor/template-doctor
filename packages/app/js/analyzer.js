@@ -954,7 +954,7 @@ class TemplateAnalyzer {
 
     // Check for KeyVault secrets referenced without Managed Identity
     // Find resource blocks that reference KeyVault secrets
-    const resourceBlocks = content.match(/resource\s+\w+\s+'[^']*'\s*{[^{}]*}/gis) || [];
+    const resourceBlocks = content.match(/resource\s+\w+\s+'[^']*'\s*{[^}]*}/gis) || [];
     let keyVaultSecretWithoutMI = false;
     
     for (const block of resourceBlocks) {
