@@ -1574,7 +1574,11 @@ resource roleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
 2. **Configure Key Vault access**:
    \`\`\`bicep
    resource keyVaultAccessPolicy 'Microsoft.KeyVault/vaults/accessPolicies@2021-06-01-preview' = {
+<<<<<<< HEAD
   name: '\${keyVault.name}/add'
+=======
+     name: '\${keyVault.name}/add'
+>>>>>>> 2c350a0 (Fix additional unescaped template literals in code examples)
      properties: {
        accessPolicies: [
          {
@@ -1598,7 +1602,11 @@ resource roleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
      name: guid(keyVault.id, myFunction.id, 'Key Vault Secrets User')
      scope: keyVault
      properties: {
-       roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roledefinitions', '4633458b-17de-408a-b874-0445c86b69e6') // Key Vault Secrets User
+<<<<<<< HEAD
+  roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6') // Key Vault Secrets User
+=======
+       roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6') // Key Vault Secrets User
+>>>>>>> 2c350a0 (Fix additional unescaped template literals in code examples)
        principalId: myFunction.identity.principalId
        principalType: 'ServicePrincipal'
      }
