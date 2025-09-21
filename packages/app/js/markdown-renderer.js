@@ -9,7 +9,7 @@
   // Create a script element to load marked.js from CDN
   const script = document.createElement('script');
   script.src = 'https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js';
-  script.integrity = 'sha256-xoB1Zy2Xbkd3OQVguqESGUhVvUQEsTZH2khVquH5Ngw=';
+  script.integrity = 'sha256-dTk8UpQIh/VHEDDfWL+jA9taOEPz9+/5XJG+ooT1/Yc=';
   script.crossOrigin = 'anonymous';
   script.onload = function() {
     console.log('Marked.js loaded successfully');
