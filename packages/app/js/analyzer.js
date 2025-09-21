@@ -1532,12 +1532,12 @@ resource roleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
 2. **Configure Key Vault access**:
    \`\`\`bicep
    resource keyVaultAccessPolicy 'Microsoft.KeyVault/vaults/accessPolicies@2021-06-01-preview' = {
-     name: '${keyVault.name}/add'
+     name: '\${keyVault.name}/add'
      properties: {
        accessPolicies: [
          {
            tenantId: subscription().tenantId
-           objectId: function.identity.principalId
+           objectId: myFunction.identity.principalId
            permissions: {
              secrets: [
                'get'
@@ -1553,11 +1553,11 @@ resource roleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
 3. **Or use RBAC (recommended for newer Key Vaults)**:
    \`\`\`bicep
    resource keyVaultRoleAssignment 'Microsoft.Authorization/roleAssignments@2020-04-01-preview' = {
-     name: guid(keyVault.id, function.id, 'Key Vault Secrets User')
+     name: guid(keyVault.id, myFunction.id, 'Key Vault Secrets User')
      scope: keyVault
      properties: {
        roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6') // Key Vault Secrets User
-       principalId: function.identity.principalId
+       principalId: myFunction.identity.principalId
        principalType: 'ServicePrincipal'
      }
    }
