@@ -1104,13 +1104,6 @@ resource webApp 'Microsoft.Web/sites@2021-03-01' = {
   }
 }
 
-// Attach to window if in browser environment (mirrors github-client-new behavior)
-try {
-  if (typeof window !== 'undefined' && !window.TemplateAnalyzer) {
-    window.TemplateAnalyzer = TemplateAnalyzer; // expose constructor for tests
-  }
-} catch(_) {}
-
 // AFTER - Using Managed Identity
 resource webApp 'Microsoft.Web/sites@2021-03-01' = {
   name: 'myApp'
@@ -1581,7 +1574,7 @@ resource roleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
 2. **Configure Key Vault access**:
    \`\`\`bicep
    resource keyVaultAccessPolicy 'Microsoft.KeyVault/vaults/accessPolicies@2021-06-01-preview' = {
-     name: '\${keyVault.name}/add'
+  name: '\${keyVault.name}/add'
      properties: {
        accessPolicies: [
          {
@@ -1605,7 +1598,7 @@ resource roleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
      name: guid(keyVault.id, myFunction.id, 'Key Vault Secrets User')
      scope: keyVault
      properties: {
-       roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6') // Key Vault Secrets User
+       roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roledefinitions', '4633458b-17de-408a-b874-0445c86b69e6') // Key Vault Secrets User
        principalId: myFunction.identity.principalId
        principalType: 'ServicePrincipal'
      }
