@@ -665,26 +665,31 @@ class TemplateAnalyzer {
             const foundResources = [];
             const missingResources = [];
 
-            for (const resource of config.bicepChecks.requiredResources) {
-              if (!content.includes(resource)) {
-                categories.deployment.issues.push({
-                  id: `bicep-missing-${resource.toLowerCase()}`,
-                  severity: 'error',
-                  message: `Missing resource "${resource}" in ${file}`,
-                  error: `File ${file} does not contain required resource ${resource}`,
-                });
-                missingResources.push(resource);
-              } else {
-                categories.deployment.compliant.push({
-                  id: `bicep-resource-${resource.toLowerCase()}-${file}`,
-                  category: 'bicepResource',
-                  message: `Found required resource "${resource}" in ${file}`,
-                  details: {
-                    resource: resource,
-                    file: file,
-                  },
-                });
-                foundResources.push(resource);
+            // Only check for required resources if the array is not empty
+            // This prevents requiring specific resources in all Bicep files
+            if (config.bicepChecks.requiredResources && config.bicepChecks.requiredResources.length > 0) {
+              for (const resource of config.bicepChecks.requiredResources) {
+                if (!content.includes(resource)) {
+                  categories.deployment.issues.push({
+                    id: `bicep-missing-${resource.toLowerCase()}`,
+                    severity: 'error',
+                    message: `Missing required resource "${resource}" in ${file}`,
+                    error: `File ${file} does not contain the required resource "${resource}" as specified in the configuration`,
+                    recommendation: `Add the resource "${resource}" to this Bicep file or update the configuration if this resource is not required in all Bicep files.`
+                  });
+                  missingResources.push(resource);
+                } else {
+                  categories.deployment.compliant.push({
+                    id: `bicep-resource-${resource.toLowerCase()}-${file}`,
+                    category: 'bicepResource',
+                    message: `Found required resource "${resource}" in ${file}`,
+                    details: {
+                      resource: resource,
+                      file: file,
+                    },
+                  });
+                  foundResources.push(resource);
+                }
               }
             }
 
