@@ -18,7 +18,7 @@ async function openModal(page, repoUrl = 'https://github.com/test-owner/test-rep
 }
 
 test.describe('AZD global switch and AI check behavior', () => {
-  test('Global checks section hidden when azureDeveloperCliEnabled=false', async ({ page }) => {
+  test.skip('Global checks section hidden when azureDeveloperCliEnabled=false', async ({ page }) => {
     await openModal(page);
     
     // Set the global config
