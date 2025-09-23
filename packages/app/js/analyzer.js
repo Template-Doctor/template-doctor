@@ -1104,6 +1104,13 @@ resource webApp 'Microsoft.Web/sites@2021-03-01' = {
   }
 }
 
+// Attach to window if in browser environment (mirrors github-client-new behavior)
+try {
+  if (typeof window !== 'undefined' && !window.TemplateAnalyzer) {
+    window.TemplateAnalyzer = TemplateAnalyzer; // expose constructor for tests
+  }
+} catch(_) {}
+
 // AFTER - Using Managed Identity
 resource webApp 'Microsoft.Web/sites@2021-03-01' = {
   name: 'myApp'
