@@ -454,6 +454,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ruleSet: result.ruleSet,
             timestamp: result.timestamp,
             compliance: result.compliance,
+            reused: !!result.reused,
           };
         }
 
@@ -2285,6 +2286,13 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- Analysis Flow ---
   // Define the internal analyzeRepo function and store a reference to it
   internalAnalyzeRepo = async function (repoUrl, ruleSet = 'dod', selectedCategories = null) {
+    // Interpret sentinel for explicit rescans
+    let forceRescan = false;
+    if (ruleSet === 'force-rescan') {
+      forceRescan = true;
+      const cfg = window.TemplateDoctorConfig || {};
+      ruleSet = (cfg.defaultRuleSet && typeof cfg.defaultRuleSet === 'string') ? cfg.defaultRuleSet : 'dod';
+    }
     // Preflight: if repo belongs to SAML-enforced org and user only wants fork-based operations,
     // attempt fork-first flow (idempotent). We detect by prior tagging OR by explicit param marker.
     try {
@@ -2446,13 +2454,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // If prior scan and user did not explicitly request rescan (rescan button sets ruleSet === 'show-modal' or user triggers again), display quick reuse option.
-    if (priorScanMeta && ruleSet !== 'force-rescan') {
+    if (priorScanMeta && !forceRescan && priorScanMeta.compliance && (!priorScanMeta.ruleSet || priorScanMeta.ruleSet === ruleSet)) {
       try {
         if (window.NotificationSystem) {
-          window.NotificationSystem.showInfo(
-            'Previously Analyzed',
-            'This repository was already analyzed. Showing existing results. Click Rescan in the UI to force a new analysis.',
-            6000,
+          window.NotificationSystem.showSuccess(
+            'Reused Analysis',
+            `Using cached results (ruleSet: ${priorScanMeta.ruleSet || ruleSet}). Click Rescan to run a fresh analysis.`,
+            5500,
           );
         }
         // Render existing result if we can load from results store (only if compliance present)
@@ -2468,6 +2476,7 @@ document.addEventListener('DOMContentLoaded', () => {
             repoUrl: priorScanMeta.repoUrl,
             timestamp: priorScanMeta.timestamp,
             compliance: priorScanMeta.compliance,
+            ruleSet: priorScanMeta.ruleSet || ruleSet,
             reused: true,
           }, resultsContainer);
           return; // Skip new analysis
@@ -2559,6 +2568,9 @@ document.addEventListener('DOMContentLoaded', () => {
       } catch(_) {}
 
       debug('app', 'Analysis complete, rendering dashboard with mode badge');
+      if (!result.ruleSet) {
+        try { result.ruleSet = ruleSet; } catch(_) {}
+      }
       appDashboard.render(result, resultsContainer);
 
       // Submit analysis results to GitHub for PR creation
@@ -2577,7 +2589,7 @@ document.addEventListener('DOMContentLoaded', () => {
               if (window.NotificationSystem) {
                 window.NotificationSystem.showSuccess(
                   'Analysis Submitted',
-                  'Your analysis has been submitted for integration into the repository',
+                  `Results saved for ${repoName}${result.__analysisMode ? ' (' + result.__analysisMode + ')' : ''}.`,
                   5000,
                 );
               }
