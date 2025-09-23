@@ -299,15 +299,51 @@ class TemplateAnalyzer {
     console.log(`Analyzing repository ${repoInfo.fullName} with rule set: ${ruleSet}`);
 
     try {
-      // Get default branch
-      const defaultBranch = await this.githubClient.getDefaultBranch(repoInfo.owner, repoInfo.repo);
+      // Determine if we should force fork flow: presence of fork=1 flag OR owner mismatch.
+      const urlHasForkFlag = /[?&]fork=1\b/.test(repoUrl);
+      const currentUsername = this.githubClient.getCurrentUsername
+        ? this.githubClient.getCurrentUsername()
+        : this.githubClient.auth?.getUsername();
+      const ownerMismatch = currentUsername && repoInfo.owner && repoInfo.owner.toLowerCase() !== currentUsername.toLowerCase();
 
-      // List all files in the repository
-      const files = await this.githubClient.listAllFiles(
+      // Acquire accessible repo meta without triggering upstream GET for org repos.
+      const { repo: accessibleRepoMeta } = await this.githubClient.ensureAccessibleRepo(
         repoInfo.owner,
         repoInfo.repo,
-        defaultBranch,
+        { forceFork: urlHasForkFlag || ownerMismatch }
       );
+
+      // Use accessible (fork or self) namespace for all further content operations.
+      const analysisOwner = accessibleRepoMeta.owner?.login || repoInfo.owner;
+      const analysisRepo = accessibleRepoMeta.name || repoInfo.repo;
+
+      // Always prefer scanning 'main' branch to standardize results. If missing, fallback to repo default.
+      let defaultBranch = 'main';
+      let files;
+      const listAllWithRetry = async (ref) => {
+        try {
+          return await this.githubClient.listAllFiles(analysisOwner, analysisRepo, ref);
+        } catch (err) {
+          // One retry after short delay (fork may still be indexing)
+          await new Promise((r) => setTimeout(r, 1200));
+            return await this.githubClient.listAllFiles(analysisOwner, analysisRepo, ref);
+        }
+      };
+      try {
+        files = await listAllWithRetry('main');
+      } catch (e) {
+        // Fallback to fork/self default branch metadata if 'main' not present.
+        defaultBranch = this.githubClient.getDefaultBranchFromMeta(accessibleRepoMeta);
+        if (defaultBranch !== 'main') {
+          try {
+            files = await listAllWithRetry(defaultBranch);
+          } catch (inner) {
+            throw inner; // propagate actual failure
+          }
+        } else {
+          throw e; // 'main' expected but retrieval failed; rethrow
+        }
+      }
 
       // Start analyzing
       const issues = [];
@@ -331,7 +367,8 @@ class TemplateAnalyzer {
       // Check repository metadata (description and topics)
       if (enabled.repositoryManagement) {
         try {
-          const repoMetadata = await this.githubClient.getRepository(repoInfo.owner, repoInfo.repo);
+          // Reuse already-fetched accessible repo metadata; do not re-fetch upstream org.
+          const repoMetadata = accessibleRepoMeta;
           
           // Check for repository description
           if (!repoMetadata.description || repoMetadata.description.trim() === '') {
