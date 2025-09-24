@@ -272,15 +272,54 @@ class TemplateAnalyzer {
    * @returns {Promise<Object>} - The analysis result
    */
   async analyzeTemplate(repoUrl, ruleSet = 'dod', selectedCategories = null) {
+    // --- Reuse / force-rescan handling (added) ---
+    // Support a sentinel ruleset value "force-rescan" (acts like 'dod' but bypasses cache)
+    let forceRescan = false;
+    if (ruleSet === 'force-rescan') {
+      forceRescan = true;
+      ruleSet = 'dod';
+    }
+
     if (!ruleSet || ruleSet === 'dod') {
       const cfg = window.TemplateDoctorConfig || {};
       if (cfg.defaultRuleSet && typeof cfg.defaultRuleSet === 'string') {
         ruleSet = cfg.defaultRuleSet;
       }
     }
+    // Normalize URL (strip query params that do not affect repo identity for cache key, except fork flag)
+    const rawUrl = repoUrl;
+    const hasForkQuery = /[?&]fork=1\b/.test(rawUrl);
+    const cacheRepoUrl = rawUrl.replace(/[?&]fork=1\b/, '').replace(/[?&]$/, '');
+    const cache = (window.__TD_ANALYSIS_CACHE = window.__TD_ANALYSIS_CACHE || {});
+    const cacheKey = `${cacheRepoUrl}::${ruleSet}`;
+    if (!forceRescan && !hasForkQuery && cache[cacheKey] && cache[cacheKey].ready) {
+      try {
+        const cached = cache[cacheKey].result;
+        document.dispatchEvent(
+          new CustomEvent('template-analysis-reused', { detail: { cacheKey, timestamp: Date.now() } }),
+        );
+        return cached;
+      } catch (e) {
+        console.warn('[TemplateAnalyzer] Failed returning cached result, falling through', e);
+      }
+    }
   // Get the appropriate configuration based on the rule set
     const config = this.getConfig(ruleSet);
     const repoInfo = this.extractRepoInfo(repoUrl);
+
+    // Ensure GitHub client has resolved current username (auth init may be slightly delayed in tests)
+    const waitForUsername = async () => {
+      if (!this.githubClient) return null;
+      for (let i = 0; i < 12; i++) { // up to ~1.8s
+        try {
+          const u = this.githubClient.getCurrentUsername ? this.githubClient.getCurrentUsername() : this.githubClient.auth?.getUsername?.();
+          if (u) return u;
+        } catch (_) {}
+        await new Promise((r) => setTimeout(r, 150));
+      }
+      return null;
+    };
+    await waitForUsername();
 
     // Store custom config details if using custom ruleset
     let customConfig = null;
@@ -907,6 +946,11 @@ class TemplateAnalyzer {
           globalChecks,
         },
       };
+
+      // Store in cache unless explicit force rescan or fork flag used
+      if (!forceRescan && !hasForkQuery) {
+        cache[cacheKey] = { ready: true, result };
+      }
 
       // Add custom configuration details if applicable
       if (ruleSet === 'custom' && customConfig) {
@@ -1581,11 +1625,7 @@ resource roleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
 2. **Configure Key Vault access**:
    \`\`\`bicep
    resource keyVaultAccessPolicy 'Microsoft.KeyVault/vaults/accessPolicies@2021-06-01-preview' = {
-<<<<<<< HEAD
-  name: '\${keyVault.name}/add'
-=======
      name: '\${keyVault.name}/add'
->>>>>>> 2c350a0 (Fix additional unescaped template literals in code examples)
      properties: {
        accessPolicies: [
          {
@@ -1609,11 +1649,7 @@ resource roleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
      name: guid(keyVault.id, myFunction.id, 'Key Vault Secrets User')
      scope: keyVault
      properties: {
-<<<<<<< HEAD
-  roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6') // Key Vault Secrets User
-=======
        roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6') // Key Vault Secrets User
->>>>>>> 2c350a0 (Fix additional unescaped template literals in code examples)
        principalId: myFunction.identity.principalId
        principalType: 'ServicePrincipal'
      }
