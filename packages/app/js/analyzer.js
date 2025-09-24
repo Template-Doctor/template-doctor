@@ -594,8 +594,8 @@ class TemplateAnalyzer {
             
             if (devContainerFile) {
               const devContainerContent = await this.githubClient.getFileContent(
-                repoInfo.owner,
-                repoInfo.repo,
+                analysisOwner,
+                analysisRepo,
                 devContainerFile
               );
               
@@ -649,8 +649,8 @@ class TemplateAnalyzer {
       ) {
         try {
           const readmeContent = await this.githubClient.getFileContent(
-            repoInfo.owner,
-            repoInfo.repo,
+            analysisOwner,
+            analysisRepo,
             'README.md',
           );
           this.checkReadmeRequirements(
@@ -693,8 +693,8 @@ class TemplateAnalyzer {
         for (const file of bicepFiles) {
           try {
             const content = await this.githubClient.getFileContent(
-              repoInfo.owner,
-              repoInfo.repo,
+              analysisOwner,
+              analysisRepo,
               file,
             );
 
@@ -765,8 +765,8 @@ class TemplateAnalyzer {
 
         try {
           const azureYamlContent = await this.githubClient.getFileContent(
-            repoInfo.owner,
-            repoInfo.repo,
+            analysisOwner,
+            analysisRepo,
             azureYamlPath,
           );
           if (
@@ -957,8 +957,8 @@ class TemplateAnalyzer {
     for (const path of candidateFiles) {
       try {
         const content = await this.githubClient.getFileContent(
-          repoInfo.owner,
-          repoInfo.repo,
+          analysisOwner,
+          analysisRepo,
           path,
         );
         const lower = content.toLowerCase();
