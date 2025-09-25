@@ -42,13 +42,8 @@ jobs:
             echo "packages/app/staticwebapp.config.json not found" >&2
             exit 1
           fi
-          # Validate JSON
-          python3 - << 'PY'
-import json,sys
-with open('packages/app/staticwebapp.config.json') as f:
-    json.load(f)
-print('staticwebapp.config.json is valid JSON')
-PY
+          # Validate JSON (avoid heredoc to keep YAML simple)
+          python3 -c "import json,sys; json.load(open('packages/app/staticwebapp.config.json')); print('staticwebapp.config.json is valid JSON')"
 
       - name: Resolve deployment token
         env:
