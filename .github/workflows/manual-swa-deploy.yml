@@ -38,12 +38,12 @@ jobs:
             echo "packages/app/index.html not found" >&2
             exit 1
           fi
-          if [ ! -f "packages/app/staticwebapp.config.json" ]; then
-            echo "packages/app/staticwebapp.config.json not found" >&2
+          if [ ! -f "staticwebapp.config.json" ]; then
+            echo "staticwebapp.config.json not found at repo root" >&2
             exit 1
           fi
           # Validate JSON (avoid heredoc to keep YAML simple)
-          python3 -c "import json,sys; json.load(open('packages/app/staticwebapp.config.json')); print('staticwebapp.config.json is valid JSON')"
+          python3 -c "import json,sys; json.load(open('staticwebapp.config.json')); print('staticwebapp.config.json is valid JSON')"
 
       - name: Resolve deployment token
         env:
@@ -95,7 +95,8 @@ jobs:
           app_artifact_location: packages/app
           action: upload
           deployment_environment: ${{ github.event.inputs.environment || 'production' }}
-          config_file_location: packages/app/staticwebapp.config.json
+          # Config file now lives at repo root; pass the folder
+          config_file_location: .
           skip_app_build: true
           skip_api_build: true
 
