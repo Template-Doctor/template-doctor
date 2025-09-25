@@ -24,9 +24,9 @@ const extraArgs = args.slice(1).join(' ');
 // (You may want to replace this with a direct require if analyzer.js is Node-compatible)
 
 try {
-  // This assumes you have a Node-compatible CLI for analysis
-  // Replace this with the actual invocation as needed
-  execSync(`node ./packages/app/js/analyzer.js "${repoUrl}" ${extraArgs}`, { stdio: 'inherit' });
+  // Invoke the Node-compatible analyzer entrypoint that wraps the browser analyzer logic
+  // Note: scripts/analyzer-node.js handles polyfills and emits report/meta artifacts
+  execSync(`node ./scripts/analyzer-node.js "${repoUrl}" ${extraArgs}`, { stdio: 'inherit' });
 } catch (err) {
   process.exit(err.status || 1);
 }
