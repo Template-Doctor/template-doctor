@@ -16,7 +16,8 @@
 
 
 > [!IMPORTANT]
-> This app has been built with vanilla JavaScript for fast prototyping and will be migrated to TypeScript for robustness.
+> This app has been built with vanilla JavaScript for fast prototyping and is being migrated to TypeScript for robustness. https://github.com/Template-Doctor/template-doctor/tree/feat/ts-migration-slice
+> If you consider contributing, start off that branch
 
 Template Doctor analyzes and validates samples and templates, including but not limited to Azure Developer CLI (azd) templates. It provides a web UI to view analysis results and take action, including opening GitHub issues and assigning them to GitHub copilot in one go. It also automates PR updates with scan results.
 
