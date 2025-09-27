@@ -1,15 +1,14 @@
 {
+  "scriptFile": "../dist/functions/validation-template.js",
+  "entryPoint": "default",
   "bindings": [
     {
       "authLevel": "anonymous",
       "type": "httpTrigger",
       "direction": "in",
       "name": "req",
-      "methods": [
-        "post",
-        "options"
-      ],
-      "route": "validation-template"
+      "methods": ["post", "options"],
+      "route": "v4/validation-template"
     },
     {
       "type": "http",
@@ -18,3 +17,4 @@
     }
   ]
 }
+
