@@ -1,6 +1,7 @@
 import { HttpRequest, Context } from "@azure/functions";
 import { wrapHttp } from "../shared/http";
 import { loadEnv } from "../shared/env";
+import { createGitHubHelper } from "../shared/githubClient";
 
 // Parity TypeScript migration of legacy validation-status logic
 // Responsibilities:
@@ -90,133 +91,34 @@ export default wrapHttp(async (req: HttpRequest, ctx: Context, _requestId: strin
   }
   ctx.log(`validation-status: using workflow '${workflowFile}' on branch '${branch}'`);
 
-  // Attempt dynamic Octokit import (ESM) — soft failure falls back to fetch
-  let octokit: any = null;
-  let buildOctokit: (useAuth: boolean) => any = () => null;
-  try {
-    // eslint-disable-next-line @typescript-eslint/consistent-type-imports
-    const { Octokit } = await import('@octokit/rest');
-    buildOctokit = (useAuth: boolean) => useAuth && token
-      ? new Octokit({ auth: token, userAgent: 'TemplateDoctorApp' })
-      : new Octokit({ userAgent: 'TemplateDoctorApp' });
-    octokit = buildOctokit(!!token);
-    ctx.log(`validation-status: GitHub client mode: ${token ? 'authenticated' : 'unauthenticated'} (octokit)`);
-  } catch (e: any) {
-    (ctx.log as any).warn?.(`validation-status: @octokit/rest not available, using fetch fallback. ${e?.message || e}`);
-  }
-
-  async function ghFetch(path: string, init: RequestInit = {}): Promise<any> {
-    const url = `https://api.github.com${path}`;
-    const headers: Record<string, string> = {
-      accept: 'application/vnd.github.v3+json',
-      'user-agent': 'TemplateDoctorApp',
-      ...(init.headers as any || {})
-    };
-    if (token) headers['authorization'] = `token ${token}`;
-    const res = await fetch(url, { ...init, headers });
-    if (!res.ok) {
-      const t = await res.text();
-      const err: any = new Error(`GitHub ${res.status} ${res.statusText}: ${t}`);
-      err.status = res.status;
-      throw err;
-    }
-    return res.json();
-  }
+  // Build shared helper (handles octokit vs fetch internally)
+  const gh = await createGitHubHelper(ctx, { owner, repo, workflowFile, branch });
 
   // Discover run if githubRunId not provided
   if (!githubRunId) {
-    let discoveredRun: GhWorkflowRun | null = null;
-    let inspected = 0;
-
-    const tryDiscover = async (client: any): Promise<GhWorkflowRun | null> => {
-      // 1) Specific workflow
-      try {
-        let candidates: GhWorkflowRun[] = [];
-        if (client) {
-          const runsResp = await client.actions.listWorkflowRuns({ owner, repo, workflow_id: workflowFile, branch, event: 'workflow_dispatch', per_page: 100 });
-          candidates = runsResp.data.workflow_runs || [];
-        } else {
-          const data = await ghFetch(`/repos/${owner}/${repo}/actions/workflows/${encodeURIComponent(workflowFile)}/runs?branch=${encodeURIComponent(branch)}&event=workflow_dispatch&per_page=100`);
-          candidates = data.workflow_runs || [];
-        }
-        inspected += candidates.length;
-        for (const r of candidates) {
-          const title = r.display_title || r.name || '';
-          const commitMsg = r.head_commit?.message ? String(r.head_commit.message) : '';
-          if ((title && title.includes(runId)) || commitMsg.includes(runId)) return r;
-        }
-      } catch (wfErr: any) {
-        if (wfErr && (wfErr.status === 401 || /bad credentials/i.test(wfErr.message))) {
-          (ctx.log as any).warn?.(`listWorkflowRuns failed for ${workflowFile} with 401; will retry unauthenticated.`);
-          throw Object.assign(new Error('retry-unauth'), { code: 'RETRY_UNAUTH' });
-        }
-        (ctx.log as any).warn?.(`listWorkflowRuns failed for ${workflowFile}: ${wfErr.message}`);
-      }
-
-      // 2) Repo-wide
-      try {
-        let candidates: GhWorkflowRun[] = [];
-        if (client) {
-          const repoRuns = await client.actions.listWorkflowRunsForRepo({ owner, repo, per_page: 100, branch, event: 'workflow_dispatch' });
-          candidates = repoRuns.data.workflow_runs || [];
-        } else {
-          const data = await ghFetch(`/repos/${owner}/${repo}/actions/runs?per_page=100&branch=${encodeURIComponent(branch)}&event=workflow_dispatch`);
-          candidates = data.workflow_runs || [];
-        }
-        inspected += candidates.length;
-        for (const r of candidates) {
-          const title = r.display_title || r.name || '';
-          const commitMsg = r.head_commit?.message ? String(r.head_commit.message) : '';
-          if ((title && title.includes(runId)) || commitMsg.includes(runId)) return r;
-        }
-      } catch (repoErr: any) {
-        if (repoErr && (repoErr.status === 401 || /bad credentials/i.test(repoErr.message))) {
-          (ctx.log as any).warn?.(`listWorkflowRunsForRepo failed with 401; will retry unauthenticated.`);
-          throw Object.assign(new Error('retry-unauth'), { code: 'RETRY_UNAUTH' });
-        }
-        (ctx.log as any).warn?.(`listWorkflowRunsForRepo failed: ${repoErr.message}`);
-      }
-      return null;
-    };
-
-    try {
-      discoveredRun = await tryDiscover(octokit);
-    } catch (e: any) {
-      if (e?.code === 'RETRY_UNAUTH') {
-        (ctx.log as any).warn?.('Falling back to unauthenticated GitHub API client due to bad credentials.');
-        const unauth = buildOctokit(false);
-        discoveredRun = await tryDiscover(unauth);
-      } else {
-        throw e;
-      }
-    }
+    const discoveredRun = await gh.findRunByLocalCorrelation(runId);
 
     if (discoveredRun) {
       githubRunId = String(discoveredRun.id);
       runUrl = discoveredRun.html_url;
       ctx.log(`Discovered workflow run ${githubRunId} for ${owner}/${repo} and local runId ${runId}`);
     } else {
-      ctx.log(`validation-status: no matching workflow run found for runId ${runId} after inspecting ${inspected} runs; returning pending.`);
+  ctx.log(`validation-status: no matching workflow run found for runId ${runId}; returning pending.`);
       return { status: 200, body: { runId, status: 'pending', conclusion: null } };
     }
   }
 
   // Fetch workflow run details
-  let ghData: GhWorkflowRun;
+  let ghData: any; // WorkflowRun
   try {
-    if (octokit) {
-      const runResp = await octokit.actions.getWorkflowRun({ owner, repo, run_id: Number(githubRunId) });
-      ghData = runResp.data;
-    } else {
-      ghData = await ghFetch(`/repos/${owner}/${repo}/actions/runs/${Number(githubRunId)}`);
-    }
+    ghData = await gh.getWorkflowRun(Number(githubRunId));
   } catch (getErr: any) {
     if (getErr && (getErr.status === 401 || /bad credentials/i.test(getErr.message))) {
       const hint = 'Private repo access requires a valid GH_WORKFLOW_TOKEN with repo/workflow scopes (or fine-grained: Actions Read, Contents Read, Metadata Read) and SAML SSO authorization if enforced.';
       (ctx.log as any).warn?.(`getWorkflowRun 401 for ${owner}/${repo} run ${githubRunId}. ${hint}`);
       return {
         status: 502,
-        body: {
+  body: {
           error: 'Bad credentials - https://docs.github.com/rest',
           type: 'github_api_error',
             errorCode: 'GITHUB_API_ERROR',
@@ -246,24 +148,13 @@ export default wrapHttp(async (req: HttpRequest, ctx: Context, _requestId: strin
       if (token) baseHeaders['authorization'] = `token ${token}`;
 
       if (wantArchive) {
-        const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/actions/runs/${Number(githubRunId)}/logs`, { headers: baseHeaders, redirect: 'manual' });
-        if (res.status === 302) logsArchiveUrl = res.headers.get('location') || undefined;
-        else if (res.ok) logsArchiveUrl = null; // body direct served
+        logsArchiveUrl = await gh.fetchLogsArchiveRedirect(Number(githubRunId));
       }
-
       if (wantJobLogs) {
-        let jobsData: GhJobsList;
-        if (octokit) {
-          const jobsResp = await octokit.actions.listJobsForWorkflowRun({ owner, repo, run_id: Number(githubRunId), per_page: 100 });
-          jobsData = jobsResp.data;
-        } else {
-          jobsData = await ghFetch(`/repos/${owner}/${repo}/actions/runs/${Number(githubRunId)}/jobs?per_page=100`);
-        }
-        const jobs = jobsData.jobs || [];
+        const jobs = await gh.listJobs(Number(githubRunId));
         jobLogs = [];
         for (const j of jobs) {
-          const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/actions/jobs/${j.id}/logs`, { headers: baseHeaders, redirect: 'manual' });
-          const url = res.status === 302 ? (res.headers.get('location') || undefined) : undefined;
+          const url = await gh.fetchJobLogRedirect(j.id);
           jobLogs.push({ id: j.id, name: j.name, status: j.status, conclusion: j.conclusion, startedAt: j.started_at, completedAt: j.completed_at, logsUrl: url });
         }
       }
