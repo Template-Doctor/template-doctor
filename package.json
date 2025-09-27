@@ -17,6 +17,8 @@
         "test:debug": "npm run -w packages/app test:debug --",
         "test:unit": "vitest run --reporter=basic",
         "test:unit:watch": "vitest",
+        "pretest:unit": "npm run -w packages/api build",
+        "test:all": "npm run test:unit && npm test",
         "generate:scan-meta-backfill": "node scripts/generate-scan-meta-backfill.js",
     "analyze": "node scripts/analyzer-node.js"
     },

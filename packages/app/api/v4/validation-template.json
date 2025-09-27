@@ -1,0 +1,4 @@
+{
+  "status": "static-mock",
+  "message": "This is a mock validation-template endpoint for Playwright smoke tests before Functions host is running."
+}

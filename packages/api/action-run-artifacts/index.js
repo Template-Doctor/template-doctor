@@ -1,6 +1,10 @@
-const { withRetry, createGitHubHeaders, fetchWithGitHubAuth } = require('../shared/api-utils');
+// Dynamic loader for shared utilities; avoids top-level require which failed under Node 20 ESM worker
+async function loadShared() {
+  const mod = await import('../shared/api-utils.js');
+  return mod;
+}
 
-async function getArtifactsList(workflowOwner, workflowRepo, workflowRunId, context = null) {
+async function getArtifactsList(workflowOwner, workflowRepo, workflowRunId, context = null, fetchWithGitHubAuth) {
   const workflowUrl = `https://api.github.com/repos/${encodeURIComponent(workflowOwner)}/${encodeURIComponent(workflowRepo)}/actions/runs/${workflowRunId}/artifacts`;
 
   if (context && context.log) {
@@ -15,7 +19,7 @@ async function getArtifactsList(workflowOwner, workflowRepo, workflowRunId, cont
   return fetchWithGitHubAuth(workflowUrl, {}, context);
 }
 
-async function getArtifactsForRun(workflowOwner, workflowRepo, workflowRunId, context = null) {
+async function getArtifactsForRun(workflowOwner, workflowRepo, workflowRunId, context = null, fetchWithGitHubAuth) {
   if (context && context.log) {
     context.log(`Getting artifacts for run`, {
       operation: 'getArtifactsForRun',
@@ -25,7 +29,7 @@ async function getArtifactsForRun(workflowOwner, workflowRepo, workflowRunId, co
     });
   }
 
-  const rawResponse = await getArtifactsList(workflowOwner, workflowRepo, workflowRunId, context);
+  const rawResponse = await getArtifactsList(workflowOwner, workflowRepo, workflowRunId, context, fetchWithGitHubAuth);
 
   if (!rawResponse.ok) {
     const errText = await rawResponse.text();
@@ -70,6 +74,7 @@ async function getArtifactsForRun(workflowOwner, workflowRepo, workflowRunId, co
 }
 
 module.exports = async function (context, req) {
+  const { fetchWithGitHubAuth } = await loadShared();
   // Generate a unique request ID to correlate logs across this request
   const requestId = `action-run-artifacts-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
@@ -181,7 +186,7 @@ module.exports = async function (context, req) {
       requestId
     });
 
-    const artifactsData = await getArtifactsForRun(workflowOwner, workflowRepo, workflowRunId, context);
+  const artifactsData = await getArtifactsForRun(workflowOwner, workflowRepo, workflowRunId, context, fetchWithGitHubAuth);
 
     context.log(`Successfully retrieved artifacts`, {
       operation: 'action-run-artifacts',
