@@ -18,7 +18,7 @@ Objective: Migrate every legacy JavaScript Azure Function to TypeScript (Node 18
 | add-template-pr | v4/add-template-pr (create PR) | Pending TS | GitHub PR creation |
 | archive-collection | v4/archive-collection (archive results) | Pending TS | Storage & packaging |
 | issue-ai-proxy | v4/issue-ai-proxy (AI assist) | Pending TS | External AI calls? Verify env |
-| runtime-config | v4/runtime-config (config exposure) | Pending TS | Ensure no secret leakage |
+| runtime-config | v4/runtime-config (config exposure) | Migrated | TS; function key still exposed (review in hardening) |
 
 Legend: Pending TS | In Progress | Migrated | Verified
 
