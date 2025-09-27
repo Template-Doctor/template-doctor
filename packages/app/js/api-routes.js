@@ -6,6 +6,8 @@
   const routes = {
     runtimeConfig: prefix + '/runtime-config',
     validationTemplate: prefix + '/validation-template',
+    validationDockerImage: prefix + '/validation-docker-image',
+    validationOssf: prefix + '/validation-ossf',
     validationStatus: prefix + '/validation-status',
     validationCancel: prefix + '/validation-cancel',
     workflowTrigger: prefix + '/workflow-trigger',
