@@ -13,7 +13,7 @@ Objective: Migrate every legacy JavaScript Azure Function to TypeScript (Node 18
 | validation-ossf | v4/validation-ossf (OSSF scan) | Pending TS | Security scan integration |
 | action-run-artifacts | v4/workflow-run-artifacts (list artifacts) | Migrated | TS + wrapper + error shaping |
 | action-run-status | v4/workflow-run-status (workflow status) | Migrated | TS migration complete |
-| action-trigger | v4/action-trigger (trigger workflow) | Pending TS | Dispatch logic consolidation |
+| action-trigger | v4/workflow-trigger (trigger workflow) | Migrated | TS trigger + polling |
 | submit-analysis-dispatch | v4/submit-analysis-dispatch | Migrated | TS parity dispatch |
 | add-template-pr | v4/add-template-pr (create PR) | Pending TS | GitHub PR creation |
 | archive-collection | v4/archive-collection (archive results) | Pending TS | Storage & packaging |

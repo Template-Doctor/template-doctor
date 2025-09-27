@@ -9,12 +9,14 @@
         "post",
         "options"
       ],
-      "route": "workflow-trigger"
+      "route": "v4/workflow-trigger"
     },
     {
       "type": "http",
       "direction": "out",
       "name": "res"
     }
-  ]
+  ],
+  "scriptFile": "../dist/functions/action-trigger.js",
+  "entryPoint": "default"
 }
