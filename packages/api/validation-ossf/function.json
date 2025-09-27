@@ -9,12 +9,14 @@
         "post",
         "options"
       ],
-      "route": "validation-ossf"
+      "route": "v4/validation-ossf"
     },
     {
       "type": "http",
       "direction": "out",
       "name": "res"
     }
-  ]
+  ],
+  "scriptFile": "../dist/functions/validation-ossf.js",
+  "entryPoint": "handler"
 }
