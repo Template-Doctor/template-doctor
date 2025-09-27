@@ -9,12 +9,14 @@
         "post",
         "options"
       ],
-      "route": "validation-docker-image"
+      "route": "v4/validation-docker-image"
     },
     {
       "type": "http",
       "direction": "out",
       "name": "res"
     }
-  ]
+  ],
+  "scriptFile": "../dist/functions/validation-docker-image.js",
+  "entryPoint": "handler"
 }
