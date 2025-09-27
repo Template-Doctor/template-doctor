@@ -6,12 +6,14 @@
       "direction": "in",
       "name": "req",
       "methods": ["post", "options"],
-      "route": "submit-analysis-dispatch"
+      "route": "v4/submit-analysis-dispatch"
     },
     {
       "type": "http",
       "direction": "out",
       "name": "res"
     }
-  ]
+  ],
+  "scriptFile": "../dist/functions/submit-analysis-dispatch.js",
+  "entryPoint": "default"
 }
