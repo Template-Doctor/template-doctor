@@ -1,15 +1,14 @@
 {
+  "scriptFile": "../dist/functions/action-run-artifacts.js",
+  "entryPoint": "default",
   "bindings": [
     {
       "authLevel": "anonymous",
       "type": "httpTrigger",
       "direction": "in",
       "name": "req",
-      "methods": [
-        "post",
-        "options"
-      ],
-      "route": "workflow-run-artifacts"
+      "methods": ["post", "options"],
+      "route": "v4/workflow-run-artifacts"
     },
     {
       "type": "http",
