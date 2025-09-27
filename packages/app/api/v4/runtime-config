@@ -1,6 +1,0 @@
-{
-  "apiBase": "http://localhost:7071",
-  "message": "Static mock runtime-config for smoke test; replace with Functions host for integration tests.",
-  "AZURE_DEVELOPER_CLI_ENABLED": true,
-  "ISSUE_AI_ENABLED": false
-}
