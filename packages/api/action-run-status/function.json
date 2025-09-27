@@ -9,12 +9,14 @@
         "post",
         "options"
       ],
-      "route": "workflow-run-status"
+      "route": "v4/workflow-run-status"
     },
     {
       "type": "http",
       "direction": "out",
       "name": "res"
     }
-  ]
+  ],
+  "scriptFile": "../dist/functions/action-run-status.js",
+  "entryPoint": "default"
 }
