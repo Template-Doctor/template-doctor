@@ -1,4 +1,6 @@
 {
+  "scriptFile": "../dist/functions/add-template-pr.js",
+  "entryPoint": "default",
   "bindings": [
     {
       "authLevel": "anonymous",
@@ -6,7 +8,7 @@
       "direction": "in",
       "name": "req",
       "methods": ["post", "options"],
-      "route": "add-template-pr"
+      "route": "v4/add-template-pr"
     },
     {
       "type": "http",

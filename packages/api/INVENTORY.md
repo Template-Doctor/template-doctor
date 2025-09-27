@@ -15,7 +15,7 @@ Objective: Migrate every legacy JavaScript Azure Function to TypeScript (Node 18
 | action-run-status | v4/workflow-run-status (workflow status) | Migrated | TS migration complete |
 | action-trigger | v4/workflow-trigger (trigger workflow) | Migrated | TS trigger + polling |
 | submit-analysis-dispatch | v4/submit-analysis-dispatch | Migrated | TS parity dispatch |
-| add-template-pr | v4/add-template-pr (create PR) | Pending TS | GitHub PR creation |
+| add-template-pr | v4/add-template-pr (create PR) | Migrated | TS branch + PR creation parity |
 | archive-collection | v4/archive-collection (archive results) | Pending TS | Storage & packaging |
 | issue-ai-proxy | v4/issue-ai-proxy (AI assist) | Pending TS | External AI calls? Verify env |
 | runtime-config | v4/runtime-config (config exposure) | Migrated | TS; function key still exposed (review in hardening) |
