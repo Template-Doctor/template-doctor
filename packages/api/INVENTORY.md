@@ -7,8 +7,8 @@ Objective: Migrate every legacy JavaScript Azure Function to TypeScript (Node 18
 | github-oauth-token | v4/github-oauth-token (OAuth code -> token) | Migrated | TS + wrapper implemented |
 | validation-status | v4/validation-status (poll run status) | Migrated | TS parity migration complete |
 | validation-template | v4/validation-template (kick validation) | Migrated | TS dispatch with validation |
-| validation-cancel | v4/validation-cancel (cancel run) | Pending TS | Abort workflow concept |
-| validation-callback | v4/validation-callback (callback ingest) | Pending TS | Receives workflow callback |
+| validation-cancel | v4/validation-cancel (cancel run) | Migrated | TS cancellation + discovery |
+| validation-callback | v4/validation-callback (callback ingest) | Migrated | TS stateless mapping cookie |
 | validation-docker-image | v4/validation-docker-image (image scan) | Pending TS | Scans artifacts, uses yauzl |
 | validation-ossf | v4/validation-ossf (OSSF scan) | Pending TS | Security scan integration |
 | action-run-artifacts | v4/workflow-run-artifacts (list artifacts) | Migrated | TS + wrapper + error shaping |
