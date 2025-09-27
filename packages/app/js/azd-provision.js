@@ -200,7 +200,7 @@ function runAzdProvisionTest() {
   appendLog(logEl, `[debug] Using updated frontend code with enhanced debugging`);
   appendLog(logEl, `[debug] Template repo: ${templateRepo}, Template name: ${templateName}`);
   // Trigger GitHub workflow via the same endpoint used by Run Analysis
-  const validateUrl = joinUrl(apiBase, '/api/validation-template');
+  const validateUrl = joinUrl(apiBase, (window.ApiRoutes ? window.ApiRoutes.validationTemplate : '/api/v4/validation-template'));
   appendLog(logEl, `[info] Triggering validation workflow: ${validateUrl}`);
   console.log('[azd] validationUrl:', validateUrl);
   const templateUrlFull = window.reportData.repoUrl;

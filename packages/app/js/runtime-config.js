@@ -220,7 +220,10 @@
           try { return new URL(base).host === window.location.host; } catch { return false; }
         })();
         if (sameHost) return; // same host should already be allowed
-        const probeUrl = base.replace(/\/$/, '') + '/api/client-settings?csp_probe=' + Date.now();
+  // Prefer new versioned endpoint; fall back to legacy client-settings if 404
+  const versionedProbe = base.replace(/\/$/, '') + (window.ApiRoutes ? window.ApiRoutes.runtimeConfig : '/api/v4/runtime-config');
+  const legacyProbe = base.replace(/\/$/, '') + '/api/client-settings';
+  const probeUrl = versionedProbe + '?csp_probe=' + Date.now();
         // Use a short timeout race so we don't hang if blocked silently
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 3500);

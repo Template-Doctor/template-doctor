@@ -1001,7 +1001,7 @@ async function runGithubWorkflowValidation(templateUrl, incomingApiBase, onStatu
  */
 async function pollGithubWorkflowStatus(runId, templateUrl, apiBase, onStatusChange) {
   // Construct API endpoints based on environment
-  // For Azure Static Web Apps, the API path should be '/api/validation-template'
+  // Route now centralized: use window.ApiRoutes.validationTemplate (was '/api/validation-template')
   // For local development, it might need different formatting
   const isLocalhost =
     window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';

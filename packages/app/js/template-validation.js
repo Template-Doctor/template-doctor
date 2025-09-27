@@ -134,7 +134,8 @@ async function runTemplateValidation(templateName, apiBase) {
 
   try {
     // Call the template validation API
-    const response = await fetch(`${apiBase}/api/validation-template`, {
+  const vtPath = window.ApiRoutes ? window.ApiRoutes.validationTemplate : '/api/v4/validation-template';
+  const response = await fetch(`${apiBase.replace(/\/$/, '')}${vtPath}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

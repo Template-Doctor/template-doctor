@@ -31,8 +31,9 @@ async function loadEnvironmentVariables() {
 
     // Use local Functions port in pure localhost dev, otherwise use SWA-managed /api proxy
     const configUrl = isLocalhost
-      ? `http://localhost:${localPort}/api/client-settings`
-      : '/api/client-settings';
+      ? `http://localhost:${localPort}${window.ApiRoutes ? window.ApiRoutes.runtimeConfig : '/api/v4/runtime-config'}`
+      : (window.ApiRoutes ? window.ApiRoutes.runtimeConfig : '/api/v4/runtime-config');
+    // Legacy fallback retained implicitly in runtime-config.js probe logic.
 
     console.log('Fetching environment config from:', configUrl);
 
