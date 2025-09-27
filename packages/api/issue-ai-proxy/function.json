@@ -6,12 +6,14 @@
       "direction": "in",
       "name": "req",
       "methods": ["post", "options"],
-      "route": "issue-ai"
+      "route": "v4/issue-ai"
     },
     {
       "type": "http",
       "direction": "out",
       "name": "res"
     }
-  ]
+  ],
+  "scriptFile": "../dist/functions/issue-ai-proxy.js",
+  "entryPoint": "handler"
 }
