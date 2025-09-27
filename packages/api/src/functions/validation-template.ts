@@ -1,6 +1,7 @@
 import { Context } from '@azure/functions';
 import { wrapHttp } from '../shared/http';
 import { loadEnv } from '../shared/env';
+import { isPost } from '../shared/validation';
 import crypto from 'crypto';
 
 interface DispatchInputs {
@@ -9,9 +10,8 @@ interface DispatchInputs {
 }
 
 export default wrapHttp(async (req: any, ctx: Context, requestId: string) => {
-  if (req.method !== 'POST') {
-    return { status: 405, body: { error: 'Method Not Allowed', requestId } };
-  }
+  const methodCheck = isPost(req.method, requestId);
+  if (methodCheck.error) return methodCheck.error;
   const env = loadEnv();
   const body: DispatchInputs = (req.body && typeof req.body === 'object') ? req.body : {} as any;
   const { targetRepoUrl, callbackUrl } = body;

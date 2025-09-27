@@ -2,6 +2,7 @@ import { Context } from '@azure/functions';
 import { wrapHttp } from '../shared/http';
 import { loadEnv } from '../shared/env';
 import { createGitHubHelper } from '../shared/githubClient';
+import { isPost, parseOwnerRepo, requireRunId } from '../shared/validation';
 
 interface RequestBody {
   workflowOrgRep?: string; // owner/repo
@@ -9,25 +10,17 @@ interface RequestBody {
 }
 
 export default wrapHttp(async (req: any, ctx: Context, requestId: string) => {
-  if (req.method !== 'POST') {
-    return { status: 405, body: { error: 'Method Not Allowed', requestId } };
-  }
+  const methodCheck = isPost(req.method, requestId);
+  if (methodCheck.error) return methodCheck.error;
 
   const body: RequestBody = (req.body && typeof req.body === 'object') ? req.body : {};
   const { workflowOrgRep, workflowRunId } = body;
 
-  if (!workflowOrgRep) {
-    return { status: 400, body: { error: 'workflowOrgRep is required', errorType: 'MISSING_PARAMETER', requestId } };
-  }
-  const parts = workflowOrgRep.split('/');
-  if (parts.length !== 2 || !parts[0] || !parts[1]) {
-    return { status: 400, body: { error: 'workflowOrgRep must be in owner/repo format', errorType: 'INVALID_FORMAT', requestId } };
-  }
-  if (!workflowRunId) {
-    return { status: 400, body: { error: 'workflowRunId is required', errorType: 'MISSING_PARAMETER', requestId } };
-  }
-
-  const [owner, repo] = parts;
+  const orgRep = parseOwnerRepo(workflowOrgRep, requestId);
+  if (orgRep.error) return orgRep.error;
+  const runIdParsed = requireRunId(workflowRunId, requestId);
+  if (runIdParsed.error) return runIdParsed.error;
+  const { owner, repo } = orgRep.value!;
   const env = loadEnv();
   if (!env.GH_WORKFLOW_TOKEN) {
     // Legacy implementation previously allowed unauth fetch; we require token for consistency with other endpoints
@@ -36,12 +29,9 @@ export default wrapHttp(async (req: any, ctx: Context, requestId: string) => {
 
   try {
     const helper = await createGitHubHelper(ctx, { owner, repo });
-    const runIdNum = typeof workflowRunId === 'string' ? parseInt(workflowRunId, 10) : workflowRunId;
-    if (!Number.isFinite(runIdNum)) {
-      return { status: 400, body: { error: 'workflowRunId must be numeric', errorType: 'INVALID_FORMAT', requestId } };
-    }
+    const runIdNum = runIdParsed.value;
     ctx.log('action-run-status: fetching workflow run', { owner, repo, runId: runIdNum, requestId });
-    const data = await helper.getWorkflowRun(runIdNum);
+    const data = await helper.getWorkflowRun(runIdNum as number);
     return {
       status: 200,
       body: {

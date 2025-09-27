@@ -1,6 +1,7 @@
 import { Context } from '@azure/functions';
 import { wrapHttp } from '../shared/http';
 import { loadEnv } from '../shared/env';
+import { isPost, parseOwnerRepo, requireRunId } from '../shared/validation';
 
 interface RequestBody {
   workflowOrgRep?: string;
@@ -27,29 +28,22 @@ async function fetchArtifacts(owner: string, repo: string, runId: string | numbe
 }
 
 export default wrapHttp(async (req: any, ctx: Context, requestId: string) => {
-  if (req.method !== 'POST') {
-    return { status: 405, body: { error: 'Method Not Allowed', requestId } };
-  }
+  const methodCheck = isPost(req.method, requestId);
+  if (methodCheck.error) return methodCheck.error;
   const env = loadEnv();
   const body: RequestBody = (req.body && typeof req.body === 'object') ? req.body : {};
   const { workflowOrgRep, workflowRunId } = body;
-  if (!workflowOrgRep) {
-    return { status: 400, body: { error: 'workflowOrgRep is required', errorType: 'MISSING_PARAMETER', requestId } };
-  }
-  const parts = workflowOrgRep.split('/');
-  if (parts.length !== 2 || !parts[0] || !parts[1]) {
-    return { status: 400, body: { error: 'workflowOrgRep must be in owner/repo format', errorType: 'INVALID_FORMAT', requestId } };
-  }
-  if (!workflowRunId) {
-    return { status: 400, body: { error: 'workflowRunId is required', errorType: 'MISSING_PARAMETER', requestId } };
-  }
-  const [owner, repo] = parts;
+  const orgRep = parseOwnerRepo(workflowOrgRep, requestId);
+  if (orgRep.error) return orgRep.error;
+  const runIdParsed = requireRunId(workflowRunId, requestId);
+  if (runIdParsed.error) return runIdParsed.error;
+  const { owner, repo } = orgRep.value!;
   const token = env.GH_WORKFLOW_TOKEN;
   if (!token) {
     return { status: 500, body: { error: 'Server not configured (missing GH_WORKFLOW_TOKEN)', requestId } };
   }
   try {
-    const result = await fetchArtifacts(owner, repo, workflowRunId, token, ctx);
+  const result = await fetchArtifacts(owner, repo, runIdParsed.value as number, token, ctx);
     if (!result.ok) {
       const isAuth = result.status === 401 || result.status === 403;
       return { status: isAuth ? 502 : 500, body: { error: `GitHub artifacts fetch failed: ${result.status} ${result.statusText}`, details: result.text?.slice(0,500), errorType: 'GITHUB_API_ERROR', requestId } };
