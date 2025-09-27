@@ -1,15 +1,14 @@
 {
+  "scriptFile": "../dist/functions/validation-status.js",
+  "entryPoint": "default",
   "bindings": [
     {
       "authLevel": "anonymous",
       "type": "httpTrigger",
       "direction": "in",
       "name": "req",
-      "methods": [
-        "get",
-        "options"
-      ],
-      "route": "validation-status"
+      "methods": ["get", "options"],
+      "route": "v4/validation-status"
     },
     {
       "type": "http",
@@ -18,3 +17,4 @@
     }
   ]
 }
+

@@ -2,8 +2,12 @@
   "name": "template-doctor-api",
   "version": "1.0.0",
   "description": "API functions for Template Doctor",
+  "type": "commonjs",
   "scripts": {
     "start": "func start",
+    "build": "tsc -p .",
+    "clean": "rm -rf dist",
+    "prepare": "npm run build",
     "test": "echo \"No tests yet\"",
     "test:trivy": "node ./validation-docker-image/tests/test-trivy-processor.js ./validation-docker-image/example-scan-files/image-scan.json"
   },
@@ -17,6 +21,9 @@
     "yauzl": "^3.2.0"
   },
   "engines": {
-    "node": ">=16"
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0"
   }
 }

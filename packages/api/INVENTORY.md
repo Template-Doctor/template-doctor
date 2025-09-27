@@ -5,7 +5,7 @@ Objective: Migrate every legacy JavaScript Azure Function to TypeScript (Node 18
 | Function Directory | Route / Purpose | Status | Notes |
 |--------------------|-----------------|--------|-------|
 | github-oauth-token | v4/github-oauth-token (OAuth code -> token) | Migrated | TS + wrapper implemented |
-| validation-status | v4/validation-status (poll run status) | Pending TS | Complex GitHub polling |
+| validation-status | v4/validation-status (poll run status) | Migrated | TS parity migration complete |
 | validation-template | v4/validation-template (kick validation) | Pending TS | Workflow dispatch |
 | validation-cancel | v4/validation-cancel (cancel run) | Pending TS | Abort workflow concept |
 | validation-callback | v4/validation-callback (callback ingest) | Pending TS | Receives workflow callback |
