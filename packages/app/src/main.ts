@@ -40,10 +40,10 @@ import '../js/report-loader.js';
 import '../js/issue-template-engine.js';
 import '../js/issue-ai-provider.js';
 import '../js/github-issue-handler.js';
-import '../js/server-analysis-bridge.js';
 // Direct TS analyzer (was previously bundled)
 import './scripts/analyzer.ts';
-import '../js/analyzer-server-only-patch.js';
+// New unified TS server analysis bridge (combines bridge + server-only enforcement)
+import './analyzer/server-bridge.ts';
 import '../js/ruleset-docs/analyzer.js';
 import '../js/templates-data-loader.js';
 import '../js/tooltips.js';
