@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Extraction of adaptResultData from legacy dashboard-renderer.js (parity)
 
 export interface AdaptedIssue { id:string; category:string; message:string; error?:string; severity?:string; details?:any; }
@@ -63,6 +62,7 @@ export function adaptResultData(result:any):AdaptedData {
   const totalChecks = issues.length + compliant.length;
   const percentageCompliant = totalChecks > 0 ? Math.round((compliant.length / totalChecks) * 100) : 0;
   compliant.push({
+    id: 'meta-compliance-summary',
     category: 'meta',
     message: 'Compliance Summary',
     details: {
