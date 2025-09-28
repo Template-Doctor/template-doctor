@@ -45,7 +45,8 @@ import './scripts/analyzer.ts';
 // New unified TS server analysis bridge (combines bridge + server-only enforcement)
 import './analyzer/server-bridge.ts';
 import '../js/ruleset-docs/analyzer.js';
-import '../js/templates-data-loader.js';
+// TS migration: templates data loader
+import './data/templates-loader.ts';
 import '../js/tooltips.js';
 import '../js/ruleset-modal.js';
 import '../js/github-action-hook.js';
