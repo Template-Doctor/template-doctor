@@ -37,7 +37,8 @@ import '../js/github-client-patch.js';
 import '../js/markdown-renderer.js';
 import '../js/dashboard-renderer.js';
 import '../js/report-loader.js';
-import '../js/issue-template-engine.js';
+// TS migration: issue template engine
+import './issue/template-engine.ts';
 import '../js/issue-ai-provider.js';
 import '../js/github-issue-handler.js';
 // Direct TS analyzer (was previously bundled)
