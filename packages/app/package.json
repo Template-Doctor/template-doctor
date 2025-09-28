@@ -8,15 +8,16 @@
     "test:ui": "playwright test --ui",
     "test:debug": "playwright test --debug",
     "browsers:install": "playwright install chromium",
-    "start": "python3 -m http.server 8080",
+  "dev": "vite",
+  "preview": "vite preview",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-  "build:analyzer": "node build-analyzer.js",
-  "build": "npm run build:analyzer",
-  "postinstall": "npm run build:analyzer"
+  "build": "vite build"
   },
   "devDependencies": {
     "prettier": "^3.6.2",
-    "esbuild": "^0.23.0"
+    "esbuild": "^0.23.0",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.0"
   }
 }

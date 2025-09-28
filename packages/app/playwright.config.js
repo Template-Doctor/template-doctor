@@ -2,8 +2,8 @@ const { defineConfig, devices } = require('@playwright/test');
 const path = require('path');
 // Ensure we always serve the frontend directory even when tests are invoked from repo root.
 const appDir = __dirname; // packages/app
-// Use a bash -c wrapper so we can cd before launching python http server (Playwright spawns via shell)
-const serverCommand = `bash -c "cd '${appDir}' && python3 -m http.server 4000"`;
+// Launch Vite dev server instead of python static server during tests.
+const serverCommand = `bash -c "cd '${appDir}' && npx vite"`;
 
 /**
  * @see https://playwright.dev/docs/test-configuration

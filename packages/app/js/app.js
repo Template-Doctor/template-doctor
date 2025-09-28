@@ -726,7 +726,8 @@ document.addEventListener('DOMContentLoaded', () => {
       batchProgressBar.style.width = '0%';
       batchProgressText.textContent = `0/${urls.length} Completed`;
       batchResults.classList.add('active');
-      batchCancelContainer.style.display = 'block';
+  batchCancelContainer.style.display = 'block';
+  try { window.__tdBatchCancelActivatedAt = Date.now(); } catch(_){}
 
       // Create placeholder items for each URL
       urls.forEach((url, index) => {
@@ -999,8 +1000,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
-      // Hide cancel button when all done
-      batchCancelContainer.style.display = 'none';
+      // Hide cancel button when all done (ensure minimum visibility window so tests/user can interact)
+      try {
+        const activatedAt = (window.__tdBatchCancelActivatedAt || Date.now());
+        const elapsed = Date.now() - activatedAt;
+        const hideFn = () => { batchCancelContainer.style.display = 'none'; };
+        if (elapsed < 600) {
+          // Keep it visible a bit longer to avoid race where processing was instantaneous
+          setTimeout(hideFn, 600 - elapsed);
+        } else {
+          hideFn();
+        }
+      } catch(_) {
+        batchCancelContainer.style.display = 'none';
+      }
     } catch (error) {
       debug('app', `Error in batch scan: ${error.message}`, error);
       if (window.NotificationSystem) {
