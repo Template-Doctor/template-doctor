@@ -29,7 +29,8 @@ import '../js/config-loader.js';
 
 import '../js/runtime-config.js';
 import '../js/auth.js';
-import '../js/github-client-new.js';
+// Replaced legacy github-client-new.js with TS version
+import './github/github-client.ts';
 // Use TypeScript source directly (legacy bundle removed)
 import './scripts/api-client.ts';
 import '../js/github-client-patch.js';
