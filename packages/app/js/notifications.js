@@ -48,10 +48,18 @@ class NotificationSystem {
     } = options;
     const id = `${this.notificationIdPrefix}${++this.notificationCount}`;
 
-    // Create notification element
-    const notification = document.createElement('div');
+  // Create notification element
+  const notification = document.createElement('div');
     notification.id = id;
     notification.className = `notification ${type}`;
+    // Accessibility: treat warning/error as assertive alerts; others polite status
+    if (type === 'warning' || type === 'error') {
+      notification.setAttribute('role', 'alert');
+      notification.setAttribute('aria-live', 'assertive');
+    } else {
+      notification.setAttribute('role', 'status');
+      notification.setAttribute('aria-live', 'polite');
+    }
 
     // Add content
     notification.innerHTML = `

@@ -204,6 +204,12 @@
         break;
     }
 
+    // Accessibility attributes
+    // Errors & warnings treated as assertive, others polite
+    const ariaLive = type === 'error' || type === 'warning' ? 'assertive' : 'polite';
+    notification.setAttribute('role', type === 'error' || type === 'warning' ? 'alert' : 'status');
+    notification.setAttribute('aria-live', ariaLive);
+
     notification.innerHTML = `
       ${icon}
       <button class="notification-close" aria-label="Close" onclick="document.getElementById('${notificationId}').remove()">
