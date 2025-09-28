@@ -59,6 +59,8 @@ import '../js/action-buttons-direct.js';
 import '../js/docs-validation-badge.js';
 import '../js/github-fork-patch-fix.js';
 import '../js/saml-batch-patch-loader.js';
+// New TS batch facade (non-disruptive; wraps legacy processBatchUrls)
+import './batch/facade.ts';
 
 // Expose a typed-friendly facade (will refine later)
 export const Analyzer = (window as any).TemplateAnalyzer;
