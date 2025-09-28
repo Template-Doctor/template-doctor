@@ -36,6 +36,8 @@ import './scripts/api-client.ts';
 import '../js/github-client-patch.js';
 import '../js/markdown-renderer.js';
 import '../js/dashboard-renderer.js';
+// TS extraction: dashboard data adapter (used by legacy renderer via window.__TD_adaptResultData)
+import './dashboard/adapt.ts';
 // TS migration: report loader
 import './report/report-loader.ts';
 // TS migration: issue template engine
