@@ -41,6 +41,7 @@ import './dashboard/adapt.ts';
 import './dashboard/agents-enrichment.ts';
 import './dashboard/category-breakdown.ts';
 import './dashboard/overview.ts';
+import './dashboard/patch.ts';
 // TS migration: report loader
 import './report/report-loader.ts';
 // TS migration: issue template engine
