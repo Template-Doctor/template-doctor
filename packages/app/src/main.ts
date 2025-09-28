@@ -38,6 +38,7 @@ import '../js/markdown-renderer.js';
 import '../js/dashboard-renderer.js';
 // TS extraction: dashboard data adapter (used by legacy renderer via window.__TD_adaptResultData)
 import './dashboard/adapt.ts';
+import './dashboard/agents-enrichment.ts';
 // TS migration: report loader
 import './report/report-loader.ts';
 // TS migration: issue template engine
