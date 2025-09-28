@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Extraction of agents.md enrichment logic from legacy dashboard-renderer.js (parity oriented)
 // Exposes runAgentsEnrichment(adaptedData) plus helpers used by legacy renderer.
 
@@ -52,7 +51,7 @@ function updateAgentsBadge(issue:any, compliant:any){
 
 function updateAgentsTileStatus(status:string){
   try {
-    const tile = document.querySelector('.category-breakdown .tile[data-category="agents"]');
+    const tile = document.querySelector('.category-breakdown .tile[data-category="agents"]') as HTMLElement | null;
     if (!tile) return;
     tile.style.transition = 'background 0.3s, border-color 0.3s';
     if (status === 'missing') {
