@@ -1,3 +1,6 @@
+# Legacy build artifacts removed after Vite migration
+packages/app/js/analyzer.bundle.js
+packages/app/js/api-client.bundle.js
 node_modules
 .env
 .env.consolidated

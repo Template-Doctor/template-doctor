@@ -30,7 +30,8 @@ import '../js/config-loader.js';
 import '../js/runtime-config.js';
 import '../js/auth.js';
 import '../js/github-client-new.js';
-import '../js/api-client.bundle.js'; // existing compiled bundle until fully migrated
+// Use TypeScript source directly (legacy bundle removed)
+import './scripts/api-client.ts';
 import '../js/github-client-patch.js';
 import '../js/markdown-renderer.js';
 import '../js/dashboard-renderer.js';
@@ -39,7 +40,8 @@ import '../js/issue-template-engine.js';
 import '../js/issue-ai-provider.js';
 import '../js/github-issue-handler.js';
 import '../js/server-analysis-bridge.js';
-import '../js/analyzer.bundle.js';
+// Direct TS analyzer (was previously bundled)
+import './scripts/analyzer.ts';
 import '../js/analyzer-server-only-patch.js';
 import '../js/ruleset-docs/analyzer.js';
 import '../js/templates-data-loader.js';
