@@ -44,4 +44,11 @@ declare interface Window {
   initGithubWorkflowValidation?: any;
   runGithubWorkflowValidation?: any;
   templatesData?: ScannedTemplateEntry[]; // centralized definition for the templates data
+  ApiRoutes?: { build: (key: string) => string; [k: string]: any };
+  TemplateAnalyzer?: {
+    analyzeTemplate: (repoUrl: string, ruleSet?: string) => Promise<any>;
+    analyzeTemplateServerSide?: (repoUrl: string, ruleSetOrOptions?: any) => Promise<any>;
+    githubClient?: any;
+  };
+  __templateAnalyzerReady?: Promise<any> | boolean;
 }

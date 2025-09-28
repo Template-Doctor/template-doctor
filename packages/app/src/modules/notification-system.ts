@@ -177,7 +177,7 @@ export const NotificationSystem: NotificationAPI = {
 };
 
 // Attach to window for backward compatibility (script-tag usage)
-import { markNotificationsReady } from './notifications-ready';
+// Removed stale import of './notifications-ready' (file no longer exists). We inline readiness dispatch.
 
 if (typeof window !== 'undefined') {
   const existing: any = (window as any).NotificationSystem;
@@ -204,7 +204,9 @@ if (typeof window !== 'undefined') {
       }, 0);
     }
   }
-  markNotificationsReady((window as any).NotificationSystem);
+  try {
+    document.dispatchEvent(new CustomEvent('notifications-ready'));
+  } catch {}
 }
 
 export default NotificationSystem;

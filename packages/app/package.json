@@ -11,9 +11,12 @@
     "start": "python3 -m http.server 8080",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "build": "echo 'Static site - copying files as-is' && cp -r . ."
+  "build:analyzer": "node build-analyzer.js",
+  "build": "npm run build:analyzer",
+  "postinstall": "npm run build:analyzer"
   },
   "devDependencies": {
-    "prettier": "^3.6.2"
+    "prettier": "^3.6.2",
+    "esbuild": "^0.23.0"
   }
 }
