@@ -323,7 +323,11 @@
     <!-- GitHub issue handling -->
     <script src="js/github-issue-handler.js"></script>
     <!-- Template Doctor analysis logic -->
+  <!-- Bridge exposing analyzeTemplateServerSide early for tests -->
+  <script src="js/server-analysis-bridge.js"></script>
     <script src="js/analyzer.js"></script>
+  <!-- Enforce server-only analysis (no client fallback) -->
+  <script src="js/analyzer-server-only-patch.js"></script>
     <!-- Ruleset for Docs org -->
     <script src="js/ruleset-docs/analyzer.js"></script>
     <!-- Template data loader - loads previously scanned templates -->
