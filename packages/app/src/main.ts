@@ -36,7 +36,8 @@ import './scripts/api-client.ts';
 import '../js/github-client-patch.js';
 import '../js/markdown-renderer.js';
 import '../js/dashboard-renderer.js';
-import '../js/report-loader.js';
+// TS migration: report loader
+import './report/report-loader.ts';
 // TS migration: issue template engine
 import './issue/template-engine.ts';
 import '../js/issue-ai-provider.js';
