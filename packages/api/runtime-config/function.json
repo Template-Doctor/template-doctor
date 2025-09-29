@@ -7,8 +7,8 @@
       "type": "httpTrigger",
       "direction": "in",
       "name": "req",
-      "methods": ["get", "options"],
-      "route": "v4/runtime-config"
+  "methods": ["get", "head", "options"],
+  "route": "v4/client-settings"
     },
     {
       "type": "http",
