@@ -24,24 +24,27 @@ describe('issue-ai-proxy function', () => {
   afterEach(() => { clearProviderEnv(); });
 
   it('405 on non-POST', async () => {
-    const res = await handler(makeReq('GET'), makeCtx());
+    const ctx = makeCtx();
+    const res = await handler(ctx, makeReq('GET'));
     expect(res.status).toBe(405);
   });
 
   it('400 invalid body', async () => {
-    const res = await handler(makeReq('POST', null), makeCtx());
+    const ctx = makeCtx();
+    const res = await handler(ctx, makeReq('POST', null));
     expect(res.status).toBe(400);
   });
 
   it('400 missing required fields', async () => {
-    const res = await handler(makeReq('POST', { ruleId: 'R1', message: '', draftBody: '' }), makeCtx());
+    const ctx = makeCtx();
+    const res = await handler(ctx, makeReq('POST', { ruleId: 'R1', message: '', draftBody: '' }));
     expect(res.status).toBe(400);
   });
 
   it('400 missing provider token (github fallback)', async () => {
-    // Force github provider by clearing azure endpoint
     clearProviderEnv();
-    const res = await handler(makeReq('POST', { ruleId: 'R1', message: 'm', draftBody: 'body' }), makeCtx());
+    const ctx = makeCtx();
+    const res = await handler(ctx, makeReq('POST', { ruleId: 'R1', message: 'm', draftBody: 'body' }));
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/Missing GITHUB_MODELS_TOKEN/i);
   });

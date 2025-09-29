@@ -15,21 +15,24 @@ describe('archive-collection function', () => {
   });
 
   it('405 on non-POST', async () => {
-    const res = await handler(makeReq('GET'), makeCtx());
+    const ctx = makeCtx();
+    const res = await handler(ctx, makeReq('GET'));
     expect(res.status).toBe(405);
   });
 
   it('500 when GH_WORKFLOW_TOKEN missing', async () => {
     const prev = process.env.GH_WORKFLOW_TOKEN;
     delete process.env.GH_WORKFLOW_TOKEN;
-    const res = await handler(makeReq('POST', { foo: 'bar' }), makeCtx());
+    const ctx = makeCtx();
+    const res = await handler(ctx, makeReq('POST', { foo: 'bar' }));
     process.env.GH_WORKFLOW_TOKEN = prev;
     expect(res.status).toBe(500);
   });
 
   it('400 when required fields missing', async () => {
     process.env.GH_WORKFLOW_TOKEN = 'dummy';
-    const res = await handler(makeReq('POST', { collection: 'c' }), makeCtx());
+    const ctx = makeCtx();
+    const res = await handler(ctx, makeReq('POST', { collection: 'c' }));
     expect(res.status).toBe(400);
   });
 });

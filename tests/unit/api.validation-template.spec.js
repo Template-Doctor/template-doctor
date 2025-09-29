@@ -21,12 +21,14 @@ describe('validation-template function', () => {
   });
 
   it('rejects non-POST requests with 405', async () => {
-    const res = await handler(makeReq('GET'), makeCtx());
+    const ctx = makeCtx();
+    const res = await handler(ctx, makeReq('GET'));
     expect(res.status).toBe(405);
   });
 
   it('returns 400 when owner/repo missing', async () => {
-    const res = await handler(makeReq('POST', { ownerRepo: '', ruleSet: 'default' }), makeCtx());
+    const ctx = makeCtx();
+    const res = await handler(ctx, makeReq('POST', { ownerRepo: '', ruleSet: 'default' }));
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty('error');
   });

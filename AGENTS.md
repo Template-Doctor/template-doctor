@@ -77,6 +77,26 @@ Run specific tests:
 npm run test -- "-g" "should handle search functionality" packages/app/tests/app.spec.js
 ```
 
+### API Smoke Script
+
+For a quick end‑to‑end verification of the local Azure Functions endpoints (runtime-config, validation, analysis, archive, PR creation, etc.) use the smoke script:
+
+```bash
+./scripts/smoke-api.sh            # assumes host at http://localhost:7071 and reads .env
+BASE=http://localhost:7072 ./scripts/smoke-api.sh   # override base
+DRY_RUN=1 ./scripts/smoke-api.sh  # print commands only
+```
+
+The script will:
+1. Load variables from `.env` (simple KEY=VALUE lines)
+2. Probe each public endpoint (GET/POST) and basic negative routes
+3. Attempt authenticated operations if `GITHUB_TOKEN` is present (add-template-pr, setup overrides, issue-ai)
+4. Summarize success/fail at the end
+
+Environment variable precedence: explicitly exported shell vars > `.env`. Override any value by exporting before invoking the script.
+
+The script exits non‑zero on the first critical failure (missing endpoint / unexpected HTTP code) so it can be wired into CI.
+
 ### Test Conventions
 - Frontend tests use Playwright
 - No native browser dialogs (use notifications) to keep tests stable
@@ -123,3 +143,22 @@ npm run test -- "-g" "should handle search functionality" packages/app/tests/app
 - The frontend is JavaScript for fast prototyping, with plans to migrate to TypeScript
 - Results are stored as JS files rather than a database for simplicity
 - After "Save Results" creates a PR and the PR is merged, results appear on the site after the nightly deploy or manual admin deploy
+
+## HTTP Wrapper / Azure Functions Notes
+
+The Azure Functions (Node) handlers in `packages/api` use a helper `wrapHttp` (see `src/shared/http.ts`).
+
+- Invocation Signature: Azure Functions runtime calls exported handlers with `(context, req)`.
+- Historical Bug: Earlier code reversed parameters `(req, ctx)` which produced empty 200 responses because `ctx.res` was never set. This has been fixed.
+- Backward Compatibility: `wrapHttp` now both sets `ctx.res` and returns it. Legacy tests that previously relied on a returned `{ status, body }` object will still work, while the Functions host uses `ctx.res`.
+- Writing New Tests: Prefer calling `await handler(ctx, req)` and asserting on the returned value (which equals `ctx.res`).
+- HEAD Requests: The wrapper suppresses bodies for `HEAD` automatically.
+- OPTIONS Requests: Auto CORS 204 with standard headers.
+
+If you observe a 200 with an empty body for a new endpoint, double‑check:
+1. The function export order `(ctx, req)`.
+2. That you are not accidentally returning a plain object instead of using `wrapHttp`.
+3. The test is not invoking `(req, ctx)` by mistake.
+
+### Smoke Testing
+Use `./scripts/smoke-api.sh` after starting the Functions host to exercise the primary endpoints. It reads `.env`, supports `DRY_RUN=1`, and fails fast on critical issues. The script expects the updated route `/api/v4/client-settings` for runtime configuration.

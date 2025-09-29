@@ -22,7 +22,8 @@ describe('runtime-config function', () => {
   });
 
   it('returns 200 and expected keys on GET', async () => {
-    const res = await handler(makeReq('GET'), makeCtx());
+    const ctx = makeCtx();
+    const res = await handler(ctx, makeReq('GET'));
     expect(res.status).toBe(200);
     expect(res.body).toBeTruthy();
     expect(res.body).toHaveProperty('backend');
@@ -30,7 +31,8 @@ describe('runtime-config function', () => {
   });
 
   it('rejects non-GET method', async () => {
-    const res = await handler(makeReq('POST'), makeCtx());
+    const ctx = makeCtx();
+    const res = await handler(ctx, makeReq('POST'));
     expect(res.status).toBe(405);
   });
 });

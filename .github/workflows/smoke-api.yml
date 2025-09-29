@@ -1,0 +1,69 @@
+name: API Smoke
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'packages/api/**'
+      - 'scripts/smoke-api.sh'
+      - '.github/workflows/smoke-api.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'packages/api/**'
+      - 'scripts/smoke-api.sh'
+      - '.github/workflows/smoke-api.yml'
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    env:
+      NODE_VERSION: '20.x'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install deps (root workspaces)
+        run: npm ci
+
+      - name: Build API
+        run: npm run -w packages/api build
+
+      - name: Ensure Node version
+        run: node scripts/ensure-node-version.js
+
+      - name: DRY RUN smoke script
+        run: |
+          chmod +x scripts/smoke-api.sh
+          DRY_RUN=1 ./scripts/smoke-api.sh
+
+      - name: Start Functions host
+        run: |
+          (npm run -w packages/api start &) 
+          n=0; until curl -sf http://localhost:7071/api/v4/client-settings > /dev/null || [ $n -ge 20 ]; do n=$((n+1)); sleep 1; done
+
+      - name: Run smoke script
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_WORKFLOW_TOKEN || secrets.GITHUB_TOKEN }}
+        run: ./scripts/smoke-api.sh
+
+      - name: Archive smoke logs
+        if: always()
+        run: |
+          mkdir -p artifact
+          cp -f .env artifact/env.ci.txt || true
+          echo "Completed at $(date)" > artifact/done.txt
+        
+      - name: Upload artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-api-artifact
+          path: artifact
