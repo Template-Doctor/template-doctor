@@ -28,9 +28,10 @@ import './notifications/notifications.ts';
   } catch(e) { console.warn('CSP init failed', e); }
 })();
 
+import './scripts/api-routes.ts'; // ensure ApiRoutes global before runtime-config probes
 import './scripts/runtime-config.ts'; // (replaces legacy ../js/runtime-config.js)
-// Legacy auth.js removed (scripts/auth.ts authoritative)
-// import '../js/auth.js';
+// Authentication (TypeScript migration of legacy auth.js)
+import './scripts/auth.ts';
 // Replaced legacy github-client-new.js with TS version
 import './github/github-client.ts';
 // Use TypeScript source directly (legacy bundle removed)
@@ -57,6 +58,8 @@ import '../js/github-issue-handler.js';
 import './scripts/analyzer.ts';
 // New unified TS server analysis bridge (combines bridge + server-only enforcement)
 import './analyzer/server-bridge.ts';
+// TS dashboard renderer must load before any legacy app.js calls to appDashboard.render
+import './scripts/dashboard-renderer.ts';
 import '../js/ruleset-docs/analyzer.js';
 // TS migration: templates data loader
 import './data/templates-loader.ts';
@@ -72,6 +75,12 @@ import '../js/action-buttons-fallback.js';
 import '../js/action-buttons-direct.js';
 import '../js/docs-validation-badge.js';
 import '../js/github-fork-patch-fix.js';
+// Provide TemplateDoctorPatches (patchGitHubClient, getEnhancedCheckAndUpdateRepoUrl) before patch loader
+// Provide base checkAndUpdateRepoUrl implementation for patch enhancement
+import '../js/app-fork-patch.js';
+import '../js/github-fork-patch.js';
+// Bootstrap stub for checkAndUpdateRepoUrl prior to patch loader (replaced/enhanced later)
+import './bootstrap/check-and-update-stub.ts';
 import '../js/saml-batch-patch-loader.js';
 // New TS batch facade (non-disruptive; wraps legacy processBatchUrls)
 import './batch/facade.ts';

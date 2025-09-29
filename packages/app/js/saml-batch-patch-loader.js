@@ -10,111 +10,135 @@
  */
 
 (function() {
-  // Wait for document to be ready
   function initPatches() {
     console.log('[PatchLoader] Initializing Template Doctor SAML/SSO batch scan patches');
-    
-    // Check if we've already been initialized
     if (window.__TemplateDoctorPatchesApplied) {
       console.log('[PatchLoader] Patches already applied, skipping');
       return;
     }
-    
-    try {
-      // Apply patches when GitHubClient is available
-      const checkAndApplyPatches = () => {
-        if (window.GitHubClient) {
-          // Apply GitHub client patches
+
+    let attempts = 0;
+    let lastErrorMsg = null;
+    let patchInterval;
+
+    const safeLog = (level, msg, err) => {
+      try { (console[level]||console.log)(msg, err||''); } catch(_) {}
+    };
+
+    const applyEnhancements = () => {
+      attempts++;
+      try {
+        if (!window.GitHubClient) {
+          // Throttle noisy polling logs
+            if (attempts === 1 || attempts % 200 === 0) {
+              safeLog('debug', `[PatchLoader] Waiting for GitHubClient (attempt ${attempts})`);
+            }
+          return; // keep polling
+        }
+
+        // Patch GitHub client
+        try {
           if (window.TemplateDoctorPatches?.patchGitHubClient) {
-            const clientPatched = window.TemplateDoctorPatches.patchGitHubClient();
-            console.log(`[PatchLoader] GitHubClient patch ${clientPatched ? 'succeeded' : 'failed'}`);
+            const ok = window.TemplateDoctorPatches.patchGitHubClient();
+            safeLog('log', `[PatchLoader] GitHubClient patch ${ok ? 'succeeded' : 'failed'}`);
           } else {
-            console.warn('[PatchLoader] GitHubClient patch function not found');
+            safeLog('warn', '[PatchLoader] GitHubClient patch function not found');
           }
-          
-          // Replace checkAndUpdateRepoUrl function to handle batch mode
-          if (typeof window.checkAndUpdateRepoUrl === 'function' && 
-              window.TemplateDoctorPatches?.getEnhancedCheckAndUpdateRepoUrl) {
-            // Save original function for reference
-            window.__originalCheckAndUpdateRepoUrl = window.checkAndUpdateRepoUrl;
-            
-            // Replace with enhanced version
-            window.checkAndUpdateRepoUrl = window.TemplateDoctorPatches.getEnhancedCheckAndUpdateRepoUrl();
-            console.log('[PatchLoader] checkAndUpdateRepoUrl function enhanced for batch mode');
-          } else if (typeof window.checkAndUpdateRepoUrl !== 'function') {
-            console.warn('[PatchLoader] checkAndUpdateRepoUrl function not found, patches may not be fully applied');
+        } catch(e){
+          lastErrorMsg = e?.message||String(e);
+          safeLog('warn', '[PatchLoader] Error patching GitHubClient', lastErrorMsg);
+        }
+
+        // Enhance / establish checkAndUpdateRepoUrl
+        try {
+          const enhancedFactory = window.TemplateDoctorPatches?.getEnhancedCheckAndUpdateRepoUrl;
+          const baseExists = typeof window.checkAndUpdateRepoUrl === 'function';
+          if (baseExists && enhancedFactory) {
+            if (!window.__originalCheckAndUpdateRepoUrl) {
+              window.__originalCheckAndUpdateRepoUrl = window.checkAndUpdateRepoUrl;
+              window.checkAndUpdateRepoUrl = enhancedFactory();
+              safeLog('log', '[PatchLoader] checkAndUpdateRepoUrl function enhanced for batch mode');
+            }
+          } else if (!baseExists && enhancedFactory && attempts > 40) {
+            // After ~20s (40 * 500ms) create a synthetic base to unblock batch mode
+            if (!window.__originalCheckAndUpdateRepoUrl) {
+              window.__originalCheckAndUpdateRepoUrl = async function(u){ return u; };
+              window.checkAndUpdateRepoUrl = enhancedFactory();
+              safeLog('warn', '[PatchLoader] Base checkAndUpdateRepoUrl missing after 20s; installed enhanced fallback');
+            }
+          } else if (!baseExists) {
+            if (attempts === 1 || attempts % 200 === 0) {
+              safeLog('warn', '[PatchLoader] checkAndUpdateRepoUrl function not found (still waiting)');
+            }
           }
-          
-          // Enhance batch scan handlers if available
-          if (window.processBatchUrls && typeof window.processBatchUrls === 'function') {
+        } catch(e){
+          lastErrorMsg = e?.message||String(e);
+          safeLog('warn', '[PatchLoader] Error enhancing checkAndUpdateRepoUrl', lastErrorMsg);
+        }
+
+        // Enhance batch processing
+        try {
+          if (window.processBatchUrls && typeof window.processBatchUrls === 'function' && !window.__TD_ProcessBatchUrlsEnhanced) {
             const originalProcessBatchUrls = window.processBatchUrls;
             window.processBatchUrls = async function(urls, options) {
-              console.log('[PatchLoader] Using enhanced batch processing with SAML/SSO handling');
-              
-              // Process each URL with batch mode flag
+              safeLog('log', '[PatchLoader] Using enhanced batch processing with SAML/SSO handling');
               try {
-                // Filter out empty URLs
-                const validUrls = urls.filter(url => url && url.trim());
-                
-                // Map to enrich with fork handling
-                const processPromises = validUrls.map(async (url) => {
-                  try {
-                    // Pass batch mode flag to checkAndUpdateRepoUrl
-                    const resolvedUrl = await window.checkAndUpdateRepoUrl(url, true);
-                    return resolvedUrl;
-                  } catch (err) {
-                    console.warn(`[PatchLoader] Error in batch URL processing for ${url}:`, err.message);
-                    return url; // Continue with original URL on error
-                  }
-                });
-                
-                // Wait for all URLs to be processed
-                const resolvedUrls = await Promise.all(processPromises);
-                
-                // Call original function with resolved URLs
-                return originalProcessBatchUrls.call(this, resolvedUrls, options);
-              } catch (err) {
-                console.error('[PatchLoader] Error in batch processing:', err);
+                const valid = (urls||[]).filter(u => u && u.trim());
+                const resolved = await Promise.all(valid.map(async url => {
+                  try { return await window.checkAndUpdateRepoUrl(url, true); } catch(e){ safeLog('warn', `[PatchLoader] URL process error for ${url}`, e?.message||e); return url; }
+                }));
+                return originalProcessBatchUrls.call(this, resolved, options);
+              } catch(e){
+                safeLog('error', '[PatchLoader] Error in batch processing', e?.message||e);
                 return originalProcessBatchUrls.call(this, urls, options);
               }
             };
-            console.log('[PatchLoader] processBatchUrls function enhanced for SAML/SSO handling');
+            window.__TD_ProcessBatchUrlsEnhanced = true;
+            safeLog('log', '[PatchLoader] processBatchUrls function enhanced for SAML/SSO handling');
           }
-          
-          // Mark patches as applied
-          window.__TemplateDoctorPatchesApplied = true;
-          console.log('[PatchLoader] All patches applied successfully');
-          
-          // Remove init callback
-          document.removeEventListener('DOMContentLoaded', checkAndApplyPatches);
-          window.removeEventListener('load', checkAndApplyPatches);
-          clearInterval(patchInterval);
+        } catch(e){
+          lastErrorMsg = e?.message||String(e);
+          safeLog('warn', '[PatchLoader] Error enhancing processBatchUrls', lastErrorMsg);
         }
-      };
-      
-      // Define interval variable first to avoid reference error
-      let patchInterval;
-      
-      // Try to apply patches now if document is already loaded
-      checkAndApplyPatches();
-      
-      // Set up event listeners and interval to ensure patches are applied
-      document.addEventListener('DOMContentLoaded', checkAndApplyPatches);
-      window.addEventListener('load', checkAndApplyPatches);
-      patchInterval = setInterval(checkAndApplyPatches, 500);
-      
-      // Safety timeout to clear interval if patches never apply
+
+        window.__TemplateDoctorPatchesApplied = true;
+        safeLog('log', '[PatchLoader] All patches applied successfully');
+        cleanup();
+      } catch(err){
+        lastErrorMsg = err?.message || String(err);
+        if (attempts === 1 || attempts % 100 === 0) {
+          safeLog('warn', `[PatchLoader] Unexpected error (attempt ${attempts})`, lastErrorMsg);
+        }
+      }
+
+      // Hard cap attempts to prevent runaway intervals (e.g., if GitHubClient never appears)
+      if (!window.__TemplateDoctorPatchesApplied && attempts >= 400) { // ~200s at 500ms if not earlier cleared
+        safeLog('warn', '[PatchLoader] Giving up after 400 attempts');
+        cleanup();
+      }
+    };
+
+    function cleanup(){
+      try { document.removeEventListener('DOMContentLoaded', applyEnhancements); } catch{}
+      try { window.removeEventListener('load', applyEnhancements); } catch{}
+      try { clearInterval(patchInterval); } catch{}
+    }
+
+    try {
+      applyEnhancements();
+      document.addEventListener('DOMContentLoaded', applyEnhancements);
+      window.addEventListener('load', applyEnhancements);
+      patchInterval = setInterval(applyEnhancements, 500);
+      // legacy safety timeout (kept shorter now – 20s)
       setTimeout(() => {
         if (!window.__TemplateDoctorPatchesApplied) {
-          clearInterval(patchInterval);
-          console.warn('[PatchLoader] Timed out waiting for GitHubClient to be available');
+          safeLog('warn', '[PatchLoader] Timed out waiting for GitHubClient (20s)');
+          cleanup();
         }
-      }, 30000);
-    } catch (err) {
-      console.error('[PatchLoader] Error initializing patches:', err);
+      }, 20000);
+    } catch(e){
+      safeLog('error', '[PatchLoader] Error initializing patches root', e?.message||e);
     }
   }
-  
-  // Initialize patches
   initPatches();
 })();

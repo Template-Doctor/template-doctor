@@ -59,9 +59,8 @@ Results live under `packages/app/results/`:
 
 ## Prerequisites
 
-- Node.js and npm
+- Node.js (LTS) and npm
 - Azure Functions Core Tools (for API development)
-- Python 3 (optional, for serving frontend locally)
 - GitHub account with appropriate permissions
 
 ## Authentication Setup
@@ -110,14 +109,15 @@ See the [Environment Variables Documentation](docs/development/ENVIRONMENT_VARIA
    npm run -w packages/api start
    ```
 
-3. Start the frontend:
-   ```bash
-   cd ./packages/app && python3 -m http.server 4000
-   ```
-   > [!NOTE]
-   > The frontend is currently vanilla JavaScript and can be served using any static file server.
+3. Start the frontend (Vite dev server with live reload & TypeScript support):
+  ```bash
+  npm run -w packages/app dev
+  ```
 
-4. Open http://localhost:4000 in your browser. The frontend expects the API at http://localhost:7071 by default.
+4. Open http://localhost:5173 (default Vite port) in your browser. The frontend will call the API at http://localhost:7071 by default.
+
+> [!NOTE]
+> The legacy guidance to use a Python static server has been removed. The migration to a TypeScript + Vite build pipeline is in progress; always prefer `npm run dev` during development.
 
 ## Testing
 

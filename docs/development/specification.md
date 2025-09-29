@@ -204,10 +204,10 @@ Template Doctor analyzes and validates samples and templates against organizatio
 - Re-implementing GitHub features not essential to template analysis.
 
 ## Components
-- Frontend (static)
-  - Location: `src/frontend/`
+- Frontend (static, TypeScript migration in progress)
+  - Location: `packages/app/`
   - Responsibilities: user interaction, batch controls, rendering results, notifications UI.
-  - Served locally via Python HTTP server; deployed to GitHub Pages.
+  - Served locally via Vite dev server (`npm run -w packages/app dev`); deployed to GitHub Pages.
 - Azure Functions API
   - Location: `api/`
   - Responsibilities: authentication helpers, analysis endpoints and utilities as needed.

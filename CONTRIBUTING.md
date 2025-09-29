@@ -9,11 +9,12 @@ Thanks for your interest in contributing! This document explains how to propose 
 - Don’t introduce native browser dialogs; use the notification system
 
 ## Development Setup
-- Frontend lives in `src/frontend` (static site)
-- API lives in `api` (Azure Functions)
+- Frontend lives in `packages/app` (TypeScript modules bundled by Vite; legacy JS under `packages/app/js` is being removed).
+- API lives in `packages/api` (Azure Functions).
 - Local run:
-  - API: `cd api && func start`
-  - Frontend: `cd src/frontend && python3 -m http.server 8080`
+  - API: `npm run -w packages/api start`
+  - Frontend (dev with hot reload): `npm run -w packages/app dev`
+  - Production build (optional): `npm run -w packages/app build`
 
 ## Testing
 - E2E tests use Playwright and live under `src/frontend/tests`.

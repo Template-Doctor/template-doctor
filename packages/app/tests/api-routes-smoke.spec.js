@@ -10,13 +10,14 @@ test.describe('API Routes Smoke', () => {
     // Wait up to 5s for ApiRoutes to be defined (scripts load sequentially)
     await page.waitForFunction(() => typeof window.ApiRoutes === 'object' && !!window.ApiRoutes.runtimeConfig, null, { timeout: 5000 });
 
-    const routeKeys = await page.evaluate(() => Object.keys(window.ApiRoutes));
-    expect(routeKeys).toContain('runtimeConfig');
-    expect(routeKeys).toContain('validationTemplate');
+  const routeKeys = await page.evaluate(() => Object.keys(window.ApiRoutes));
+  expect(routeKeys).toContain('runtimeConfig'); // legacy alias maintained
+  expect(routeKeys).toContain('clientSettings'); // new canonical name
+  expect(routeKeys).toContain('validationTemplate');
 
     // Attempt fetch; if Functions backend not running, allow static mock fallback
     const result = await page.evaluate(async () => {
-      const url = window.ApiRoutes.runtimeConfig;
+  const url = window.ApiRoutes.clientSettings || window.ApiRoutes.runtimeConfig;
       try {
         const r = await fetch(url, { cache: 'no-store' });
         return { status: r.status };

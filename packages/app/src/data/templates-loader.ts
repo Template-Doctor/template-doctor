@@ -70,18 +70,48 @@
     }
   }
 
+  let authPollAttempts = 0;
+  const AUTH_POLL_MAX = 200; // 200 * (progressive ~100-500ms) < ~1 minute worst case
+  const AUTH_POLL_BASE_DELAY = 100;
+
+  function scheduleNextAuthPoll(){
+    authPollAttempts++;
+    if(authPollAttempts > AUTH_POLL_MAX){
+      log(`GitHubAuth not detected after ${AUTH_POLL_MAX} attempts; proceeding with empty templatesData (deferred load)`);
+      if(!Array.isArray(window.templatesData)) window.templatesData = [];
+      dispatchLoaded();
+      return;
+    }
+    // Progressive backoff: min 100ms, grows to 500ms
+    const delay = Math.min(AUTH_POLL_BASE_DELAY * (1 + Math.floor(authPollAttempts/10)), 500);
+    setTimeout(initialize, delay);
+  }
+
   function initialize(){
-    log('Checking GitHubAuth readiness');
-    if(window.GitHubAuth && typeof window.GitHubAuth.isAuthenticated === 'function'){
-      if(window.GitHubAuth.isAuthenticated()){
-        loadTemplateData();
-      } else {
-        log('User not authenticated yet; setting empty templatesData');
-        window.templatesData = [];
-        dispatchLoaded();
+    if(authPollAttempts % 25 === 0){
+      log('Checking GitHubAuth readiness (attempt ' + authPollAttempts + ')');
+    }
+    const auth = (window as any).GitHubAuth;
+    if(auth && typeof auth.isAuthenticated === 'function'){
+      try {
+        if(auth.isAuthenticated()){
+          loadTemplateData();
+        } else {
+          // One-time empty set exposure (avoid repeated log noise)
+          if(!Array.isArray(window.templatesData)){
+            log('User not authenticated yet; exposing empty templatesData');
+            window.templatesData = [];
+            dispatchLoaded();
+          }
+          // Wait for auth-state-changed event rather than hot looping
+        }
+      } catch(e){
+        log('Auth check threw error; scheduling retry', (e as any)?.message||e);
+        scheduleNextAuthPoll();
+        return;
       }
     } else {
-      setTimeout(initialize, 100);
+      scheduleNextAuthPoll();
     }
   }
 

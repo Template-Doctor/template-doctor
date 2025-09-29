@@ -154,7 +154,8 @@ function sanitizeAndAssign(partial: Partial<RuntimeConfig>): void {
       const sameHost = (() => { try { return new URL(base).host === window.location.host; } catch { return false; } })();
       if (sameHost) return;
       const probeBase = base.replace(/\/$/, '');
-      const versioned = probeBase + (window.ApiRoutes?.runtimeConfig || '/api/v4/runtime-config');
+  // Prefer new client-settings endpoint; retain legacy runtimeConfig alias via ApiRoutes for back-compat
+  const versioned = probeBase + (window.ApiRoutes?.clientSettings || window.ApiRoutes?.runtimeConfig || '/api/v4/client-settings');
       const probeUrl = versioned + '?csp_probe=' + Date.now();
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 3500);

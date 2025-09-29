@@ -18,7 +18,6 @@ Template Doctor analyzes and validates sample templates, with a focus on Azure D
 - Node.js LTS
 - npm 
 - Azure Functions Core Tools (for API development)
-- Python 3 (for serving frontend locally)
 
 ### Installation Steps
 
@@ -41,13 +40,13 @@ Template Doctor analyzes and validates sample templates, with a focus on Azure D
 
 4. Start services (in separate terminals):
    - API: `npm run -w packages/api start`
-   - Frontend: `cd ./packages/app && python3 -m http.server 4000`
+   - Frontend (Vite dev): `npm run -w packages/app dev`
 
-5. Access the application at http://localhost:4000
+5. Access the application at http://localhost:5173
 
 ## Code Structure Insights
 
-- The frontend is vanilla JavaScript (planned migration to TypeScript)
+- The frontend is migrating from legacy vanilla JS to TypeScript (TS modules under `packages/app/src/` are authoritative; legacy JS is being deleted in phases)
 - The API is Azure Functions
 - Results are stored as JS files under `packages/app/results/`
 - Configuration is split across:

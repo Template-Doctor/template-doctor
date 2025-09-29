@@ -67,7 +67,41 @@ interface ApiRoutesGlobal {
     return cfg.apiVersion || cfg.backend?.apiVersion || null;
   }
 
-  (window as any).ApiRoutes = { build, currentVersion } as ApiRoutesGlobal;
+  // Expose dynamic property-style routes for backward compatibility with legacy tests/code
+  // Each property is a getter so that changes to apiBase or version are reflected lazily.
+  const routes: any = { build, currentVersion };
+
+  const endpointMap: Record<string, string> = {
+    // Legacy name -> canonical function route
+    runtimeConfig: 'client-settings',      // old frontend expected /runtime-config; now served at /client-settings
+    clientSettings: 'client-settings',
+    analyzeTemplate: 'analyze-template',
+    validationTemplate: 'validation-template',
+    validationStatus: 'validation-status',
+    validationCancel: 'validation-cancel',
+    validationOssf: 'validation-ossf',
+    validationDockerImage: 'validation-docker-image',
+    issueCreate: 'issue-create',
+    githubOAuthToken: 'github-oauth-token',
+    setup: 'setup'
+  };
+
+  for (const [prop, path] of Object.entries(endpointMap)) {
+    Object.defineProperty(routes, prop, {
+      get: () => build(path),
+      enumerable: true,
+      configurable: false
+    });
+  }
+
+  // Provide eagerly-evaluated snapshot properties for early tests that simply check truthiness.
+  // These will not auto-update if apiBase changes post-load, but runtime-config loads immediately after.
+  try {
+    (routes as any).runtimeConfig = build('client-settings');
+    (routes as any).clientSettings = build('client-settings');
+  } catch {}
+
+  (window as any).ApiRoutes = routes as ApiRoutesGlobal & Record<string, string>;
 })();
 
 export {}; // ensure this file is a module
