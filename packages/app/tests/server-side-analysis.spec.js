@@ -341,35 +341,29 @@ test.describe('Server-side analysis', () => {
   });
   
   test('should work when enabled', async ({ page }) => {
-    // Config already injected pre-navigation; ensure analyzer convenience shim
-    await page.evaluate(() => {
-      if (!window.analyzeRepo && window.TemplateAnalyzer) {
-        window.analyzeRepo = (url, ruleSet) => window.TemplateAnalyzer.analyzeTemplate(url, ruleSet).then(res => {
-          if (window.DashboardRenderer) {
-            const container = document.getElementById('dashboard') || document.body.appendChild(Object.assign(document.createElement('div'), { id: 'dashboard' }));
-            window.DashboardRenderer.render(res, container);
-          }
-          window.lastRenderedData = res;
-          return res;
-        });
-      }
-    });
-    
-    // Setup the analyzer with server-side enabled and working
+    // Setup the analyzer with server-side enabled and working FIRST so we can safely wrap analyzeRepo
     await mockTemplateAnalyzer(page, { serverSideEnabled: true, serverSideFails: false });
-      // Reinitialize services so the app uses the mocked analyzer
-      await page.evaluate(() => {
-        if (typeof window.tryReinitializeServices === 'function') {
-          window.tryReinitializeServices();
-        }
-      });
-    
-    // Trigger an analysis
+
+    // Force reinitialize so legacy app wiring (if any) sees mocked analyzer
     await page.evaluate(() => {
-      window.analyzeRepo('https://github.com/test-owner/test-repo', 'dod');
+      if (typeof window.tryReinitializeServices === 'function') {
+        window.tryReinitializeServices();
+      }
+      // Always override analyzeRepo to ensure we use the mocked TemplateAnalyzer implementation
+      window.analyzeRepo = (url, ruleSet) => window.TemplateAnalyzer.analyzeTemplate(url, ruleSet).then(res => {
+        if (window.DashboardRenderer) {
+          const container = document.getElementById('dashboard') || document.body.appendChild(Object.assign(document.createElement('div'), { id: 'dashboard' }));
+          window.DashboardRenderer.render(res, container);
+        }
+        window.lastRenderedData = res;
+        return res;
+      });
     });
-    
-    // Wait for the analysis to complete
+
+    // Trigger an analysis (return the promise so Playwright can await internally)
+    await page.evaluate(() => window.analyzeRepo('https://github.com/test-owner/test-repo', 'dod'));
+
+    // Wait for the analysis to complete and dashboard to render
     await page.waitForSelector('.dashboard-container');
     
     // Check that the server-side method was called

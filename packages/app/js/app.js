@@ -62,8 +62,7 @@ function directLoadDataFile(folderName, dataFileName, successCallback, errorCall
 }
 
 // Initialize key services
-let appAuth, appGithub, appAnalyzer, appDashboard;
-let serviceReadinessPolling = false;
+let appAuth, appGithub, appAnalyzer, appDashboard; // readiness polling handled by TemplateDoctorServiceReadiness (TS)
 
 // Queue extraction: delegate to TypeScript analysis queue if present
 function enqueueAnalysisRequest(args){
@@ -72,91 +71,9 @@ function enqueueAnalysisRequest(args){
   } else {
     (window.__TD_FALLBACK_PENDING = window.__TD_FALLBACK_PENDING || []).push(args);
   } } catch(e){ console.warn('[app] enqueue fallback path', e); }
-  pollForServiceReadiness();
-}
-
-function drainAnalysisQueue(){
-  if (!appAnalyzer || !appDashboard) return;
-  try {
-    if (window.TemplateDoctorAnalysisQueue && window.TemplateDoctorAnalysisQueue.drain){
-      window.TemplateDoctorAnalysisQueue.drain(({ args }) => {
-        const { repoUrl, ruleSet, selectedCategories } = args;
-        internalAnalyzeRepo(repoUrl, ruleSet, selectedCategories);
-      });
-      return;
-    }
-    const fallback = window.__TD_FALLBACK_PENDING || [];
-    if (fallback.length){
-      console.debug('[app] draining fallback pending analyses', fallback.length);
-      while(fallback.length){
-        const { repoUrl, ruleSet, selectedCategories } = fallback.shift();
-        internalAnalyzeRepo(repoUrl, ruleSet, selectedCategories);
-      }
-    }
-  } catch(e){ console.error('[app] drainAnalysisQueue error', e); }
-}
-
-function pollForServiceReadiness(maxAttempts = 15, intervalMs = 500) {
-  if (serviceReadinessPolling) return;
-  serviceReadinessPolling = true;
-  let attempts = 0;
-  
-  // Show initialization status to the user
-  const loadingMessage = document.createElement('div');
-  loadingMessage.id = 'service-init-message';
-  loadingMessage.className = 'alert alert-info';
-  loadingMessage.style.position = 'fixed';
-  loadingMessage.style.top = '10px';
-  loadingMessage.style.left = '50%';
-  loadingMessage.style.transform = 'translateX(-50%)';
-  loadingMessage.style.zIndex = '9999';
-  loadingMessage.style.padding = '10px 20px';
-  loadingMessage.style.borderRadius = '5px';
-  loadingMessage.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
-  loadingMessage.textContent = 'Services initializing... Please wait.';
-  document.body.appendChild(loadingMessage);
-  
-  const timer = setInterval(() => {
-    attempts++;
-    appAuth = window.GitHubAuth || appAuth;
-    appGithub = window.GitHubClient || appGithub;
-    appAnalyzer = window.TemplateAnalyzer || appAnalyzer;
-    appDashboard = window.DashboardRenderer || appDashboard;
-    
-    // Update status message
-    loadingMessage.textContent = `Services initializing (${attempts}/${maxAttempts})... ${appAnalyzer ? '✓' : '⟳'} Analyzer ${appDashboard ? '✓' : '⟳'} Dashboard ${appGithub ? '✓' : '⟳'} GitHub`;
-    
-    if (appAnalyzer && appGithub && appDashboard) {
-      clearInterval(timer);
-      serviceReadinessPolling = false;
-      debug('app', 'All services became ready during polling');
-      // Remove the message with a fade-out effect
-      loadingMessage.style.transition = 'opacity 0.5s ease';
-      loadingMessage.style.opacity = '0';
-      setTimeout(() => {
-        if (loadingMessage.parentNode) {
-          loadingMessage.parentNode.removeChild(loadingMessage);
-        }
-      }, 500);
-      drainAnalysisQueue();
-    } else if (attempts >= maxAttempts) {
-      clearInterval(timer);
-      serviceReadinessPolling = false;
-      debug('app', 'Service readiness polling exhausted attempts', {
-        analyzer: !!appAnalyzer,
-        github: !!appGithub,
-        dashboard: !!appDashboard,
-      });
-      // Keep the message visible but update it to show failure
-      loadingMessage.className = 'alert alert-warning';
-      loadingMessage.textContent = 'Some services failed to initialize. You may need to refresh the page.';
-      setTimeout(() => {
-        if (loadingMessage.parentNode) {
-          loadingMessage.parentNode.removeChild(loadingMessage);
-        }
-      }, 5000);
-    }
-  }, intervalMs);
+  if (window.TemplateDoctorServiceReadiness){
+    window.TemplateDoctorServiceReadiness.pollForServiceReadiness();
+  }
 }
 
 // Function to initialize the app with dependencies
@@ -2893,10 +2810,8 @@ window.checkServicesReady = function(forceReinitialize = false) {
   
   if (!servicesReady || forceReinitialize) {
     // Try to reinitialize services
-    tryReinitializeServices();
-    
-    // Start polling for service readiness
-    pollForServiceReadiness();
+  tryReinitializeServices();
+  if (window.TemplateDoctorServiceReadiness){ window.TemplateDoctorServiceReadiness.pollForServiceReadiness(); }
     
     return false;
   }
@@ -2988,51 +2903,7 @@ function tryReinitializeServices() {
 // Listen for the analyzer initialization event
 document.addEventListener('template-analyzer-ready', () => {
   debug('app', 'Template analyzer ready event received');
-
-  // Update the analyzer reference
-  appAnalyzer = window.TemplateAnalyzer;
-
-  // Remove any existing service initialization message
-  const existingMessage = document.getElementById('service-init-message');
-  if (existingMessage && existingMessage.parentNode) {
-    existingMessage.parentNode.removeChild(existingMessage);
-  }
-
-  if (appAnalyzer) {
-    debug('app', 'Template analyzer successfully initialized');
-    
-    // Check if all required services are now available
-    const allServicesReady = !!appAnalyzer && !!appDashboard && !!appGithub;
-    
-    if (window.NotificationSystem) {
-      window.NotificationSystem.showSuccess(
-        'Analyzer Ready',
-        allServicesReady 
-          ? 'All services are now initialized and ready to use' 
-          : 'Template analyzer is ready, but some other services may still be initializing',
-        3000,
-      );
-    }
-    
-    // If we have pending analysis requests and all services are ready, process them
-    if (allServicesReady) {
-      drainAnalysisQueue();
-    } else {
-      // Try to initialize other services if they're not ready yet
-      tryReinitializeServices();
-      // Start polling again to check if all services become ready
-      pollForServiceReadiness();
-    }
-  } else {
-    debug('app', 'Template analyzer still not available after ready event');
-    
-    // Show error notification
-    if (window.NotificationSystem) {
-      window.NotificationSystem.showError(
-        'Initialization Issue',
-        'Template analyzer failed to initialize properly. You may need to refresh the page.',
-        5000
-      );
-    }
+  if (window.TemplateDoctorServiceReadiness){
+    window.TemplateDoctorServiceReadiness.onAnalyzerReady();
   }
 });

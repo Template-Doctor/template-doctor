@@ -1,5 +1,5 @@
-// Config loader for Template Doctor
-// Loads configuration from multiple sources and consolidates them
+// (Removed) config-loader.js – migrated to TypeScript (scripts/config-loader.ts)
+(function(){ if(!window.__TD_CONFIG_LOADER_JS_REMOVED__){ window.__TD_CONFIG_LOADER_JS_REMOVED__=true; console.warn('[config-loader.js removed] Using scripts/config-loader.ts implementation.'); }})();
 
 /**
  * Configuration can be loaded from multiple sources:

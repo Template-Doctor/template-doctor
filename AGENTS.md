@@ -205,3 +205,23 @@ If a bulk patch tool cannot delete the large historical file in the same change 
 - Introducing new public globals under legacy names (except the minimal throwing stubs when absolutely necessary as described above).
 
 Following these rules ensures the migration remains auditable, keeps bundle size controlled, and prevents accidental re‑coupling to deprecated globals.
+
+### Phase 2 Deletions (2025-09-29)
+
+The following legacy scripts have been physically removed after confirming 1:1 TypeScript parity, absence of runtime references (grep for script tags/imports), and passing Playwright + smoke tests:
+
+- `packages/app/js/runtime-config.js`
+- `packages/app/js/api-client.js`
+- `packages/app/js/report-loader.js`
+- `packages/app/js/templates-data-loader.js`
+- `packages/app/js/issue-template-engine.js`
+
+Analyzer Status: `packages/app/js/analyzer.js` no longer contains legacy logic; it is a minimal dynamic loader stub that injects `analyzer.bundle.js`. This stub will be deleted in a subsequent cleanup once a full grep confirms no stale external references (e.g., downstream docs or integrations) still point to `js/analyzer.js`.
+
+Action Items Before Deleting `analyzer.js` Stub:
+1. Grep repo (and any dependent deployment templates if applicable) for `analyzer.js` script tags.
+2. Run `npm test` (all suites) and `./scripts/smoke-api.sh`.
+3. Remove file and update both this section and `docs/development/migration-matrix.md` (set status to Removed).
+4. Re-run Playwright focused analyzer-related specs (add one if gap identified) to ensure bundle loads deterministically.
+
+Do not reintroduce logic into `analyzer.js`; only proceed directly to deletion once conditions met.

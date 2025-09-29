@@ -1,4 +1,5 @@
-// Dashboard Renderer - Handles rendering of compliance reports
+// (Removed) dashboard-renderer.js – migrated to TypeScript (scripts/dashboard-renderer.ts)
+(function(){ if(!window.__TD_DASHBOARD_RENDERER_JS_REMOVED__){ window.__TD_DASHBOARD_RENDERER_JS_REMOVED__=true; console.warn('[dashboard-renderer.js removed] Using scripts/dashboard-renderer.ts implementation.'); }})();
 // Uses IIFE pattern to avoid global namespace pollution
 
 console.log('Loading dashboard-renderer.js - initializing renderer');

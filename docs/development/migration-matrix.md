@@ -1,6 +1,6 @@
 # Frontend Legacy -> TypeScript Migration Matrix
 
-_Last updated: 2025-09-07_
+_Last updated: 2025-09-29_
 
 Legend:
 - **Status**: Legacy (not started), Partial (some functionality ported), Migrated (feature parity in TS), Obsolete (safe to remove), Deprecated (superseded; pending deletion).
@@ -17,14 +17,15 @@ Legend:
 | `api-routes.js` | Migrated | Yes | `scripts/api-routes.ts` | HTML script tag removed; file queued for deletion cleanup batch. |
 | `auth.js` | Migrated | Yes | `scripts/auth.ts` | HTML script tag removed; file queued for deletion cleanup batch. |
 | `github-client.js` / `github-client-new.js` | Obsolete (Removed) | Yes | `scripts/github-client.ts` | Deleted legacy files in repo. |
-| `analyzer.js` | Migrated | Yes | `scripts/analyzer.ts` | Remove legacy. |
-| `report-loader.js` | Migrated | Yes | `scripts/report-loader.ts` | Remove legacy. |
+| `analyzer.js` | Migrated (Stub Loader Present) | Yes | `scripts/analyzer.ts` | Legacy logic removed; slim dynamic loader stub (`js/analyzer.js`) remains to load `analyzer.bundle.js`. Next: delete stub after verifying zero stale references. |
+| `report-loader.js` | Removed | Yes | `scripts/report-loader.ts` | Physically deleted (Phase 2). |
 | `dashboard-renderer.js` | Migrated | Yes | `scripts/dashboard-renderer.ts` | Remove legacy. |
 | `config-loader.js` | Migrated | Yes | `scripts/config-loader.ts` | Remove after verify no inline HTML script tag references. |
-| `runtime-config.js` | Migrated | Yes | `scripts/runtime-config.ts` | Remove; ensure `TemplateDoctorConfig` still globally exposed via build. |
-| `templates-data-loader.js` | Migrated | Yes | `scripts/templates-data-loader.ts`, `scripts/template-list.ts` | Loader fully migrated; TS module loads `results/index-data.js`, dispatches event, adds diagnostic API. Legacy script tag removed. |
+| `runtime-config.js` | Removed | Yes | `scripts/runtime-config.ts` | Physically deleted; TS module authoritative. Global exposure validated by Playwright readiness test. |
+| `templates-data-loader.js` | Removed | Yes | `scripts/templates-data-loader.ts`, `scripts/template-list.ts` | Physically deleted; event dispatch & diagnostics now in TS modules. |
 | `tooltips.js` | Migrated (Removed) | Yes | `modules/tooltips.ts` | Legacy file deleted after port. |
 | `github-issue-handler.js` | Obsolete (Removed) | Yes | `scripts/issue-service.ts`, `scripts/api-client.ts` | Removed stub; TS service exposes `window.createGitHubIssue`. |
+| `issue-template-engine.js` | Removed | Yes | `scripts/issue-template-engine.ts` (if split) / `scripts/issue-service.ts` | Legacy helper consolidated into issue service + template helpers; physical deletion in Phase 2. |
 | `github-workflow-validation.js` | Migrated (Phase 2) | Yes | `modules/validation.ts` | Unified module w/ diagnostics grouping, collapsible sections, resume, timeout continue, counts, accessibility, tests. |
 | `ruleset-modal.js` | Migrated | Yes | `modules/ruleset-modal.ts` | Legacy file deleted; global `showRulesetModal` preserved. |
 | `ruleset-docs/analyzer.js` | Legacy | No | – | Niche; evaluate actual usage (maybe remove or rewrite as docs enhancement). |
@@ -36,6 +37,7 @@ Legend:
 | `action-buttons-direct.js` / `action-buttons-fallback.js` | Removed (Superseded) | Yes | `scripts/dashboard-renderer.ts` | Legacy scripts no longer loaded; TS renderer guarantees button creation & visibility. Delete files in cleanup batch. |
 | `test-fork-workflow.js` | Legacy | Obsolete | Playwright specs | Delete; replaced by fork E2E tests. |
 | `app.js` | Mixed | Yes (distributed) | Multiple (`api-client.ts`, `issue-service.ts`, `batch-scan.ts`, etc.) | Progressive extraction approach: split remaining monolith concerns into focused modules. Track subtasks. |
+| `api-client.js` | Removed | Yes | `scripts/api-client.ts` | Physical deletion (Phase 2); TS module initializes early and dispatches readiness event. |
 
 ### In-Progress Extraction Notes
 - Batch Scan: Legacy IndexedDB + per-item card logic scaffolded into `scripts/batch-scan-legacy.ts` (phase 1). Next: migrate resume/retry UI fully and remove overlapping block from `app.js`.

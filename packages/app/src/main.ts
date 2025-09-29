@@ -2,15 +2,17 @@
 // @ts-nocheck removed – incremental typing applied where practical without altering legacy globals.
 
 import '../js/debug-console.js';
-import '../js/api-routes.js';
-import '../js/notification-system.js';
+// Legacy JS imports removed: api-routes.js, notification-system.js (fully migrated to TS)
+// import '../js/api-routes.js'; // removed during Phase 2 cleanup
+// import '../js/notification-system.js'; // removed during Phase 2 cleanup
 import '../js/notifications.js';
 import '../js/notifications-compat.js';
 import '../js/notifications-init.js';
 // Typed facades (TS) layering on top of legacy implementations
 import './notifications/notification-system.ts';
 import './notifications/notifications.ts';
-import '../js/config-loader.js';
+// Legacy config-loader.js removed (TS version in scripts/config-loader.ts)
+// import '../js/config-loader.js';
 
 // Early CSP/apiBase normalization (previous inline script)
 (function(){
@@ -27,14 +29,16 @@ import '../js/config-loader.js';
 })();
 
 import './scripts/runtime-config.ts'; // (replaces legacy ../js/runtime-config.js)
-import '../js/auth.js';
+// Legacy auth.js removed (scripts/auth.ts authoritative)
+// import '../js/auth.js';
 // Replaced legacy github-client-new.js with TS version
 import './github/github-client.ts';
 // Use TypeScript source directly (legacy bundle removed)
 import './scripts/api-client.ts';
 import '../js/github-client-patch.js';
 import '../js/markdown-renderer.js';
-import '../js/dashboard-renderer.js';
+// Legacy dashboard-renderer.js removed (scripts/dashboard-renderer.ts authoritative)
+// import '../js/dashboard-renderer.js';
 // TS extraction: dashboard data adapter (used by legacy renderer via window.__TD_adaptResultData)
 import './dashboard/adapt.ts';
 import './dashboard/agents-enrichment.ts';

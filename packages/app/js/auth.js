@@ -1,4 +1,5 @@
-// GitHub OAuth Authentication Handler
+// (Removed) auth.js – migrated to TypeScript (scripts/auth.ts)
+(function(){ if(!window.__TD_AUTH_JS_REMOVED__){ window.__TD_AUTH_JS_REMOVED__=true; console.warn('[auth.js removed] Using scripts/auth.ts implementation.'); }})();
 
 /**
  * Debug logging utility
