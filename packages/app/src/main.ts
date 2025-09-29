@@ -75,6 +75,9 @@ import '../js/github-fork-patch-fix.js';
 import '../js/saml-batch-patch-loader.js';
 // New TS batch facade (non-disruptive; wraps legacy processBatchUrls)
 import './batch/facade.ts';
+// Service readiness & analysis queue (extracted from legacy app.js) – must load before tests that access TemplateDoctorServiceReadiness / TemplateDoctorAnalysisQueue
+import './app/analysis-queue.ts';
+import './app/service-readiness.ts';
 
 // Expose a typed-friendly facade (will refine later)
 // Minimal surface typings; deeper analyzer/api client types live in their respective modules.
