@@ -28,18 +28,17 @@ jobs:
           
       - name: Install Dependencies
         run: |
-          cd ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
-          npm install
-          
-      - name: Build
-        run: |
+          npm ci --workspaces
           cd ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
           npm run build
-          
-      - name: Test
-        run: |
-          cd ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
-          npm test
+
+      - name: Ensure Node version
+        run: node scripts/ensure-node-version.js
+
+      - name: Unit Tests (root)
+        run: npm run test:unit
+      - name: Package API (already built)
+        run: ls -1 ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}/dist || (echo 'dist missing' && exit 1)
           
       - name: 'Deploy to Azure Functions'
         if: github.event_name != 'pull_request'

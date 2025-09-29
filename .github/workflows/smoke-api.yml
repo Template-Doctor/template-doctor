@@ -36,6 +36,9 @@ jobs:
       - name: Build API
         run: npm run -w packages/api build
 
+      - name: Run unit tests
+        run: npm run test:unit
+
       - name: Ensure Node version
         run: node scripts/ensure-node-version.js
 

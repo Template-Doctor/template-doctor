@@ -8,6 +8,7 @@
 [![Template Framework Documentation](https://img.shields.io/badge/TemplateFramework-008080?style=flat-square)](https://github.com/Azure-Samples/azd-template-artifacts/)
 [![Template Framework MCP](https://img.shields.io/badge/TemplateFrameworkMCP-0090FF?style=flat-square)](https://github.com/Template-Doctor/template-doctor)
 [![License](https://img.shields.io/badge/License-MIT-white?style=flat-square)](LICENSE)
+[![API Smoke](https://github.com/Template-Doctor/template-doctor/actions/workflows/smoke-api.yml/badge.svg)](.github/workflows/smoke-api.yml)
 
 [Overview](#overview) | [Features](#features) | [Install](#installation-and-setup) | [Usage](#usage)
 
@@ -38,6 +39,7 @@ Template Doctor analyzes and validates samples and templates, including but not 
 - Azure Developer CLI (azd) deployment testing
 - AI model deprecation checking
 - Centralized archive for analysis metadata
+- Automated API smoke tests in CI (see badge above)
 
 ## Architecture
 
@@ -100,6 +102,8 @@ See the [Environment Variables Documentation](docs/development/ENVIRONMENT_VARIA
    ```bash
    npm ci
    ```
+
+  The project enforces a Node.js LTS range: >=20 <23. A guard script (`scripts/ensure-node-version.js`) will fail fast if you use an unsupported version (e.g. early experimental 23.x). Use `nvm install 20 && nvm use 20` if needed.
 
 2. Start the API locally:
    ```bash
