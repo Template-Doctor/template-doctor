@@ -1,26 +1,13 @@
-// @ts-nocheck
 // TypeScript migration of templates-data-loader.js
 // Loads template index data only after GitHubAuth reports authenticated state.
+// Adds lightweight typings; behavior intentionally unchanged.
 
-interface TemplateEntry {
-  repoUrl: string;
-  relativePath?: string;
-  scannedBy?: string[];
-  folderPath?: string;
-  dataPath?: string;
-  result?: any;
-}
-
-declare global {
-  interface Window {
-    templatesData?: TemplateEntry[];
-    GitHubAuth?: { isAuthenticated?: () => boolean };
-  }
-}
+// Reuse existing global `ScannedTemplateEntry` from global.d.ts.
+// (index-data.js populates window.templatesData with this shape.)
 
 (function(){
-  function log(){
-    try { console.log.apply(console, ['[templates-loader]', ...arguments]); } catch(_) {}
+  function log(...args: any[]){
+    try { console.log('[templates-loader]', ...args); } catch(_) {}
   }
 
   function dispatchLoaded(){
@@ -98,7 +85,7 @@ declare global {
     }
   }
 
-  document.addEventListener('auth-state-changed', (e:any)=>{
+  document.addEventListener('auth-state-changed', (e: any)=>{
     try {
       if(e.detail && e.detail.authenticated){
         log('Auth changed to authenticated; loading templates');

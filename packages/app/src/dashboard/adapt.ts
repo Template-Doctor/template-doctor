@@ -22,7 +22,7 @@ export function adaptResultData(result:any):AdaptedData {
   const compliant:AdaptedCompliant[] = [];
 
   if (result?.compliance && Array.isArray(result.compliance.issues)) {
-    result.compliance.issues.forEach(issue => {
+  result.compliance.issues.forEach((issue: any) => {
       issues.push({
         id: issue.id || `issue-${issues.length}`,
         category: issue.id ? issue.id.split('-')[0] : 'general',
@@ -33,7 +33,7 @@ export function adaptResultData(result:any):AdaptedData {
       });
     });
     if (result.compliance.compliant && Array.isArray(result.compliance.compliant)) {
-      result.compliance.compliant.forEach(item => {
+  result.compliance.compliant.forEach((item: any) => {
         compliant.push({
           id: item.id || `passed-${compliant.length}`,
             category: item.id ? item.id.split('-')[0] : 'general',
@@ -44,9 +44,9 @@ export function adaptResultData(result:any):AdaptedData {
       });
     }
   } else if (result?.categories && Array.isArray(result.categories)) {
-    result.categories.forEach(category => {
+  result.categories.forEach((category: any) => {
       if (category.checks && Array.isArray(category.checks)) {
-        category.checks.forEach(check => {
+  category.checks.forEach((check: any) => {
           const item = {
             id: `${category.id}-${check.id}`,
             category: category.id,

@@ -19,7 +19,7 @@ Date: 2025-09-28
    - Introduce interfaces for: BatchScanItem, AnalysisResult, NotificationPayload.
 3. Gradually drop legacy JS:
    - For each `../js/*.js` file: copy to `src/` TS module, add minimal types, update `main.ts` import, then remove old file.
-4. Playwright root convenience config (optional) to simplify commands.
+4. Playwright root convenience config (optional) to simplify commands. (DONE)
 5. Introduce ESLint + TypeScript strictness (phased): start with noImplicitAny=false, then enable per directory.
 6. Tree-shake / bundle size follow-up once legacy code gone (current bundle ~313 KB, target <200 KB initial).
 

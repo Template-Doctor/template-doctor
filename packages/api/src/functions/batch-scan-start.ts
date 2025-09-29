@@ -1,6 +1,6 @@
 import { HttpRequest } from '@azure/functions';
-import { InvocationContext } from '../platform/functions-types.js';
-import { readJson, getQuery } from '../platform/http.js';
+import { InvocationContext } from '../platform/functions-types';
+import { readJson, getQuery } from '../platform/http';
 import { randomUUID } from 'crypto';
 
 interface BatchScanItem {

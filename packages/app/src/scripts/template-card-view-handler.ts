@@ -1,9 +1,11 @@
 // Listens for `template-card-view` events (dispatched by template-list.ts) and loads the report
 // using the existing ReportLoader + DashboardRenderer pipeline.
 
+import type { TemplateDescriptor, ReportData } from '../report/report-loader';
+
+// Avoid re-declaring window.ReportLoader (already defined in report-loader.ts global augmentation)
 declare global {
   interface Window {
-    ReportLoader?: { loadReport: (repoUrl: string, options?: any) => Promise<any> };
     TemplateCardViewHandlerReady?: boolean;
     __debugTriggerTemplateCardView?: (repoUrl: string) => void;
   }

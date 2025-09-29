@@ -1,6 +1,6 @@
 import { HttpRequest } from "@azure/functions";
-import { InvocationContext } from "../platform/functions-types.js";
-import { readJson } from "../platform/http.js";
+import { InvocationContext } from "../platform/functions-types";
+import { readJson } from "../platform/http";
 import { Octokit } from '@octokit/rest';
 
 /**

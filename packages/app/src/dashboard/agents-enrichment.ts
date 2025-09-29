@@ -126,7 +126,7 @@ export async function runAgentsEnrichment(adaptedData:AdaptedDataLike){
   if(hasTable && missingCols.length) problems.push('missing required columns: '+missingCols.join(', '));
   let agentCount = 0;
   if(hasTable){
-    const tableIndex = lines.indexOf(tableHeaderLine);
+    const tableIndex = lines.indexOf(tableHeaderLine || '');
     for(let i=tableIndex+1;i<lines.length;i++){
       const ln = lines[i];
       if(/^\s*\|\s*[-:]+(\s*\|\s*[-:]+)*\s*\|?\s*$/.test(ln)) continue;

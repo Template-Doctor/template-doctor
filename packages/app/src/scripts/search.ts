@@ -334,7 +334,8 @@ async function performSearch(query: string): Promise<void> {
         template.relativePath,
         Array.isArray(template.languages) ? template.languages.join(' ') : '',
         Array.isArray(template.tags) ? template.tags.join(' ') : ''
-      ].filter(Boolean).map(field => field.toLowerCase());
+      ].filter((v): v is string => typeof v === 'string' && v.length > 0)
+       .map(field => field.toLowerCase());
       
       // Match if any field contains the query
       return searchableFields.some(field => field.includes(q.toLowerCase()));

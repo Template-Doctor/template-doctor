@@ -1,13 +1,55 @@
-// @ts-nocheck
-// Migrated from js/config-loader.js (behavior preserved)
+// Migrated from js/config-loader.js (behavior preserved) – now typed.
 
-async function loadEnvironmentVariables() {
+interface BackendEnvShape {
+  baseUrl?: string;
+  functionKey?: string;
+  apiVersion?: string;
+  [k: string]: any;
+}
+
+interface OAuthConfigShape {
+  clientId?: string;
+  scope?: string;
+  redirectUri?: string;
+  [k: string]: any;
+}
+
+interface EnvironmentVariablesShape {
+  backend?: BackendEnvShape;
+  GITHUB_CLIENT_ID?: string;
+  DEFAULT_RULE_SET?: string;
+  REQUIRE_AUTH_FOR_RESULTS?: string;
+  AUTO_SAVE_RESULTS?: string;
+  ARCHIVE_ENABLED?: string;
+  ARCHIVE_COLLECTION?: string;
+  DISPATCH_TARGET_REPO?: string;
+  [k: string]: any;
+}
+
+interface ConfigJsonShape {
+  backend?: BackendEnvShape;
+  githubOAuth?: OAuthConfigShape;
+  DEFAULT_RULE_SET?: string;
+  REQUIRE_AUTH_FOR_RESULTS?: string;
+  AUTO_SAVE_RESULTS?: string;
+  ARCHIVE_ENABLED?: string;
+  ARCHIVE_COLLECTION?: string;
+  DISPATCH_TARGET_REPO?: string;
+  [k: string]: any;
+}
+
+interface ConsolidatedConfig extends ConfigJsonShape {
+  backend?: BackendEnvShape;
+  githubOAuth?: OAuthConfigShape;
+}
+
+async function loadEnvironmentVariables(): Promise<EnvironmentVariablesShape> {
   try {
     const isLocalhost = window.location.hostname === 'localhost';
     // Detect if the caller explicitly requested a Functions port (query param or global var).
     // We keep a separate flag so the mere DEFAULT value (7071) does not bias ordering when running
     // inside the unified container (e.g., :4000) where we should try same-origin first.
-    let localPort: any = 7071;
+  let localPort: number | string = 7071;
     let explicitFuncPort = false;
     if ((window as any).LOCAL_FUNCTIONS_PORT) {
       localPort = (window as any).LOCAL_FUNCTIONS_PORT;
@@ -18,15 +60,20 @@ async function loadEnvironmentVariables() {
     } else {
       const urlParams = new URLSearchParams(window.location.search);
       if (urlParams.has('funcPort')) {
-        localPort = urlParams.get('funcPort');
-        explicitFuncPort = true;
+        const val = urlParams.get('funcPort');
+        if (val != null && val.trim().length > 0) {
+          // Preserve original behavior: accept string override, but coerce numeric when possible.
+          const asNum = Number(val);
+          localPort = Number.isFinite(asNum) ? asNum : val;
+          explicitFuncPort = true;
+        }
       }
     }
     // Paths
     const devPath = '/api/v4/client-settings'; // Functions or dev proxy
     const containerPath = '/v4/client-settings'; // Unified container mount
-    let tried: string[] = [];
-    let response: Response | null = null;
+  const tried: string[] = [];
+  let response: Response | null = null;
     // Strategy:
     // 1. If localhost & current port looks like Functions (7071) OR explicit funcPort provided -> try devPath absolute.
     // 2. Otherwise (likely unified container via localhost:4000) first try containerPath relative.
@@ -58,7 +105,7 @@ async function loadEnvironmentVariables() {
         candidates.unshift(containerPath);
       }
     } catch {}
-    let data: any = {};
+  let data: EnvironmentVariablesShape = {};
     for (const url of candidates) {
       if (tried.includes(url)) continue;
       tried.push(url);
@@ -83,11 +130,11 @@ async function loadEnvironmentVariables() {
     return data;
   } catch (error) {
     console.warn('Error loading environment variables:', error);
-    return {};
+    return {} as EnvironmentVariablesShape;
   }
 }
 
-async function loadConfigJson() {
+async function loadConfigJson(): Promise<ConfigJsonShape> {
   const tried: string[] = [];
   const candidates = [
     '/config.json', // absolute root (dist places at /index.html ; our deploy copies config.json alongside index if we add it)
@@ -105,7 +152,7 @@ async function loadConfigJson() {
       try {
         const data = JSON.parse(txt);
         console.log('[config-loader] Loaded config.json via', url, 'keys:', Object.keys(data));
-        return data;
+  return data as ConfigJsonShape;
       } catch (e) {
         console.warn('[config-loader] JSON parse failed for', url, 'first 100 chars:', txt.slice(0,100));
       }
@@ -114,16 +161,16 @@ async function loadConfigJson() {
     }
   }
   console.warn('[config-loader] All config.json candidates failed; proceeding with empty config');
-  return {};
+  return {} as ConfigJsonShape;
 }
 
-async function loadConfig() {
+async function loadConfig(): Promise<ConsolidatedConfig> {
   const configJson = await loadConfigJson();
   const envVars = await loadEnvironmentVariables();
-  const config: any = { ...configJson };
+  const config: ConsolidatedConfig = { ...configJson };
   if (envVars && typeof envVars === 'object') {
     if (envVars.backend && typeof envVars.backend === 'object') {
-      const mergedBackend: any = { ...(config.backend || {}) };
+      const mergedBackend: BackendEnvShape = { ...(config.backend || {}) };
       if (typeof envVars.backend.baseUrl === 'string' && envVars.backend.baseUrl.trim().length > 0) {
         mergedBackend.baseUrl = envVars.backend.baseUrl;
       }

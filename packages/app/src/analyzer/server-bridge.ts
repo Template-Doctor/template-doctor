@@ -1,32 +1,44 @@
-// @ts-nocheck
 // Combined TypeScript migration of server-analysis-bridge.js and analyzer-server-only-patch.js.
 // Attaches analyzeTemplateServerSide and enforces server-only analysis (no client fallback).
 
+interface AnalyzerLike {
+  analyzeTemplate?: (repoUrl: string, ruleSet?: string) => Promise<any>;
+  analyzeTemplateServerSide?: (repoUrl: string, ruleSetOrOptions?: any) => Promise<any>;
+  analyzeTemplateClientSide?: (...args: any[]) => Promise<any>;
+  [k: string]: any; // allow legacy properties
+}
+
+interface GitHubAuthSubset { isAuthenticated: () => boolean; getToken?: () => string | null | undefined; }
+
+export {};
+
+// (No global interface merge here to avoid conflict with existing TemplateAnalyzer type in global.d.ts)
+
 (function(){
-  function attachServerMethod(instance){
+  function attachServerMethod(instance: AnalyzerLike){
     if(typeof instance.analyzeTemplateServerSide === 'function') return instance;
-    instance.analyzeTemplateServerSide = async function(repoUrl, ruleSetOrOptions){
+    instance.analyzeTemplateServerSide = async function(repoUrl: string, ruleSetOrOptions?: any){
       try {
-        var cfg = (window as any).TemplateDoctorConfig || {};
-        var ruleSet = 'dod';
+        const cfg = (window as any).TemplateDoctorConfig || {};
+        let ruleSet = 'dod';
         if(typeof ruleSetOrOptions === 'string') ruleSet = ruleSetOrOptions; else if(ruleSetOrOptions && typeof ruleSetOrOptions.ruleSet === 'string') ruleSet = ruleSetOrOptions.ruleSet;
-        var apiBase = cfg.apiBase || window.location.origin;
-        var endpoint = (window as any).ApiRoutes && (window as any).ApiRoutes.build ? (window as any).ApiRoutes.build('analyze-template') : apiBase.replace(/\/$/, '') + '/api/v4/analyze-template';
-        var payload = { repoUrl: repoUrl, ruleSet: ruleSet };
-        var headers = { 'Content-Type':'application/json' };
+        const apiBase = cfg.apiBase || window.location.origin;
+        const endpoint = (window as any).ApiRoutes && (window as any).ApiRoutes.build ? (window as any).ApiRoutes.build('analyze-template') : apiBase.replace(/\/$/, '') + '/api/v4/analyze-template';
+        const payload = { repoUrl: repoUrl, ruleSet: ruleSet };
+        const headers: Record<string,string> = { 'Content-Type':'application/json' };
         if(cfg.functionKey) headers['x-functions-key'] = cfg.functionKey;
         if((window as any).GitHubClient && (window as any).GitHubClient.auth && (window as any).GitHubClient.auth.isAuthenticated()) {
-          try { var token = (window as any).GitHubClient.auth.getToken(); if(token) headers['Authorization'] = 'Bearer ' + token; } catch(_){ }
+          try { const token = (window as any).GitHubClient.auth.getToken(); if(token) headers['Authorization'] = 'Bearer ' + token; } catch(_){ /* ignore */ }
         }
-        var resp = await fetch(endpoint, { method:'POST', headers: headers, body: JSON.stringify(payload) });
+        const resp = await fetch(endpoint, { method:'POST', headers: headers, body: JSON.stringify(payload) });
         if(!resp.ok){
-          var txt = await resp.text();
+          const txt = await resp.text();
           throw new Error('Server-side analysis failed: ' + resp.status + ' ' + resp.statusText + ' - ' + txt);
         }
-        var json = await resp.json();
-        if(!json.timestamp) json.timestamp = new Date().toISOString();
-        return json;
-      } catch(e){
+        const json = await resp.json();
+        if(!json.timestamp) (json as any).timestamp = new Date().toISOString();
+        return json as any;
+      } catch(e: any){
         console.error('[server-bridge] analyzeTemplateServerSide error', e);
         throw e;
       }
@@ -34,9 +46,9 @@
     return instance;
   }
 
-  function enforceServerOnly(instance){
+  function enforceServerOnly(instance: AnalyzerLike){
     if(!instance || typeof instance.analyzeTemplateServerSide !== 'function') return false;
-    instance.analyzeTemplate = function(repoUrl, ruleSet){ return this.analyzeTemplateServerSide(repoUrl, ruleSet || 'dod'); };
+    instance.analyzeTemplate = function(repoUrl: string, ruleSet?: string){ return this.analyzeTemplateServerSide(repoUrl, ruleSet || 'dod'); };
     instance.analyzeTemplateClientSide = function(){ throw new Error('Client-side analysis disabled'); };
     (window as any).TemplateDoctorConfig = (window as any).TemplateDoctorConfig || {};
     (window as any).TemplateDoctorConfig.analysis = (window as any).TemplateDoctorConfig.analysis || {};
@@ -46,25 +58,25 @@
   }
 
   function ensure(){
-    var ta = (window as any).TemplateAnalyzer;
+    let ta = (window as any).TemplateAnalyzer as AnalyzerLike | (new () => AnalyzerLike) | undefined;
     if(!ta) return false;
     if(typeof ta === 'function'){
-      try { ta = new ta(); (window as any).TemplateAnalyzer = ta; } catch(e){ return false; }
+      try { ta = new (ta as new () => AnalyzerLike)(); (window as any).TemplateAnalyzer = ta; } catch(e){ return false; }
     }
     if(!ta || typeof ta !== 'object') return false;
     attachServerMethod(ta);
     enforceServerOnly(ta);
     if(!(window as any).analyzeTemplateServerSide){
-      (window as any).analyzeTemplateServerSide = function(repoUrl, opts){ return ta.analyzeTemplateServerSide(repoUrl, opts || 'dod'); };
+      (window as any).analyzeTemplateServerSide = function(repoUrl: string, opts?: any){ return (ta as AnalyzerLike).analyzeTemplateServerSide?.(repoUrl, opts || 'dod')!; };
     }
     if(!(window as any).__templateAnalyzerReady){ (window as any).__templateAnalyzerReady = Promise.resolve(ta); }
     return true;
   }
 
-  function ready(fn){ if(document.readyState === 'complete' || document.readyState === 'interactive'){ setTimeout(fn,0); } else { document.addEventListener('DOMContentLoaded', fn); } }
+  function ready(fn: () => void){ if(document.readyState === 'complete' || document.readyState === 'interactive'){ setTimeout(fn,0); } else { document.addEventListener('DOMContentLoaded', fn); } }
 
-  function poll(maxMs){
-    var start = Date.now();
+  function poll(maxMs: number){
+    const start = Date.now();
     (function loop(){
       if(ensure()) return;
       if(Date.now() - start > maxMs){ console.warn('[server-bridge] Timed out waiting for TemplateAnalyzer'); return; }

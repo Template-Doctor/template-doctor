@@ -1,17 +1,46 @@
-// @ts-nocheck
-// Migrated from js/auth.js (behavior preserved)
+// Migrated from js/auth.js (behavior preserved) with TypeScript typings added
 
-function debug(module, message, data) {
-  const timestamp = new Date().toISOString();
-  console.log(`[${timestamp}][${module}] ${message}`, data !== undefined ? data : '');
+interface AuthConfig {
+  clientId: string;
+  redirectUri: string;
+  scope: string;
+  authUrl: string;
+  tokenStorageKey: string;
+  userStorageKey: string;
 }
-function getBasePath(){
+
+interface StoredUserInfo {
+  login: string;
+  name: string;
+  avatarUrl: string;
+}
+
+interface TokenExchangeResponse {
+  access_token?: string;
+  token_type?: string;
+  scope?: string;
+  refresh_token?: string;
+  expires_in?: number;
+  error?: string;
+  error_description?: string;
+  [k: string]: any;
+}
+
+function isTokenExchangeResponse(obj: any): obj is TokenExchangeResponse { return obj && typeof obj === 'object'; }
+
+function debug(module: string, message: string, ...data: unknown[]) {
+  const timestamp = new Date().toISOString();
+  // eslint-disable-next-line no-console
+  console.log(`[${timestamp}][${module}] ${message}`, ...data);
+}
+
+function getBasePath(): string {
   const pathname = window.location.pathname || '/';
   const withoutFile = pathname.match(/\.[a-zA-Z0-9]+$/) ? pathname.substring(0, pathname.lastIndexOf('/')) : pathname;
   if (withoutFile === '/') return '';
   return withoutFile.endsWith('/') ? withoutFile.slice(0,-1) : withoutFile;
 }
-const AUTH_CONFIG = {
+const AUTH_CONFIG: AuthConfig = {
   clientId: '',
   redirectUri: window.location.origin + getBasePath() + '/callback.html',
   scope: 'public_repo read:user',
@@ -22,7 +51,7 @@ const AUTH_CONFIG = {
 console.log('AUTH_CONFIG.redirectUri:', AUTH_CONFIG.redirectUri);
 console.log('window.location.origin:', window.location.origin);
 console.log('getBasePath():', getBasePath());
-async function loadRuntimeAuthConfig(){
+async function loadRuntimeAuthConfig(): Promise<void> {
   try {
     if ((window as any).ConfigLoader && (window as any).ConfigLoader.loadConfig){
       const config = await (window as any).ConfigLoader.loadConfig();
@@ -48,7 +77,7 @@ async function loadRuntimeAuthConfig(){
 // Edge-case helper: Sometimes GitHub may redirect directly to index.html with ?code&state instead of callback.html
 // (e.g., misconfigured redirect or older bookmarked URL). We capture that here early.
 // Legacy code capture for both callback.html and (if indicated) index.html
-function captureOAuthParams(forceCaptureOnIndex = false){
+function captureOAuthParams(forceCaptureOnIndex = false): boolean {
   try {
     if (!window.location.search) return false;
     const params = new URLSearchParams(window.location.search);
@@ -115,10 +144,10 @@ window.addEventListener('load', () => {
       console.log('[GitHubAuth][oauth] Detected pending auth code post-load; initiating token exchange.');
       if ((window as any).GitHubAuth?.exchangeCodeForToken) {
         (window as any).GitHubAuth.exchangeCodeForToken(pendingCode)
-          .catch(err => console.error('[GitHubAuth][oauth] Deferred exchange failed', err));
+          .catch((err: any) => console.error('[GitHubAuth][oauth] Deferred exchange failed', err));
       } else if (typeof (window as any).exchangeCodeForToken === 'function') {
         (window as any).exchangeCodeForToken(pendingCode)
-          .catch(err => console.error('[GitHubAuth][oauth] Deferred exchange failed', err));
+          .catch((err: any) => console.error('[GitHubAuth][oauth] Deferred exchange failed', err));
       } else {
         console.error('[GitHubAuth][oauth] No exchange method available');
       }
@@ -126,6 +155,9 @@ window.addEventListener('load', () => {
   } catch(e){ console.debug('[GitHubAuth][oauth] Deferred exchange check failed', e); }
 });
 class GitHubAuth {
+  private accessToken: string | null;
+  private userInfo: StoredUserInfo | null;
+
   constructor(){
     debug('GitHubAuth','Initializing authentication handler');
     this.accessToken = localStorage.getItem(AUTH_CONFIG.tokenStorageKey);
@@ -135,14 +167,14 @@ class GitHubAuth {
     this.initEventListeners();
     this.checkAuthentication();
   }
-  initEventListeners(){
+  private initEventListeners(): void {
     const loginButton = document.getElementById('login-button');
     if (loginButton) loginButton.addEventListener('click', () => this.login());
     const logoutButton = document.getElementById('logout-button');
     if (logoutButton) logoutButton.addEventListener('click', () => this.logout());
     this.handleCallback();
   }
-  login(){
+  login(): void {
     console.log('Starting login flow with scopes:', AUTH_CONFIG.scope);
     console.log('Configured redirectUri:', AUTH_CONFIG.redirectUri);
     this.clearGitHubCookies();
@@ -160,13 +192,13 @@ class GitHubAuth {
       return;
     }
     authUrl.searchParams.append('allow_signup','true');
-    authUrl.searchParams.append('_t', Date.now());
+  authUrl.searchParams.append('_t', String(Date.now()));
     authUrl.searchParams.append('_r', Math.random().toString(36).substring(7));
     authUrl.searchParams.append('prompt','consent');
     console.log('Redirecting to GitHub OAuth URL:', authUrl.toString());
     window.location.href = authUrl.toString();
   }
-  clearGitHubCookies(){
+  private clearGitHubCookies(): void {
     console.log('Attempting to clear GitHub cookies');
     const cookiesToClear = [
       { name: '_gh_sess', domain: '.github.com', path: '/' },
@@ -183,10 +215,10 @@ class GitHubAuth {
       } catch(e){ console.error('Error clearing cookie:', cookie.name, e); }
     });
   }
-  generateState(){
+  private generateState(): string {
     const state = Math.random().toString(36).substring(2,15); localStorage.setItem('oauth_state', state); return state;
   }
-  handleCallback(){
+  private handleCallback(): void {
     debug('handleCallback','Checking for code in sessionStorage');
     const code = sessionStorage.getItem('gh_auth_code');
     const state = sessionStorage.getItem('gh_auth_state');
@@ -200,7 +232,7 @@ class GitHubAuth {
       sessionStorage.removeItem('gh_auth_state');
     } else { debug('handleCallback','No code found in sessionStorage'); }
   }
-  exchangeCodeForToken(code){
+  exchangeCodeForToken(code: string): void {
     debug('exchangeCodeForToken','Starting token exchange with code', code);
     debug('exchangeCodeForToken','Sending request to Azure Function');
     sessionStorage.setItem('last_auth_code', code);
@@ -222,12 +254,27 @@ class GitHubAuth {
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         return response.clone().text().then(rawText => { debug('exchangeCodeForToken','Raw token exchange response:', rawText); try { const rawJson = JSON.parse(rawText); debug('exchangeCodeForToken','Raw token exchange response as JSON:', rawJson); if (rawJson.error){ const errorMsg = `${rawJson.error}: ${rawJson.error_description || 'Unknown error'}`; const errorNotify = (window as any).Notifications?.error?.bind((window as any).Notifications); errorNotify ? errorNotify('GitHub OAuth Error', errorMsg, 10000) : alert(`GitHub OAuth Error: ${errorMsg}`); throw new Error(errorMsg); } if (rawJson.scope) debug('exchangeCodeForToken','Token scopes from response:', rawJson.scope); } catch(e){ debug('exchangeCodeForToken','Failed to parse raw response as JSON:', e); } return response.json(); });
       })
-      .then(data => {
+      .then((data: TokenExchangeResponse) => {
         debug('exchangeCodeForToken','Token exchange response data received', data);
-        if (data){ debug('exchangeCodeForToken','Detailed token information:', { hasAccessToken: !!data.access_token, tokenType: data.token_type || null, scopes: data.scope ? data.scope.split(' ') : null, hasRefreshToken: !!data.refresh_token, expiresIn: data.expires_in || null, responseKeys: Object.keys(data) }); }
-        if (data.access_token){ debug('exchangeCodeForToken','Successfully received access token'); debug('exchangeCodeForToken','Token scopes (if provided):', data.scope || 'Not provided in response'); this.setAccessToken(data.access_token); this.fetchUserInfo(); sessionStorage.removeItem('last_auth_code'); return true; }
-        else if (data.error){ debug('exchangeCodeForToken','Error in token response', data.error); throw new Error(data.error); }
-        else { debug('exchangeCodeForToken','No token in response', data); throw new Error('No access token received'); }
+        if (isTokenExchangeResponse(data)){
+          debug('exchangeCodeForToken','Detailed token information:', { hasAccessToken: !!data.access_token, tokenType: data.token_type || null, scopes: data.scope ? data.scope.split(' ') : null, hasRefreshToken: !!data.refresh_token, expiresIn: data.expires_in || null, responseKeys: Object.keys(data) });
+          if (data.access_token){
+            debug('exchangeCodeForToken','Successfully received access token');
+            debug('exchangeCodeForToken','Token scopes (if provided):', data.scope || 'Not provided in response');
+            this.setAccessToken(data.access_token);
+            this.fetchUserInfo();
+            sessionStorage.removeItem('last_auth_code');
+            return true;
+          } else if (data.error){
+            debug('exchangeCodeForToken','Error in token response', data.error);
+            throw new Error(data.error);
+          } else {
+            debug('exchangeCodeForToken','No token in response', data);
+            throw new Error('No access token received');
+          }
+        } else {
+          throw new Error('Unexpected token exchange response');
+        }
       })
       .catch(error => {
         debug('exchangeCodeForToken','Error exchanging code for token', error.message);
@@ -235,8 +282,8 @@ class GitHubAuth {
         debug('exchangeCodeForToken','Full error details:', { message: error.message, name: error.name, stack: error.stack });
       });
   }
-  setAccessToken(token){ this.accessToken = token; localStorage.setItem(AUTH_CONFIG.tokenStorageKey, token); this.fetchUserInfo(); }
-  fetchUserInfo(){
+  private setAccessToken(token: string): void { this.accessToken = token; localStorage.setItem(AUTH_CONFIG.tokenStorageKey, token); this.fetchUserInfo(); }
+  fetchUserInfo(): Promise<StoredUserInfo | null> {
     debug('fetchUserInfo','Fetching user information');
     if (!this.accessToken){ debug('fetchUserInfo','No access token available'); return Promise.reject('No access token'); }
     debug('fetchUserInfo','Making request to GitHub API');
@@ -245,7 +292,7 @@ class GitHubAuth {
       .then(data => { debug('fetchUserInfo','User data received', data); this.userInfo = { login: data.login, name: data.name || data.login, avatarUrl: data.avatar_url }; localStorage.setItem(AUTH_CONFIG.userStorageKey, JSON.stringify(this.userInfo)); this.updateUI(); if ((window as any).GitHubClient){ (window as any).GitHubClient.currentUser = this.userInfo; debug('fetchUserInfo','Updated GitHub client with user info'); } return this.userInfo; })
       .catch(error => { debug('fetchUserInfo','Error fetching user info', error.message); if (error.message.includes('401')){ debug('fetchUserInfo','Token is invalid, logging out'); this.logout(); } return null; });
   }
-  checkAuthentication(){
+  checkAuthentication(): boolean {
     debug('checkAuthentication','Checking authentication status');
     const pendingCode = sessionStorage.getItem('github_auth_code');
     const pendingTimestamp = sessionStorage.getItem('github_auth_timestamp');
@@ -255,7 +302,7 @@ class GitHubAuth {
       this.exchangeCodeForToken(directCode);
     }
     if (pendingCode && pendingTimestamp){
-      const timestamp = new Date(pendingTimestamp); const now = new Date(); const secondsElapsed = (now - timestamp)/1000;
+  const timestamp = new Date(pendingTimestamp); const now = new Date(); const secondsElapsed = (now.getTime() - timestamp.getTime())/1000;
       if (secondsElapsed < 30 && !this.accessToken){ debug('checkAuthentication','Found recent pending auth code, retrying exchange'); this.exchangeCodeForToken(pendingCode); sessionStorage.removeItem('github_auth_code'); sessionStorage.removeItem('github_auth_timestamp'); }
       else if (secondsElapsed >= 30){ debug('checkAuthentication','Clearing expired pending auth code'); sessionStorage.removeItem('github_auth_code'); sessionStorage.removeItem('github_auth_timestamp'); }
     }
@@ -263,8 +310,8 @@ class GitHubAuth {
     if (this.accessToken && !this.userInfo){ debug('checkAuthentication','Have token but no user info, fetching user info'); this.fetchUserInfo(); }
     return !!this.accessToken;
   }
-  simulateLogin(){ console.log('Simulating login for local development'); this.accessToken = 'simulated_token'; localStorage.setItem(AUTH_CONFIG.tokenStorageKey, this.accessToken); this.userInfo = { login: 'dev-user', name: 'Development User', avatarUrl: 'https://avatars.githubusercontent.com/u/0' }; localStorage.setItem(AUTH_CONFIG.userStorageKey, JSON.stringify(this.userInfo)); }
-  updateUI(){
+  simulateLogin(): void { console.log('Simulating login for local development'); this.accessToken = 'simulated_token'; localStorage.setItem(AUTH_CONFIG.tokenStorageKey, this.accessToken); this.userInfo = { login: 'dev-user', name: 'Development User', avatarUrl: 'https://avatars.githubusercontent.com/u/0' }; localStorage.setItem(AUTH_CONFIG.userStorageKey, JSON.stringify(this.userInfo)); }
+  updateUI(): void {
     console.log('updateUI: Access Token:', this.accessToken ? 'Present':'Not present');
     console.log('updateUI: User Info:', this.userInfo);
     const loginButton = document.getElementById('login-button');
@@ -279,7 +326,7 @@ class GitHubAuth {
       if (loginButton) loginButton.style.display = 'none';
       if (userProfile) userProfile.style.display = 'flex';
       if (username) username.textContent = (this.userInfo && (this.userInfo.name || this.userInfo.login)) || 'Loading…';
-      if (userAvatar) userAvatar.src = (this.userInfo && this.userInfo.avatarUrl) || 'https://avatars.githubusercontent.com/u/0';
+  if (userAvatar && userAvatar instanceof HTMLImageElement) userAvatar.src = (this.userInfo && this.userInfo.avatarUrl) || 'https://avatars.githubusercontent.com/u/0';
       if (searchSection) searchSection.style.display = 'block';
       if (welcomeSection) welcomeSection.style.display = 'none';
       document.dispatchEvent(new CustomEvent('auth-state-changed', { detail: { authenticated: true, provisional: !this.userInfo }, bubbles: true, cancelable: true }));
@@ -295,8 +342,8 @@ class GitHubAuth {
       document.dispatchEvent(new CustomEvent('auth-state-changed', { detail: { authenticated: false }, bubbles: true, cancelable: true }));
     }
   }
-  async revokeToken(){ if (!this.accessToken) return Promise.resolve(); try { console.log('Revoking token and clearing GitHub session...'); this.clearGitHubCookies(); return Promise.resolve(); } catch(e){ console.error('Error revoking token:', e); return Promise.resolve(); } }
-  logout(){
+  async revokeToken(): Promise<void> { if (!this.accessToken) return Promise.resolve(); try { console.log('Revoking token and clearing GitHub session...'); this.clearGitHubCookies(); return Promise.resolve(); } catch(e){ console.error('Error revoking token:', e); return Promise.resolve(); } }
+  logout(): void {
     console.log('Logging out user...');
     this.revokeToken().finally(() => {
       console.log('Clearing all storage...');
@@ -314,7 +361,7 @@ class GitHubAuth {
       this.accessToken = null; this.userInfo = null; this.updateUI();
       console.log('Logged out successfully, redirecting to home page');
       const redirectUrl = new URL(window.location.origin);
-      redirectUrl.searchParams.append('_t', Date.now());
+  redirectUrl.searchParams.append('_t', String(Date.now()));
       redirectUrl.searchParams.append('_r', Math.random().toString(36).substring(7));
       redirectUrl.searchParams.append('logged_out','true');
       redirectUrl.searchParams.append('require_permissions','public_repo');
@@ -324,11 +371,11 @@ class GitHubAuth {
       } else { window.location.href = redirectUrl.toString(); }
     });
   }
-  getAccessToken(){ return this.accessToken; }
-  getToken(){ return this.getAccessToken(); }
-  getUserInfo(){ return this.userInfo; }
-  getUsername(){ const username = this.userInfo?.login || this.userInfo?.name; return username || null; }
-  isAuthenticated(){ const authenticated = !!this.accessToken; console.log('isAuthenticated check - token exists:', authenticated); return authenticated; }
+  getAccessToken(): string | null { return this.accessToken; }
+  getToken(): string | null { return this.getAccessToken(); }
+  getUserInfo(): StoredUserInfo | null { return this.userInfo; }
+  getUsername(): string | null { const username = this.userInfo?.login || this.userInfo?.name; return username || null; }
+  isAuthenticated(): boolean { const authenticated = !!this.accessToken; console.log('isAuthenticated check - token exists:', authenticated); return authenticated; }
 }
 // Immediately create the GitHubAuth instance so it's available to early consumers
 console.log('[GitHubAuth] Creating instance immediately, will update config async');
@@ -340,7 +387,7 @@ loadRuntimeAuthConfig().catch(()=>{}).finally(()=>{
 });
 
 // Expose exchangeCodeForToken method so load-time listener can work
-(window as any).exchangeCodeForToken = function(code) {
+(window as any).exchangeCodeForToken = function(code: string) {
   console.log('[GitHubAuth] Global exchangeCodeForToken called with', code);
   if ((window as any).GitHubAuth?.exchangeCodeForToken) {
     return (window as any).GitHubAuth.exchangeCodeForToken(code);

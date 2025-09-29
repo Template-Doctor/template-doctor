@@ -366,11 +366,11 @@ async function pollStatus(ctx: InternalContext) {
       return;
     }
     // continue polling
-    schedulePoll(ctx, polling.intervalMs);
+  schedulePoll(ctx, polling.intervalMs ?? 10000);
   } catch (err: any) {
     log(ctx, `Poll error: ${err?.message}`);
     // mild backoff on errors
-    schedulePoll(ctx, Math.min(polling.intervalMs * 1.5, 60000));
+  schedulePoll(ctx, Math.min((polling.intervalMs ?? 10000) * 1.5, 60000));
   }
 }
 

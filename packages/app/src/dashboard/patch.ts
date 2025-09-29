@@ -20,7 +20,7 @@
 
   const renderOverview = (window as any).__TD_renderOverview;
 
-  (window as any).DashboardRenderer.render = function(result, container){
+  (window as any).DashboardRenderer.render = function(result: any, container: HTMLElement){
     // Use original adaptation & safety nets by invoking the original first for non-overview parts
     try {
       // We'll capture original render but stop it from building overview by temporarily monkey patching methods if needed.

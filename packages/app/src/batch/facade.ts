@@ -1,14 +1,13 @@
-// @ts-nocheck
 // Transitional facade wrapping legacy batch scanning logic until full migration.
 import { BatchScanItem, BatchScanOptions, BatchScanResultSummary } from './types';
 
-// Helper to safely access globalsunction get<T=any>(k:string):T|undefined{ return (window as any)[k]; }
+function getGlobal<T=any>(k:string):T|undefined { return (window as any)[k]; }
 
 export async function processBatch(urls:string[], options:BatchScanOptions = {}):Promise<BatchScanResultSummary>{
   const start = Date.now();
   const items:BatchScanItem[] = urls.filter(u=>u && u.trim()).map(u=>({ url:u, originalUrl:u, status:'pending'}));
-  const checkAndUpdateRepoUrl = get('checkAndUpdateRepoUrl');
-  const legacyProcess = get('processBatchUrls');
+  const checkAndUpdateRepoUrl = getGlobal<((url:string, forkFirst?:boolean)=>Promise<string>)>('checkAndUpdateRepoUrl');
+  const legacyProcess = getGlobal<(urls:string[], opts:{ requireFork:boolean })=>Promise<void>>('processBatchUrls');
   if(!legacyProcess){ throw new Error('Legacy processBatchUrls not found'); }
 
   // Pre-resolve URLs with fork check (mirrors enhanced SAML batch behavior)
@@ -19,7 +18,7 @@ export async function processBatch(urls:string[], options:BatchScanOptions = {})
         const updated = await checkAndUpdateRepoUrl(u, true);
         if(updated !== u){ items[idx].forkUrl = updated; items[idx].status='forking'; }
         return updated;
-      } catch(e){ items[idx].status='error'; items[idx].error = e.message; return u; }
+      } catch(e:any){ items[idx].status='error'; items[idx].error = e?.message || String(e); return u; }
     }));
   }
 
@@ -39,6 +38,5 @@ export async function processBatch(urls:string[], options:BatchScanOptions = {})
 }
 
 // Attach exploratory global (non-breaking)
-if(!(window as any).TemplateDoctorBatch){
-  (window as any).TemplateDoctorBatch = { processBatch };
-}
+declare global { interface Window { TemplateDoctorBatch?: { processBatch: typeof processBatch }; } }
+if(!(window as any).TemplateDoctorBatch){ (window as any).TemplateDoctorBatch = { processBatch }; }

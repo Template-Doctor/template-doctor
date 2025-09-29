@@ -212,6 +212,7 @@ console.log('Loading report-loader.ts');
       return null; 
     };
   }
-  (window as any).ReportLoader = new ReportLoaderClass();
+  // Cast through unknown to satisfy TS about constructor signature of classic function
+  (window as any).ReportLoader = new (ReportLoaderClass as unknown as { new(): any })();
 })();
 export {};

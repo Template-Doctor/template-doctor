@@ -1,8 +1,8 @@
 import { HttpRequest } from '@azure/functions';
-import { InvocationContext } from '../platform/functions-types.js';
-import { readJson } from '../platform/http.js';
+import { InvocationContext } from '../platform/functions-types';
+import { readJson } from '../platform/http';
 import { Octokit } from '@octokit/rest';
-import { classifyGitHubForkError } from '../github/error-classifier.js';
+import { classifyGitHubForkError } from '../github/error-classifier';
 
 /**
  * repo-fork (Azure Function v4 HTTP)

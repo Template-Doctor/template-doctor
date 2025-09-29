@@ -1,21 +1,21 @@
 // Temporarily disabling programmatic registrations to reduce type noise during migration.
 // import { app } from "@azure/functions";
 
-// Import only handler exports
-import { runtimeConfigHandler } from './functions/runtime-config.js';
-import { analyzeTemplateHandler } from './functions/analyze-template.js';
-import { githubOauthTokenHandler } from './functions/github-oauth-token.js';
-import { archiveCollectionHandler } from './functions/archive-collection.js';
-import { submitAnalysisDispatchHandler } from './functions/submit-analysis-dispatch.js';
-import { validationTemplateHandler } from './functions/validation-template.js';
-import { validationCallbackHandler } from './functions/validation-callback.js';
-import { validationStatusHandler } from './functions/validation-status.js';
-import { validationCancelHandler } from './functions/validation-cancel.js';
-import { addTemplatePrHandler } from './functions/add-template-pr.js';
-import { pingHandler } from './functions/ping.js';
-import { issueCreateHandler } from './functions/issue-create.js';
-import { repoForkHandler } from './functions/repo-fork.js';
-import { batchScanStartHandler, batchScanStatusHandler } from './functions/batch-scan-start.js';
+// Import handlers (default exports use alias *Handler for consistency)
+import runtimeConfigHandler from './functions/runtime-config';
+import handlerAnalyzeTemplate from './functions/analyze-template';
+import githubOauthTokenHandler from './functions/github-oauth-token';
+import archiveCollectionDefault from './functions/archive-collection';
+import submitAnalysisDispatchDefault from './functions/submit-analysis-dispatch';
+import validationTemplateDefault from './functions/validation-template';
+import validationCallbackDefault from './functions/validation-callback';
+import validationStatusDefault from './functions/validation-status';
+import validationCancelDefault from './functions/validation-cancel';
+import addTemplatePrDefault from './functions/add-template-pr';
+// ping handler not yet implemented/migrated — left commented intentionally
+import { issueCreateHandler } from './functions/issue-create';
+import { repoForkHandler } from './functions/repo-fork';
+import { batchScanStartHandler, batchScanStatusHandler } from './functions/batch-scan-start';
 
 // Centralized registrations
 // DEBUG MODE: All registrations commented out to isolate syntax/registration issues.
@@ -91,13 +91,7 @@ import { batchScanStartHandler, batchScanStatusHandler } from './functions/batch
 //   handler: addTemplatePrHandler
 // });
 
-// 11. ping (enabled for incremental verification)
-// app.http('ping', {
-//   methods: ['GET'],
-//   authLevel: 'anonymous',
-//   route: 'v4/ping',
-//   handler: pingHandler
-// });
+// 11. ping (placeholder; implementation file missing, keep disabled)
 // 12. issue-create (added after existing stable endpoints)
 // app.http('issue-create', {
 //   methods: ['POST', 'OPTIONS'],

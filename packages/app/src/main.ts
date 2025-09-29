@@ -1,6 +1,5 @@
-// @ts-nocheck
 // Transitional unified entrypoint for Vite. Mirrors prior index.html script ordering.
-// As modules are converted to TS we will remove @ts-nocheck and add types.
+// @ts-nocheck removed – incremental typing applied where practical without altering legacy globals.
 
 import '../js/debug-console.js';
 import '../js/api-routes.js';
@@ -72,8 +71,9 @@ import '../js/saml-batch-patch-loader.js';
 import './batch/facade.ts';
 
 // Expose a typed-friendly facade (will refine later)
-export const Analyzer = (window as any).TemplateAnalyzer;
-export const ApiClient = (window as any).TemplateDoctorApiClient;
+// Minimal surface typings; deeper analyzer/api client types live in their respective modules.
+export const Analyzer: any = (window as any).TemplateAnalyzer;
+export const ApiClient: any = (window as any).TemplateDoctorApiClient;
 
 console.log('[vite] main.ts loaded');
 // Aggregated entry importing migrated modules.
