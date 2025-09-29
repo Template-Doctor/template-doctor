@@ -67,8 +67,10 @@
       <div id="error-message" style="display: none" class="error"></div>
     </div>
 
-    <!-- Runtime configuration -->
-    <script src="js/runtime-config.js"></script>
+    <!-- Runtime configuration (migrated to Vite bundle) -->
+    <script type="module">
+      import './src/scripts/runtime-config.ts';
+    </script>
     <!-- Configuration loader -->
     <script src="js/config-loader.js"></script>
 

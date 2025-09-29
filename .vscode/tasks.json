@@ -172,26 +172,6 @@
 			]
 		},
 		{
-			"label": "Node syntax check analyzer.js",
-			"type": "shell",
-			"command": "node",
-			"args": [
-				"-e",
-				"require('./packages/app/js/analyzer.js')"
-			],
-			"group": "build"
-		},
-		{
-			"label": "JS parse check analyzer.js",
-			"type": "shell",
-			"command": "node",
-			"args": [
-				"-e",
-				"new Function(require('fs').readFileSync('./packages/app/js/analyzer.js','utf8'))"
-			],
-			"group": "build"
-		},
-		{
 			"label": "Run frontend unit/e2e tests smoke",
 			"type": "shell",
 			"command": "npm",

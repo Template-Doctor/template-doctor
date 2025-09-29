@@ -163,10 +163,26 @@ if (!token) {
 window.GitHubClient = new NodeGitHubClient(token);
 
 // Import analyzer logic (as a module)
-const analyzerPath = path.resolve(__dirname, '../packages/app/js/analyzer.js');
-const analyzerCode = fs.readFileSync(analyzerPath, 'utf8');
-// Evaluate analyzer.js in the current context (populates window.TemplateAnalyzer)
-new Script(analyzerCode).runInThisContext();
+// Prefer bundled TypeScript migration (analyzer.bundle.js) – falls back to legacy if missing
+let analyzerLoaded = false;
+const bundlePath = path.resolve(__dirname, '../packages/app/js/analyzer.bundle.js');
+try {
+  const analyzerBundleCode = fs.readFileSync(bundlePath, 'utf8');
+  new Script(analyzerBundleCode).runInThisContext();
+  analyzerLoaded = true;
+  console.log('[analyzer-node] Loaded analyzer.bundle.js');
+} catch (e) {
+  console.warn('[analyzer-node] analyzer.bundle.js missing, falling back to legacy analyzer.js:', e?.message || e);
+  try {
+    const legacyPath = path.resolve(__dirname, '../packages/app/js/analyzer.js');
+    const legacyCode = fs.readFileSync(legacyPath, 'utf8');
+    new Script(legacyCode).runInThisContext();
+    analyzerLoaded = true;
+  } catch (legacyErr) {
+    console.error('[analyzer-node] Failed to load any analyzer implementation.', legacyErr);
+    process.exit(1);
+  }
+}
 
 async function main() {
   const args = process.argv.slice(2);
