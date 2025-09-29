@@ -16,6 +16,10 @@ function getReportData(): ReportData | undefined {
   return (window as any).reportData;
 }
 
+function currentGitHubClient(): any {
+  return (window as any).GitHubClient;
+}
+
 function notification(){
   return (window as any).NotificationSystem || (window as any).Notifications;
 }
@@ -120,11 +124,36 @@ function ensureContextWrapper(mainTitle: string, issue: ComplianceIssue, data: R
   return prefix + existingBody.replace(/^\n+/,'');
 }
 
+// Resolve a safe fork target (user-owned) avoiding SAML org restrictions.
+interface ForkContext { owner: string; repo: string; forked: boolean; hasIssues: boolean }
+
+async function resolveForkContext(owner: string, repo: string): Promise<ForkContext>{
+  const gh = currentGitHubClient();
+  if(!gh || !gh.ensureAccessibleRepo) return { owner, repo, forked: false, hasIssues: true };
+  try {
+    // ensureAccessibleRepo returns { repo: meta, source }
+    const result = await gh.ensureAccessibleRepo(owner, repo, { forceFork: false });
+    const repoMeta = result?.repo || {};
+    const login = gh.getCurrentUsername && gh.getCurrentUsername();
+    if (login && login.toLowerCase() !== owner.toLowerCase()) {
+      return { owner: login, repo, forked: true, hasIssues: repoMeta.has_issues !== false };
+    }
+    // If ensureAccessibleRepo forced a fork but owner already user, still treat as safe
+    return { owner: login || owner, repo, forked: result?.source === 'fork', hasIssues: repoMeta.has_issues !== false };
+  } catch(e){
+    console.warn('[IssueService] resolveForkContext failed, falling back to original repo', (e as any)?.message||e);
+    return { owner, repo, forked: false, hasIssues: true };
+  }
+}
+
 async function createIssues(){
   const data = getReportData();
   if(!data){ return showError('Error','No report data'); }
   const { owner, repo } = parseOwnerRepo(data.repoUrl);
   if(!owner || !repo){ return showError('Error','Cannot parse repository owner/repo'); }
+  // Ensure we operate on user fork to avoid org label/issue 403
+  const forkCtx = await resolveForkContext(owner, repo);
+  const targetOwner = forkCtx.owner;
   const issues = data.compliance?.issues || [];
   const ruleSet = data.ruleSet || 'dod';
   const today = new Date().toISOString().split('T')[0];
@@ -162,7 +191,16 @@ async function createIssues(){
         labels: ['template-doctor','template-doctor-child-issue', rulesetLabel, `severity:${sev}`]
       };
     });
-  const main = await ApiClient.createIssue({ owner, repo, title: issueTitle, body, labels: mainLabels, assignCopilot: true, childIssues });
+  if(!forkCtx.hasIssues){
+    showWarn('Issues Disabled', 'Issues are disabled in the target repository (fork). Enable issues to allow automated creation.');
+    return;
+  }
+  const main = await ApiClient.createIssue({ owner: targetOwner, repo, title: issueTitle, body, labels: mainLabels, assignCopilot: true, childIssues });
+  try {
+    if (!(main.copilotAssigned)) {
+      showInfo('Copilot Assignment Skipped', 'Issue created but Copilot bot was not assigned (not available for this repository).');
+    }
+  } catch(_){}
   const childCount = main.childResults ? main.childResults.filter(c=>c.issueNumber).length : 0;
   const childFailures = main.childResults ? main.childResults.filter(c=>c.error).length : 0;
   const childFragment = childCount || childFailures ? ` (children: ${childCount} ok${childFailures?`, ${childFailures} failed`:''})` : '';
@@ -210,6 +248,13 @@ async function processIssueCreation(github: any){
   if(!data) return;
   const { owner, repo } = parseOwnerRepo(data.repoUrl);
   if(!owner || !repo) return;
+  // Legacy path also needs to target user fork
+  const forkCtx = await resolveForkContext(owner, repo);
+  if(!forkCtx.hasIssues){
+    console.warn('[IssueService] Issues disabled in target fork; aborting legacy issue creation');
+    showWarn('Issues Disabled', 'Issues are disabled in target fork; enable them in repository settings to create issues.');
+    return;
+  }
   const issues = data.compliance?.issues || [];
   // Lazy enrichment for legacy path (mirrors createIssues enrichment)
   try {
@@ -236,10 +281,10 @@ async function processIssueCreation(github: any){
   try {
     // Ensure label family (legacy test captures this)
     if(github.ensureLabelsExist){
-      await github.ensureLabelsExist(owner, repo, mainLabels);
+      await github.ensureLabelsExist(forkCtx.owner, forkCtx.repo, mainLabels);
     }
     const mainBody = buildMainIssueBody(data);
-    const mainIssue = await github.createIssueGraphQL(owner, repo, issueTitle, mainBody, mainLabels);
+    const mainIssue = await github.createIssueGraphQL(forkCtx.owner, forkCtx.repo, issueTitle, mainBody, mainLabels);
     // Create child issues for each compliance issue
     for(const c of issues){
       const sev = mapSeverity(c.severity);
@@ -248,9 +293,9 @@ async function processIssueCreation(github: any){
       const childTitle = templated?.title || c.message;
       const childBody = templated?.body ? ensureContextWrapper(issueTitle, c, data, templated.body) : buildChildIssueBody(issueTitle, c, data);
       if(github.createIssueWithoutCopilot){
-        await github.createIssueWithoutCopilot(owner, repo, childTitle, childBody, childLabels);
+        await github.createIssueWithoutCopilot(forkCtx.owner, forkCtx.repo, childTitle, childBody, childLabels);
       } else if (github.createIssueGraphQL){
-        await github.createIssueGraphQL(owner, repo, childTitle, childBody, childLabels);
+        await github.createIssueGraphQL(forkCtx.owner, forkCtx.repo, childTitle, childBody, childLabels);
       }
     }
     return mainIssue;
@@ -268,3 +313,60 @@ function createGitHubIssue(){
 
 (window as any).processIssueCreation = processIssueCreation;
 (window as any).createGitHubIssue = createGitHubIssue;
+
+// -------------------------------------------------------------
+// Button visibility control: hide until a fresh scan completes
+// Criteria: a fresh scan emits 'analysis-completed' (emitted by analyzer pipeline) or
+// an inline flag window.__LatestScanFresh = true set by analyzeRepo wrapper.
+// Viewing a historical report (view-report path) should KEEP the button hidden.
+(function manageIssueButtonVisibility(){
+  function hide(btn: HTMLElement){ btn.style.opacity='0'; btn.style.visibility='hidden'; btn.style.pointerEvents='none'; }
+  function show(btn: HTMLElement){ btn.style.opacity='1'; btn.style.visibility='visible'; btn.style.pointerEvents='auto'; }
+  function isFresh(){ return !!(window as any).__LatestScanFresh; }
+  function update(){
+    const w:any = window as any;
+    const b = document.getElementById('create-github-issue-btn') as HTMLElement | null;
+    if(!b) return;
+    const staticView = /\/results\//.test(location.pathname) || !!w.__STATIC_REPORT_VIEW;
+    const testBypass = !!w.PLAYWRIGHT_TEST || !!w.__FORCE_SHOW_ISSUE_BUTTON;
+    if ((isFresh() || testBypass) && !staticView) {
+      b.setAttribute('aria-hidden','false');
+      b.removeAttribute('data-hidden-reason');
+      show(b);
+    } else {
+      b.setAttribute('aria-hidden','true');
+      b.setAttribute('data-hidden-reason', staticView ? 'static-report' : 'no-fresh-scan');
+      hide(b);
+    }
+  }
+  document.addEventListener('analysis-completed', ()=>{ (window as any).__LatestScanFresh = true; update(); });
+  document.addEventListener('template-report-rendered', ()=>{ // render event from view of saved report; do not mark fresh
+    update();
+  });
+  // Wrap analyzeRepo (when available) to mark fresh scans
+  let attempts = 0;
+  function tryWrap(){
+    const w:any = window as any;
+    if (w.analyzeRepo && !w.__AnalyzeRepoWrapped){
+      const orig = w.analyzeRepo;
+      w.analyzeRepo = function wrappedAnalyzeRepo(repoUrl: string, ruleSet?: string, categories?: any){
+        w.__LatestScanFresh = true; // mark intent
+        try { update(); } catch(_) {}
+        const res = orig.apply(this, arguments as any);
+        if (res && typeof res.then === 'function'){
+          res.then(()=>{ document.dispatchEvent(new CustomEvent('analysis-completed')); }).catch(()=>{});
+        } else {
+          // Fallback: dispatch after short delay
+          setTimeout(()=> document.dispatchEvent(new CustomEvent('analysis-completed')), 2000);
+        }
+        return res;
+      };
+      w.__AnalyzeRepoWrapped = true;
+    } else if (attempts < 25){
+      attempts++; setTimeout(tryWrap, 200);
+    }
+  }
+  tryWrap();
+  // Initial attempt after DOM interactive
+  if (document.readyState === 'complete' || document.readyState === 'interactive'){ setTimeout(update, 300); }
+})();

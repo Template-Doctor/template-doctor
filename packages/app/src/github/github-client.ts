@@ -102,8 +102,71 @@ class GitHubClient {
   getDefaultBranchFromMeta(meta: GitHubRepo){ return meta?.default_branch||'main'; }
   async listAllFiles(owner: string, repo: string, ref='HEAD'): Promise<string[]> { const r:any=await this.request(`/repos/${owner}/${repo}/git/trees/${ref}?recursive=1`); return (r.tree||[]).filter((t:any)=>t.type==='blob').map((t:any)=>t.path); }
   async createIssue(owner: string, repo: string, title: string, body: string, labels: string[] = []) { return this.request(`/repos/${owner}/${repo}/issues`,{method:'POST',body:JSON.stringify({title,body,labels}), headers:{'Content-Type':'application/json'}}); }
+  /* --- Added parity methods for issue creation & labels (GraphQL path) --- */
+  async createIssueWithoutCopilot(owner: string, repo: string, title: string, body: string, labels: string[] = []) {
+    const created:any = await this.createIssue(owner, repo, title, body, labels);
+    return { id: created.node_id || created.id, number: created.number, url: created.html_url, title: created.title };
+  }
+  async ensureLabelsExist(owner: string, repo: string, labels: string[] = []) {
+    if(!labels || !labels.length) return;
+    let existing: any[] = [];
+    try { const res:any = await this.requestAllPages(`/repos/${owner}/${repo}/labels?per_page=100`); existing = Array.isArray(res) ? res : []; } catch(e:any){ console.warn('[GitHubClient] ensureLabelsExist list failed', e?.message||e); return; }
+    const have = new Set(existing.map(l=>l.name)); const toCreate = Array.from(new Set(labels.filter(l=>!have.has(l)))); if(!toCreate.length) return;
+    const colorFor = (name:string) => name.startsWith('severity:') ? (name.endsWith('high')?'d73a4a': name.endsWith('medium')?'fbca04': name.endsWith('low')?'0e8a16':'c5def5') : (name.startsWith('ruleset:') ? '0366d6' : (name.includes('template-doctor')?'5319e7':'c5def5'));
+    await Promise.allSettled(toCreate.map(lbl => this.request(`/repos/${owner}/${repo}/labels`,{method:'POST',body:JSON.stringify({name:lbl,color:colorFor(lbl),description: lbl}), headers:{'Content-Type':'application/json'}}).catch(err=>{ console.warn('[GitHubClient] label create failed', lbl, err?.message||err); }))); }
+  async getRepoNodeId(owner: string, name: string): Promise<string> {
+    const q = `query($owner:String!,$name:String!){ repository(owner:$owner,name:$name){ id } }`;
+    const d:any = await this.graphql(q,{owner,name}); return d.repository.id;
+  }
+  async getLabelNodeIds(owner: string, name: string, labelNames: string[]): Promise<string[]> {
+    if(!labelNames || !labelNames.length) return [];
+    const q = `query($owner:String!,$name:String!){ repository(owner:$owner,name:$name){ labels(first:100){ nodes { id name } } } }`;
+    const d:any = await this.graphql(q,{owner,name}); const all = d.repository.labels.nodes; return labelNames.map(l=>{ const f=all.find((n:any)=>n.name===l); return f?f.id:null; }).filter(Boolean);
+  }
+  async assignIssueToCopilotBot(owner: string, repo: string, issueNumber: number): Promise<boolean> {
+    try {
+      const data:any = await this.graphql(`query($owner:String!,$repo:String!,$number:Int!){ repository(owner:$owner,name:$repo){ issue(number:$number){ id } suggestedActors(capabilities:[CAN_BE_ASSIGNED],first:10){ nodes { login ... on Bot { id } ... on User { id } } } } }`,{owner,repo,number:issueNumber});
+      const issueId = data.repository.issue.id;
+      const copilot = (data.repository.suggestedActors.nodes||[]).find((a:any)=>a.login==='copilot-agent-swe' || a.login==='copilot-swe-agent');
+      if(!copilot) return false;
+      await this.graphql(`mutation($issueId:ID!,$assigneeId:ID!){ addAssigneesToAssignable(input:{assignableId:$issueId,assigneeIds:[$assigneeId]}){ clientMutationId } }`,{issueId,assigneeId:copilot.id});
+      return true;
+    } catch(e){ console.warn('[GitHubClient] assignIssueToCopilotBot failed', (e as any)?.message||e); return false; }
+  }
+  async createIssueGraphQL(...args: any[]): Promise<any> {
+    // Accept both createIssueGraphQL(owner, repo, title, body, labels?) and object form
+    let owner:string, repo:string, title:string, body:string, labels:string[]|undefined;
+    if(args.length===1 && typeof args[0]==='object'){ const o=args[0]; owner=o.owner; repo=o.repo; title=o.title; body=o.body; labels=o.labels; }
+    else { [owner,repo,title,body,labels] = args as [string,string,string,string,string[]]; }
+    const scopes = await this.checkTokenScopes(); if(!scopes.includes('public_repo') && !scopes.includes('repo')) throw new Error('GitHub token missing public_repo scope');
+    let repoId:string; try { repoId = await this.getRepoNodeId(owner, repo); } catch { throw new Error(`Could not resolve repository ${owner}/${repo}`); }
+    let labelIds: string[] = []; try { labelIds = await this.getLabelNodeIds(owner, repo, labels||[]); } catch {/* ignore */}
+    // Attempt to find copilot suggested actor
+    let copilot: any = null;
+    try {
+      const r:any = await this.graphql(`query($owner:String!,$name:String!){ repository(owner:$owner,name:$name){ suggestedActors(capabilities:[CAN_BE_ASSIGNED],first:10){ nodes { login ... on Bot { id } ... on User { id } } } } }`,{owner,name:repo});
+      copilot = r.repository.suggestedActors.nodes.find((n:any)=>n.login==='copilot-agent-swe' || n.login==='copilot-swe-agent');
+    } catch {/* non-fatal */}
+    const start = Date.now();
+    let mutation: string; let variables: any;
+    if(copilot){
+      mutation = `mutation($input:CreateIssueInput!){ createIssue(input:$input){ issue { id number url title } } }`;
+      variables = { input: { repositoryId: repoId, title, body, assigneeIds:[copilot.id], labelIds } };
+    } else {
+      mutation = `mutation($repositoryId:ID!,$title:String!,$body:String,$labelIds:[ID!]){ createIssue(input:{repositoryId:$repositoryId,title:$title,body:$body,labelIds:$labelIds}){ issue { id number url title } } }`;
+      variables = { repositoryId: repoId, title, body, labelIds };
+    }
+    const data:any = await this.graphql(mutation, variables);
+    const issue = data.createIssue.issue; (issue as any).issueNodeId = issue.id; // add alias expected by callers
+    issue.elapsedMs = Date.now() - start;
+    if(!copilot){ // best-effort post assignment
+      try { await this.assignIssueToCopilotBot(owner, repo, issue.number); } catch {/* ignore */}
+    }
+    return issue;
+  }
 }
 
 const githubClient = new GitHubClient();
 ;(window as any).GitHubClient = githubClient;
 export { githubClient };
+
