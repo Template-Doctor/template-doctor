@@ -162,3 +162,46 @@ If you observe a 200 with an empty body for a new endpoint, double‑check:
 
 ### Smoke Testing
 Use `./scripts/smoke-api.sh` after starting the Functions host to exercise the primary endpoints. It reads `.env`, supports `DRY_RUN=1`, and fails fast on critical issues. The script expects the updated route `/api/v4/client-settings` for runtime configuration.
+
+## Frontend TypeScript Migration & Legacy File Deletion (Production Policy)
+
+This repository is executing a phased migration from legacy browser JavaScript under `packages/app/js/` to TypeScript modules under `packages/app/src/` that are built/bundled. Agents MUST follow these production‑grade rules (no stubs/mocks/throwaway placeholders) when participating in migration or cleanup tasks:
+
+### Authoritative Artifacts
+1. Analyzer logic: The authoritative implementation is the TypeScript build output `packages/app/js/analyzer.bundle.js` produced by `packages/app/build-analyzer.js` (esbuild). Do NOT reintroduce logic into `js/analyzer.js`.
+2. Runtime configuration: The authoritative source is `src/scripts/runtime-config.ts`, loaded via module import (`src/main.ts` and `callback.html`). The legacy `js/runtime-config.js` must be removed once all pages import the TS module.
+3. Report / templates / issue template helpers: Their TypeScript counterparts live under `src/report/`, `src/scripts/`, `src/issue/`, or `src/data/` directories. The similarly named legacy JS files are slated for hard deletion.
+
+### Hard Deletion Requirements
+When a legacy JS file has a complete TS replacement with parity:
+- Physically delete the legacy file (preferred) OR fully replace its contents with a minimal, deterministic production stub that immediately errors on access—ONLY if technical tooling limitations block physical removal in the current PR. Do **not** leave partial old logic or large commented blobs.
+- Ensure no remaining imports or dynamic script tags reference the legacy filename (grep for `js/<name>.js`).
+- Update any docs (including this section and `docs/development/migration-matrix.md`) marking the file as removed.
+- Run Playwright + unit tests + `smoke-api.sh` to validate no behavioral regression.
+
+### Analyzer File Specifics
+`js/analyzer.js` must NOT accumulate stub logic plus legacy method bodies (that creates parsing risk). The only acceptable end states are:
+1. File deleted entirely.
+2. File replaced by a <= ~20 line strict stub that throws on use and references `analyzer.bundle.js`.
+
+If a bulk patch tool cannot delete the large historical file in the same change set, perform a **full overwrite** (truncate + stub) and open a follow‑up issue to physically remove it in a small PR. Do not postpone the overwrite while leaving unreachable method bodies.
+
+### Environment Variables Clarification
+`BASE` (in `.env`) is consumed by `scripts/smoke-api.sh` to know the Azure Functions base URL for local probing (defaults `http://localhost:7071`).
+`TD_BACKEND_BASE_URL` is exposed through the runtime-config endpoint to the browser for API calls when the frontend is pointed at a remote Functions instance. During local dev they usually match, but they have distinct purposes—do not assume one automatically sets the other.
+
+### Acceptance Checklist Before Marking a Legacy File “Removed”
+- [ ] TS replacement merged and imported everywhere needed.
+- [ ] No runtime references (import / dynamic script tag / global eval) to the legacy filename.
+- [ ] File deleted OR fully overwritten with strict stub (temporary only if deletion blocked).
+- [ ] Playwright focus tests covering affected feature pass.
+- [ ] `npm test` overall suite passes (or unrelated flaky tests annotated in PR).
+- [ ] `./scripts/smoke-api.sh` succeeds (verifies client settings & analyzer endpoints unaffected).
+- [ ] Docs updated (`migration-matrix.md`, this section).
+
+### Prohibited During Migration
+- Adding “temporary shim” code that silently forwards calls to both legacy and new implementations.
+- Leaving large commented legacy bodies that cause lint, size, or parse overhead.
+- Introducing new public globals under legacy names (except the minimal throwing stubs when absolutely necessary as described above).
+
+Following these rules ensures the migration remains auditable, keeps bundle size controlled, and prevents accidental re‑coupling to deprecated globals.

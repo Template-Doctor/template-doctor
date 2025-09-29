@@ -26,7 +26,7 @@ import '../js/config-loader.js';
   } catch(e) { console.warn('CSP init failed', e); }
 })();
 
-import '../js/runtime-config.js';
+import './scripts/runtime-config.ts'; // (replaces legacy ../js/runtime-config.js)
 import '../js/auth.js';
 // Replaced legacy github-client-new.js with TS version
 import './github/github-client.ts';
@@ -45,6 +45,8 @@ import './dashboard/patch.ts';
 import './report/report-loader.ts';
 // TS migration: issue template engine
 import './issue/template-engine.ts';
+// TS migration: issue service (provides TemplateDoctorIssueService global for tests & UI)
+import './scripts/issue-service.ts';
 import '../js/issue-ai-provider.js';
 import '../js/github-issue-handler.js';
 // Direct TS analyzer (was previously bundled)
