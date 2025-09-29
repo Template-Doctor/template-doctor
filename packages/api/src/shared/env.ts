@@ -6,6 +6,7 @@ export interface AppEnv {
   GH_WORKFLOW_TOKEN?: string;
   GITHUB_OAUTH_ALLOWED_ORIGINS: string[];
   NODE_ENV?: string;
+  SETUP_ALLOWED_USERS?: string; // comma-separated allowlist for secure setup function
 }
 
 let cached: AppEnv | null = null;
@@ -24,7 +25,8 @@ export function loadEnv(): AppEnv {
       .split(',')
       .map(s => s.trim())
       .filter(Boolean),
-    NODE_ENV: process.env.NODE_ENV
+    NODE_ENV: process.env.NODE_ENV,
+    SETUP_ALLOWED_USERS: process.env.SETUP_ALLOWED_USERS
   };
   // We do soft validation now; endpoint-specific strict checks happen in handlers.
   for (const [k] of required) {

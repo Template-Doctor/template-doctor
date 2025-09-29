@@ -16,6 +16,7 @@ import addTemplatePrDefault from './functions/add-template-pr';
 import { issueCreateHandler } from './functions/issue-create';
 import { repoForkHandler } from './functions/repo-fork';
 import { batchScanStartHandler, batchScanStatusHandler } from './functions/batch-scan-start';
+import setupHandler from './functions/setup';
 
 // Centralized registrations
 // DEBUG MODE: All registrations commented out to isolate syntax/registration issues.
