@@ -63,96 +63,37 @@ function directLoadDataFile(folderName, dataFileName, successCallback, errorCall
 
 // Initialize key services
 let appAuth, appGithub, appAnalyzer, appDashboard;
-// Queue analyses requested before services fully initialize
-const pendingAnalysisQueue = [];
 let serviceReadinessPolling = false;
 
-function enqueueAnalysisRequest(args) {
-  pendingAnalysisQueue.push(args);
-  debug('app', `Enqueued analysis request. Queue length=${pendingAnalysisQueue.length}`);
-  
-  // Show a notification that the request has been queued
-  if (window.NotificationSystem) {
-    window.NotificationSystem.showInfo(
-      'Request Queued',
-      'Your analysis request has been queued and will run automatically when services are ready',
-      5000
-    );
-  }
-  
-  // Show a more visible message for the first queued request
-  if (pendingAnalysisQueue.length === 1 && !document.getElementById('queue-message')) {
-    const queueMessage = document.createElement('div');
-    queueMessage.id = 'queue-message';
-    queueMessage.className = 'alert alert-info';
-    queueMessage.style.position = 'fixed';
-    queueMessage.style.bottom = '20px';
-    queueMessage.style.right = '20px';
-    queueMessage.style.zIndex = '9999';
-    queueMessage.style.padding = '15px 20px';
-    queueMessage.style.borderRadius = '5px';
-    queueMessage.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
-    queueMessage.innerHTML = `
-      <strong>Services still starting up</strong>
-      <p>Your request was queued and will run automatically.</p>
-      <div class="progress" style="height:8px;margin-top:8px;">
-        <div class="progress-bar progress-bar-striped progress-bar-animated" 
-             style="width:100%;height:8px;"></div>
-      </div>
-    `;
-    document.body.appendChild(queueMessage);
-    
-    // Remove the message when services are ready or after 15 seconds
-    setTimeout(() => {
-      if (queueMessage.parentNode) {
-        queueMessage.style.opacity = '0';
-        queueMessage.style.transition = 'opacity 0.5s ease';
-        setTimeout(() => {
-          if (queueMessage.parentNode) {
-            queueMessage.parentNode.removeChild(queueMessage);
-          }
-        }, 500);
-      }
-    }, 15000);
-  }
-  
+// Queue extraction: delegate to TypeScript analysis queue if present
+function enqueueAnalysisRequest(args){
+  try { if (window.TemplateDoctorAnalysisQueue && window.TemplateDoctorAnalysisQueue.enqueue){
+    window.TemplateDoctorAnalysisQueue.enqueue(args);
+  } else {
+    (window.__TD_FALLBACK_PENDING = window.__TD_FALLBACK_PENDING || []).push(args);
+  } } catch(e){ console.warn('[app] enqueue fallback path', e); }
   pollForServiceReadiness();
 }
 
-function drainAnalysisQueue() {
+function drainAnalysisQueue(){
   if (!appAnalyzer || !appDashboard) return;
-  if (pendingAnalysisQueue.length === 0) return;
-  
-  debug('app', `Draining ${pendingAnalysisQueue.length} queued analysis request(s)`);
-  
-  // Remove the queue message if it exists
-  const queueMessage = document.getElementById('queue-message');
-  if (queueMessage && queueMessage.parentNode) {
-    queueMessage.style.opacity = '0';
-    queueMessage.style.transition = 'opacity 0.5s ease';
-    setTimeout(() => {
-      if (queueMessage.parentNode) {
-        queueMessage.parentNode.removeChild(queueMessage);
+  try {
+    if (window.TemplateDoctorAnalysisQueue && window.TemplateDoctorAnalysisQueue.drain){
+      window.TemplateDoctorAnalysisQueue.drain(({ args }) => {
+        const { repoUrl, ruleSet, selectedCategories } = args;
+        internalAnalyzeRepo(repoUrl, ruleSet, selectedCategories);
+      });
+      return;
+    }
+    const fallback = window.__TD_FALLBACK_PENDING || [];
+    if (fallback.length){
+      console.debug('[app] draining fallback pending analyses', fallback.length);
+      while(fallback.length){
+        const { repoUrl, ruleSet, selectedCategories } = fallback.shift();
+        internalAnalyzeRepo(repoUrl, ruleSet, selectedCategories);
       }
-    }, 500);
-  }
-  
-  // Show notification that requests are now being processed
-  if (window.NotificationSystem && pendingAnalysisQueue.length > 0) {
-    window.NotificationSystem.showSuccess(
-      'Processing Requests',
-      `Now processing ${pendingAnalysisQueue.length} queued analysis request(s)`,
-      3000
-    );
-  }
-  
-  // Copy then clear to avoid reentrancy issues
-  const queue = pendingAnalysisQueue.slice();
-  pendingAnalysisQueue.length = 0;
-  for (const { repoUrl, ruleSet, selectedCategories } of queue) {
-    // Fire and forget; internalAnalyzeRepo already handles its own async flow
-    internalAnalyzeRepo(repoUrl, ruleSet, selectedCategories);
-  }
+    }
+  } catch(e){ console.error('[app] drainAnalysisQueue error', e); }
 }
 
 function pollForServiceReadiness(maxAttempts = 15, intervalMs = 500) {
