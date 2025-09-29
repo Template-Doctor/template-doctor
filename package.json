@@ -20,7 +20,8 @@
         "pretest:unit": "npm run -w packages/api build",
         "test:all": "npm run test:unit && npm test",
         "generate:scan-meta-backfill": "node scripts/generate-scan-meta-backfill.js",
-    "analyze": "node scripts/analyzer-node.js"
+    "analyze": "node scripts/analyzer-node.js",
+    "typecheck": "npm run -w packages/app typecheck && npm run -w packages/api typecheck"
     },
     "keywords": [
         "azd",

@@ -12,7 +12,8 @@
   "preview": "vite preview",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-  "build": "vite build"
+  "build": "vite build",
+  "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
     "prettier": "^3.6.2",
