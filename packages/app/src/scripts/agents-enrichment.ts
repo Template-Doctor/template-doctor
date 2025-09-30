@@ -322,16 +322,30 @@ export function updateAgentsTileStatus(status: 'missing' | 'invalid' | 'valid'):
     if (notify && typeof notify.showError === 'function') {
       notify.showError('Sign In Required', 'Please sign in with GitHub to create issues.', 6000);
     } else {
-      console.error('[AgentsEnrichment] Please sign in with GitHub to create issues.');
+      console.warn('[AgentsEnrichment] Please sign in with GitHub to create issues.');
     }
     return false;
   }
 
-  // Get NotificationSystem - should be available by this point
-  const notify = (window as any).NotificationSystem;
+  // Get NotificationSystem - if not available yet, wait briefly and retry once
+  let notify = (window as any).NotificationSystem;
   if (!notify || typeof notify.showLoading !== 'function') {
-    console.error('[AgentsEnrichment] NotificationSystem not available');
-    return false;
+    // NotificationSystem might still be loading - wait briefly
+    await new Promise(resolve => setTimeout(resolve, 100));
+    notify = (window as any).NotificationSystem;
+    
+    // If still not available, fail silently (user will just not see notifications)
+    if (!notify || typeof notify.showLoading !== 'function') {
+      console.debug('[AgentsEnrichment] NotificationSystem not yet loaded, proceeding without notifications');
+      // Create a dummy notification object so code below doesn't fail
+      notify = {
+        showLoading: () => {},
+        hideLoading: () => {},
+        showSuccess: () => {},
+        showError: (title: string, message: string) => console.error(`${title}: ${message}`),
+        showWarning: (title: string, message: string) => console.warn(`${title}: ${message}`)
+      };
+    }
   }
 
   const reportData = (window as any).reportData;
