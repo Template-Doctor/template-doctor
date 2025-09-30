@@ -45,11 +45,45 @@ export const handler = wrapHttp(async (req: HttpRequest, ctx: Context) => {
   const token = process.env.GITHUB_TOKEN_ANALYZER || process.env.GH_WORKFLOW_TOKEN || undefined;
   const gh = createGitHubClient(token);
 
+  // Extract user from Authorization header if present (for fork-first strategy)
+  const authHeader = (req.headers as any)['authorization'] || (req.headers as any)['Authorization'] || '';
+  const userToken = authHeader.replace(/^Bearer\s+/i, '') || undefined;
+  let authenticatedUser: string | undefined;
+  if (userToken && userToken !== token) {
+    try {
+      const userInfo = await gh("/user", userToken);
+      authenticatedUser = userInfo.login;
+      ctx.log(`Authenticated user: ${authenticatedUser}`);
+    } catch (e: any) {
+      ctx.log(`Failed to get authenticated user: ${e?.message}`);
+    }
+  }
+
   let owner: string; let repo: string; let defaultBranch: string;
   try {
-    ({ owner, repo } = extractRepoInfo(repoUrl));
-    const repoMeta = await gh("/repos/" + owner + "/" + repo);
-    defaultBranch = repoMeta.default_branch;
+    const upstreamInfo = extractRepoInfo(repoUrl);
+    owner = upstreamInfo.owner;
+    repo = upstreamInfo.repo;
+    
+    // Fork-first strategy: if we have an authenticated user, check their fork first
+    if (authenticatedUser && authenticatedUser.toLowerCase() !== owner.toLowerCase()) {
+      ctx.log(`Attempting fork-first: checking ${authenticatedUser}/${repo}`);
+      try {
+        const forkMeta = await gh(`/repos/${authenticatedUser}/${repo}`, userToken);
+        owner = authenticatedUser; // Use the fork
+        defaultBranch = forkMeta.default_branch;
+        ctx.log(`Using fork: ${owner}/${repo} (branch: ${defaultBranch})`);
+      } catch (forkErr: any) {
+        ctx.log(`Fork not found, will use upstream: ${forkErr?.message}`);
+        // Fork doesn't exist, fall back to upstream
+        const repoMeta = await gh(`/repos/${owner}/${repo}`, userToken);
+        defaultBranch = repoMeta.default_branch;
+      }
+    } else {
+      // No user token or user is the owner - access repo directly
+      const repoMeta = await gh(`/repos/${owner}/${repo}`, userToken);
+      defaultBranch = repoMeta.default_branch;
+    }
   } catch (e: any) {
     return { status: 400, body: { error: 'Failed to resolve repository', details: e?.message } };
   }
@@ -100,10 +134,11 @@ function extractRepoInfo(url: string): { owner: string; repo: string } {
   return { owner: m[1], repo: m[2] };
 }
 
-function createGitHubClient(token?: string) {
-  return async function gh(path: string): Promise<any> {
+function createGitHubClient(defaultToken?: string) {
+  return async function gh(path: string, overrideToken?: string): Promise<any> {
     const base = 'https://api.github.com';
     const url = base + path;
+    const token = overrideToken || defaultToken;
     const res = await fetch(url, {
       headers: {
         'Accept': 'application/vnd.github+json',
