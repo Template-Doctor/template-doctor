@@ -63,13 +63,19 @@ export interface CompliantItem {
 
 export interface AnalysisResult {
   repoUrl: string;
-  ruleSet: string;
-  timestamp: string;
+  ruleSet?: string;
+  timestamp?: string;
   compliance: {
     issues: AnalysisIssue[];
     compliant: CompliantItem[];
     percentage: number;
     summary: string;
+    categories?: Record<string, {
+      enabled: boolean;
+      issues: AnalysisIssue[];
+      compliant: CompliantItem[];
+      percentage: number;
+    }>;
   };
   archiveRequested?: boolean;
 }

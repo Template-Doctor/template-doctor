@@ -407,6 +407,82 @@ export async function runAnalyzer(
     ? 'No issues found 🎉' 
     : `Issues found - Compliance: ${percentageCompliant}%`;
   
+  // Build categories object by grouping issues/compliant by category field
+  const categories: Record<string, {
+    enabled: boolean;
+    issues: AnalysisIssue[];
+    compliant: CompliantItem[];
+    percentage: number;
+  }> = {};
+  
+  // Define category mapping with enabled status
+  const categoryKeys = [
+    'repositoryManagement',
+    'functionalRequirements', 
+    'deployment',
+    'security',
+    'testing',
+    'agents'
+  ];
+  
+  // Initialize categories
+  for (const key of categoryKeys) {
+    categories[key] = {
+      enabled: true,
+      issues: [],
+      compliant: [],
+      percentage: 0
+    };
+  }
+  
+  // Group issues by category (map common patterns to standard category keys)
+  const categoryMap: Record<string, string> = {
+    'file': 'repositoryManagement',
+    'folder': 'repositoryManagement',
+    'missing': 'repositoryManagement',
+    'required': 'repositoryManagement',
+    'readme': 'functionalRequirements',
+    'documentation': 'functionalRequirements',
+    'workflow': 'deployment',
+    'infra': 'deployment',
+    'infrastructure': 'deployment',
+    'azure': 'deployment',
+    'bicep': 'deployment',
+    'bicepFiles': 'deployment',
+    'security': 'security',
+    'auth': 'security',
+    'authentication': 'security',
+    'testing': 'testing',
+    'test': 'testing',
+    'agents': 'agents',
+    'meta': 'meta' // Don't include meta in category tiles
+  };
+  
+  // Distribute issues to categories
+  for (const issue of issues) {
+    const cat = issue.category || 'general';
+    const mappedCat = categoryMap[cat] || 'repositoryManagement';
+    if (categories[mappedCat]) {
+      categories[mappedCat].issues.push(issue);
+    }
+  }
+  
+  // Distribute compliant items to categories
+  for (const item of compliant) {
+    const cat = item.category || 'general';
+    const mappedCat = categoryMap[cat] || 'repositoryManagement';
+    if (mappedCat !== 'meta' && categories[mappedCat]) {
+      categories[mappedCat].compliant.push(item);
+    }
+  }
+  
+  // Calculate percentage for each category
+  for (const key of Object.keys(categories)) {
+    const cat = categories[key];
+    const total = cat.issues.length + cat.compliant.length;
+    cat.percentage = total > 0 ? Math.round((cat.compliant.length / total) * 100) : 0;
+  }
+  
   // Return in the format expected by the frontend
   return {
     repoUrl,
@@ -416,7 +492,8 @@ export async function runAnalyzer(
       issues,
       compliant,
       percentage: percentageCompliant,
-      summary
+      summary,
+      categories
     }
   };
 }
