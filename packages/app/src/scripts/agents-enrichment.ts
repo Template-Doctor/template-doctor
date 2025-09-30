@@ -372,12 +372,71 @@ export function updateAgentsTileStatus(status: 'missing' | 'invalid' | 'valid'):
     return false;
   }
 
-  const owner = ownerRepoMatch[1];
+  let owner = ownerRepoMatch[1];
   const repo = ownerRepoMatch[2];
+  
+  // Check if user owns the repository, fork if not
+  const currentUser = gh.auth.getUsername();
+  let needsFork = false;
+  
+  if (owner.toLowerCase() !== currentUser.toLowerCase()) {
+    needsFork = true;
+    console.log(`[AgentsEnrichment] Repository owned by ${owner}, not ${currentUser}. Will fork first.`);
+  }
 
-  notify.showLoading('Creating agents.md issue with Copilot assignment...');
+  notify.showLoading(needsFork ? 'Forking repository and creating issue...' : 'Creating agents.md issue with Copilot assignment...');
 
   try {
+    // Fork the repository if needed (SAML/SSO workaround)
+    if (needsFork) {
+      const token = gh.auth.getToken();
+      if (!token) {
+        notify.showError('Error', 'GitHub token not available', 6000);
+        return false;
+      }
+      
+      try {
+        notify.showLoading('Forking repository...');
+        const forkResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/forks`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            Accept: 'application/vnd.github+json'
+          }
+        });
+        
+        if (!forkResponse.ok) {
+          // Check if fork already exists
+          if (forkResponse.status === 202 || forkResponse.status === 200) {
+            console.log('[AgentsEnrichment] Fork request accepted');
+          } else {
+            const errorText = await forkResponse.text();
+            console.error('[AgentsEnrichment] Fork failed:', errorText);
+            throw new Error(`Failed to fork repository: ${forkResponse.status} ${errorText}`);
+          }
+        }
+        
+        const forkData = await forkResponse.json();
+        console.log('[AgentsEnrichment] Fork created or already exists:', forkData.full_name);
+        
+        // Wait briefly for fork to be ready
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Update owner to point to user's fork
+        owner = currentUser;
+        notify.showLoading('Creating issue in your fork...');
+        
+      } catch (forkError: any) {
+        console.error('[AgentsEnrichment] Fork error:', forkError);
+        notify.showError(
+          'Fork Failed',
+          `Could not fork repository: ${forkError.message}. You may need to fork it manually from GitHub.`,
+          8000
+        );
+        return false;
+      }
+    }
     const title = '[TD-BOT] Missing file: agents.md';
     const body = [
       'Please scan the repository and README and generate a suitable `agents.md` respecting the format at [https://agents.md](https://agents.md) - the specification for documenting AI Agents.',
