@@ -100,14 +100,15 @@ function createNotification(opts: ShowOptions): HTMLElement {
     progress.className = 'notification-progress';
     const progressBar = document.createElement('div');
     progressBar.className = 'notification-progress-bar';
+    progressBar.style.width = '0%'; // Start at 0
     progress.appendChild(progressBar);
     notification.appendChild(progress);
     
     // Animate progress bar
     setTimeout(() => {
-      progressBar.style.width = '100%';
       progressBar.style.transition = `width ${duration}ms linear`;
-    }, 10);
+      progressBar.style.width = '100%';
+    }, 50);
     
     // Auto-remove
     setTimeout(() => removeNotification(notification), duration);
