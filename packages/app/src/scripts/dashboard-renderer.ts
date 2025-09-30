@@ -13,7 +13,7 @@ class DashboardRenderer {
     };
     this.debug('Dashboard renderer initialized');
   }
-  render(result: any, container: HTMLElement) {
+  async render(result: any, container: HTMLElement) {
     this.debug('Rendering dashboard', result);
     
     if (!result || !container) {
@@ -101,9 +101,27 @@ class DashboardRenderer {
       const adaptedData = this.adaptResultData(result);
       
       // Run agents enrichment (adds agents.md validation)
-      runAgentsEnrichment(adaptedData).catch((e) => {
+      await runAgentsEnrichment(adaptedData).catch((e) => {
         console.warn('[DashboardRenderer] Agents enrichment failed:', e);
       });
+      
+      // Compute agents category stats after enrichment
+      if (adaptedData.compliance) {
+        const agentsIssues = adaptedData.compliance.issues.filter((i: any) => i.category === 'agents');
+        const agentsPassed = adaptedData.compliance.compliant.filter((i: any) => i.category === 'agents');
+        
+        if (agentsIssues.length > 0 || agentsPassed.length > 0) {
+          if (!adaptedData.compliance.categories) {
+            adaptedData.compliance.categories = {};
+          }
+          adaptedData.compliance.categories.agents = {
+            enabled: true,
+            passed: agentsPassed,
+            issues: agentsIssues
+          };
+          console.log('[DashboardRenderer] Added agents category:', adaptedData.compliance.categories.agents);
+        }
+      }
       
       (window as any).reportData = adaptedData;
       this.renderOverview(adaptedData, container);
