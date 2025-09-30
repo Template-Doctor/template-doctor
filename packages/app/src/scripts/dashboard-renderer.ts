@@ -11,8 +11,102 @@ class DashboardRenderer {
     };
     this.debug('Dashboard renderer initialized');
   }
-  render(result: any, container: HTMLElement){ this.debug('Rendering dashboard', result); if (!result || !container){ console.error('Missing result data or container element'); container.innerHTML = `<div style="padding: 20px; background: #f8d7da; border-radius: 5px; margin: 20px 0; color: #721c24;"><h3>Error: Cannot render dashboard</h3><p>Missing required data or container element</p><pre style="background: #f5f5f5; padding: 10px; border-radius: 3px;">${JSON.stringify({ resultExists: !!result, containerExists: !!container, resultType: result ? typeof result : 'undefined', containerType: container ? typeof container : 'undefined' }, null, 2)}</pre></div>`; return; }
-  try { container.innerHTML=''; try { (window as any).reportDataOriginal = result; } catch(_){} const actionHtml = `<div id="action-section" class="action-footer action-header" style="background: white !important; border-radius: 5px !important; padding: 16px !important; margin-bottom: 20px !important; box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important; display: flex !important; flex-direction: column !important; justify-content: center !important; align-items: center !important; width: 100% !important;"><div style="width: 100% !important; text-align: center !important; margin-bottom: 15px !important;"><h3 style="margin: 0 !important; padding: 0 !important; font-size: 1.2rem !important; color: #333 !important;">Template Doctor Actions</h3></div><div style="display: flex !important; flex-wrap: wrap !important; justify-content: center !important; gap: 15px !important; width: 100% !important;"><a href="#" id="fixButton" class="btn" style="opacity: 1 !important; visibility: visible !important; padding: 12px 24px !important; background-color: #0078d4 !important; color: white !important; border: none !important; border-radius: 4px !important; font-size: 1rem !important; font-weight: 500 !important; cursor: pointer !important; display: inline-flex !important; align-items: center !important; gap: 8px !important; min-width: 180px !important; justify-content: center !important; text-decoration: none !important; pointer-events: auto !important;"><i class="fas fa-code"></i> Fix with AI Agent</a><button id="create-github-issue-btn" class="btn" style="opacity: 0 !important; visibility: hidden !important; padding: 12px 24px !important; background-color: #2b3137 !important; color: white !important; border: none !important; border-radius: 4px !important; font-size: 1rem !important; font-weight: 500 !important; cursor: pointer !important; display: inline-flex !important; align-items: center !important; gap: 8px !important; min-width: 180px !important; justify-content: center !important; pointer-events: none !important; transition: opacity 0.25s ease;" aria-disabled="true"><i class="fab fa-github"></i> Create GitHub Issue</button><button id="testProvisionButton" class="btn" style="opacity: 1 !important; visibility: visible !important; padding: 12px 24px !important; background-color: #0078d4 !important; color: white !important; border: none !important; border-radius: 4px !important; font-size: 1rem !important; font-weight: 500 !important; cursor: pointer !important; display: inline-flex !important; align-items: center !important; gap: 8px !important; min-width: 180px !important; justify-content: center !important; pointer-events: auto !important;"><i class="fas fa-rocket"></i> Test AZD Provision</button><button id="save-results-btn" class="btn" title="Opens a PR in the configured repository to save this analysis report" style="opacity: 1 !important; visibility: visible !important; padding: 12px 24px !important; background-color: #198754 !important; color: white !important; border: none !important; border-radius: 4px !important; font-size: 1rem !important; font-weight: 500 !important; cursor: pointer !important; display: inline-flex !important; align-items: center !important; gap: 8px !important; min-width: 180px !important; justify-content: center !important; pointer-events: auto !important;"><i class="fas fa-save"></i> Save Results</button></div><div id="save-results-note" style="margin-top: 8px; color: #6c757d; font-size: 0.9rem; text-align: center;"></div></div>`; const tempDiv = document.createElement('div'); tempDiv.innerHTML = actionHtml; const actionSection = tempDiv.firstElementChild as HTMLElement | null; if(actionSection) container.appendChild(actionSection); const debugSection = document.createElement('div'); debugSection.className='debug-section'; debugSection.style.cssText='margin-bottom: 30px; padding: 15px; background: #f8f9fa; border-radius: 5px; border: 1px solid #ddd;'; debugSection.innerHTML=`<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;"><h3 style="margin: 0;">Template Analysis Report</h3><div style="display: flex; align-items: center; gap: 15px;"><span style="color: #6c757d; font-size: 0.9em; font-style: italic;">Developer Tools</span><button id="toggle-raw-data" class="btn" style="padding: 5px 10px; font-size: 0.9em;"><i class="fas fa-code"></i> Raw Data</button></div></div><div id="raw-data-content" style="display: none; margin-top: 15px;"><div style="background: #2d2d2d; color: #eee; padding: 10px; border-radius: 5px; font-size: 0.9em; margin-bottom: 10px;"><i class="fas fa-info-circle"></i> This is the raw report data used to generate the dashboard.</div><pre style="background: #2d2d2d; color: #eee; padding: 15px; border-radius: 5px; max-height: 400px; overflow: auto; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace; font-size: 13px;">${JSON.stringify(result, null, 2)}</pre></div>`; container.appendChild(debugSection); setTimeout(()=>{ const toggleBtn=document.getElementById('toggle-raw-data'); const rawContent=document.getElementById('raw-data-content'); if (toggleBtn && rawContent){ toggleBtn.addEventListener('click', function(){ if (rawContent.style.display==='none'){ rawContent.style.display='block'; toggleBtn.innerHTML='<i class="fas fa-times"></i> Hide Raw Data'; toggleBtn.style.backgroundColor='#dc3545'; toggleBtn.style.color='white'; } else { rawContent.style.display='none'; toggleBtn.innerHTML='<i class=\"fas fa-code\"></i> Raw Data'; toggleBtn.style.backgroundColor=''; toggleBtn.style.color=''; } }); } },100); const adaptedData = this.adaptResultData(result); (window as any).reportData = adaptedData; this.renderOverview(adaptedData, container); this.renderIssuesPanel(adaptedData, container); this.renderPassedPanel(adaptedData, container); this.renderActionFooter(adaptedData, container); this.addEventListeners(container); } catch (error: any) { console.error('Error rendering dashboard:', error); container.innerHTML=`<div style=\"padding: 20px; background: #f8d7da; border-radius: 5px; margin: 20px 0; color: #721c24;\"><h3>Dashboard Rendering Error</h3><p>${error.message}</p><pre style=\"background: #f5f5f5; padding: 10px; border-radius: 3px;\">${error.stack}</pre><h4 style=\"margin-top: 20px;\">Raw Data</h4><pre style=\"background: #f5f5f5; padding: 10px; border-radius: 3px; max-height: 300px; overflow: auto;\">${JSON.stringify(result, null, 2)}</pre></div>`; }
+  render(result: any, container: HTMLElement) {
+    this.debug('Rendering dashboard', result);
+    
+    if (!result || !container) {
+      console.error('Missing result data or container element');
+      container.innerHTML = `<div style="padding: 20px; background: #f8d7da; border-radius: 5px; margin: 20px 0; color: #721c24;"><h3>Error: Cannot render dashboard</h3><p>Missing required data or container element</p><pre style="background: #f5f5f5; padding: 10px; border-radius: 3px;">${JSON.stringify({ resultExists: !!result, containerExists: !!container, resultType: result ? typeof result : 'undefined', containerType: container ? typeof container : 'undefined' }, null, 2)}</pre></div>`;
+      return;
+    }
+    
+    try {
+      container.innerHTML = '';
+      try {
+        (window as any).reportDataOriginal = result;
+      } catch (_) {}
+      
+      // Add CSS for raw data toggle
+      const rawDataStyle = document.createElement('style');
+      rawDataStyle.textContent = `.raw-data-visible { display: block !important; }`;
+      if (!document.head.querySelector('style[data-raw-data-style]')) {
+        rawDataStyle.setAttribute('data-raw-data-style', 'true');
+        document.head.appendChild(rawDataStyle);
+      }
+      
+      // Render action buttons section
+      const actionHtml = `<div id="action-section" class="action-footer action-header" style="background: white !important; border-radius: 5px !important; padding: 16px !important; margin-bottom: 20px !important; box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important; display: flex !important; flex-direction: column !important; justify-content: center !important; align-items: center !important; width: 100% !important;"><div style="width: 100% !important; text-align: center !important; margin-bottom: 15px !important;"><h3 style="margin: 0 !important; padding: 0 !important; font-size: 1.2rem !important; color: #333 !important;">Template Doctor Actions</h3></div><div style="display: flex !important; flex-wrap: wrap !important; justify-content: center !important; gap: 15px !important; width: 100% !important;"><a href="#" id="fixButton" class="btn" style="opacity: 1 !important; visibility: visible !important; padding: 12px 24px !important; background-color: #0078d4 !important; color: white !important; border: none !important; border-radius: 4px !important; font-size: 1rem !important; font-weight: 500 !important; cursor: pointer !important; display: inline-flex !important; align-items: center !important; gap: 8px !important; min-width: 180px !important; justify-content: center !important; text-decoration: none !important; pointer-events: auto !important;"><i class="fas fa-code"></i> Fix with AI Agent</a><button id="create-github-issue-btn" class="btn" style="opacity: 0 !important; visibility: hidden !important; padding: 12px 24px !important; background-color: #2b3137 !important; color: white !important; border: none !important; border-radius: 4px !important; font-size: 1rem !important; font-weight: 500 !important; cursor: pointer !important; display: inline-flex !important; align-items: center !important; gap: 8px !important; min-width: 180px !important; justify-content: center !important; pointer-events: none !important; transition: opacity 0.25s ease;" aria-disabled="true"><i class="fab fa-github"></i> Create GitHub Issue</button><button id="testProvisionButton" class="btn" style="opacity: 1 !important; visibility: visible !important; padding: 12px 24px !important; background-color: #0078d4 !important; color: white !important; border: none !important; border-radius: 4px !important; font-size: 1rem !important; font-weight: 500 !important; cursor: pointer !important; display: inline-flex !important; align-items: center !important; gap: 8px !important; min-width: 180px !important; justify-content: center !important; pointer-events: auto !important;"><i class="fas fa-rocket"></i> Test AZD Provision</button><button id="save-results-btn" class="btn" title="Opens a PR in the configured repository to save this analysis report" style="opacity: 1 !important; visibility: visible !important; padding: 12px 24px !important; background-color: #198754 !important; color: white !important; border: none !important; border-radius: 4px !important; font-size: 1rem !important; font-weight: 500 !important; cursor: pointer !important; display: inline-flex !important; align-items: center !important; gap: 8px !important; min-width: 180px !important; justify-content: center !important; pointer-events: auto !important;"><i class="fas fa-save"></i> Save Results</button></div><div id="save-results-note" style="margin-top: 8px; color: #6c757d; font-size: 0.9rem; text-align: center;"></div></div>`;
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = actionHtml;
+      const actionSection = tempDiv.firstElementChild as HTMLElement | null;
+      if (actionSection) container.appendChild(actionSection);
+      
+      // Render debug section with raw data toggle
+      const debugSection = document.createElement('div');
+      debugSection.className = 'debug-section';
+      debugSection.style.cssText = 'margin-bottom: 30px; padding: 15px; background: #f8f9fa; border-radius: 5px; border: 1px solid #ddd; position: relative; z-index: 1;';
+      debugSection.innerHTML = `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;"><h3 style="margin: 0;">Template Analysis Report</h3><div style="display: flex; align-items: center; gap: 15px;"><span style="color: #6c757d; font-size: 0.9em; font-style: italic;">Developer Tools</span><button id="toggle-raw-data" class="btn" style="padding: 5px 10px; font-size: 0.9em;"><i class="fas fa-code"></i> Raw Data</button></div></div><div id="raw-data-content" style="display: none; margin-top: 15px; position: relative; z-index: 2;"><div style="background: #2d2d2d; color: #eee; padding: 10px; border-radius: 5px; font-size: 0.9em; margin-bottom: 10px;"><i class="fas fa-info-circle"></i> This is the raw report data used to generate the dashboard.</div><pre style="background: #2d2d2d; color: #eee; padding: 15px; border-radius: 5px; max-height: 400px; overflow: auto; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace; font-size: 13px;">${JSON.stringify(result, null, 2)}</pre></div>`;
+      container.appendChild(debugSection);
+      console.log('[DashboardRenderer] Debug section appended, container:', container.id, 'debugSection visible:', debugSection.offsetHeight > 0);
+      
+      // Set up raw data toggle after DOM insertion
+      setTimeout(() => {
+        const toggleBtn = document.getElementById('toggle-raw-data');
+        const rawContent = document.getElementById('raw-data-content');
+        console.log('[DashboardRenderer] Raw data toggle setup:', { toggleBtn: !!toggleBtn, rawContent: !!rawContent });
+        
+        if (toggleBtn && rawContent) {
+          // Check if listener already attached
+          if ((toggleBtn as any)._listenerAttached) {
+            console.log('[DashboardRenderer] Listener already attached, skipping');
+            return;
+          }
+          (toggleBtn as any)._listenerAttached = true;
+          
+          // Store visibility state directly on the element
+          (rawContent as any)._isVisible = false;
+          
+          const clickHandler = function () {
+            console.log('[DashboardRenderer] Raw data toggle clicked, current state:', (rawContent as any)._isVisible);
+            
+            if (!(rawContent as any)._isVisible) {
+              // Show it
+              rawContent.style.display = 'block';
+              (rawContent as any)._isVisible = true;
+              toggleBtn.innerHTML = '<i class="fas fa-times"></i> Hide Raw Data';
+              toggleBtn.style.backgroundColor = '#dc3545';
+              toggleBtn.style.color = 'white';
+              console.log('[DashboardRenderer] SHOWED raw data');
+            } else {
+              // Hide it
+              rawContent.style.display = 'none';
+              (rawContent as any)._isVisible = false;
+              toggleBtn.innerHTML = '<i class="fas fa-code"></i> Raw Data';
+              toggleBtn.style.backgroundColor = '';
+              toggleBtn.style.color = '';
+              console.log('[DashboardRenderer] HID raw data');
+            }
+          };
+          
+          toggleBtn.addEventListener('click', clickHandler, { once: false });
+          console.log('[DashboardRenderer] Raw data toggle event listener attached ONCE');
+        } else {
+          console.warn('[DashboardRenderer] Could not find raw data toggle elements');
+        }
+      }, 100);
+      
+      // Adapt and render report data
+      const adaptedData = this.adaptResultData(result);
+      (window as any).reportData = adaptedData;
+      this.renderOverview(adaptedData, container);
+      this.renderIssuesPanel(adaptedData, container);
+      this.renderPassedPanel(adaptedData, container);
+      this.renderActionFooter(adaptedData, container);
+      this.addEventListeners(container);
+    } catch (error: any) {
+      console.error('Error rendering dashboard:', error);
+      container.innerHTML = `<div style="padding: 20px; background: #f8d7da; border-radius: 5px; margin: 20px 0; color: #721c24;"><h3>Dashboard Rendering Error</h3><p>${error.message}</p><pre style="background: #f5f5f5; padding: 10px; border-radius: 3px;">${error.stack}</pre><h4 style="margin-top: 20px;">Raw Data</h4><pre style="background: #f5f5f5; padding: 10px; border-radius: 3px; max-height: 300px; overflow: auto;">${JSON.stringify(result, null, 2)}</pre></div>`;
+    }
   }
   adaptResultData(result: any): AdaptedData {
       try {
