@@ -2164,6 +2164,32 @@ document.addEventListener('DOMContentLoaded', () => {
       const cfg = window.TemplateDoctorConfig || {};
       ruleSet = (cfg.defaultRuleSet && typeof cfg.defaultRuleSet === 'string') ? cfg.defaultRuleSet : 'dod';
     }
+    
+    // --- Fork notification (user awareness) ---
+    try {
+      if (window.GitHubClient?.auth?.isAuthenticated()) {
+        const parts = repoUrl.split('github.com/')[1]?.split('/') || [];
+        if (parts.length >= 2) {
+          const owner = parts[0];
+          const repo = parts[1];
+          const currentUser = window.GitHubClient.getCurrentUsername();
+          
+          // Show notification if analyzing a repo not owned by current user
+          if (currentUser && owner.toLowerCase() !== currentUser.toLowerCase()) {
+            if (window.NotificationSystem) {
+              window.NotificationSystem.showInfo(
+                'Fork-First Analysis',
+                `This repository will be analyzed from your fork (${currentUser}/${repo}) to ensure access permissions. The fork will be created automatically if it doesn't exist.`,
+                6000
+              );
+            }
+          }
+        }
+      }
+    } catch (notifyErr) {
+      console.warn('[App] Fork notification failed:', notifyErr);
+    }
+    
     // Preflight: if repo belongs to SAML-enforced org and user only wants fork-based operations,
     // attempt fork-first flow (idempotent). We detect by prior tagging OR by explicit param marker.
     try {
