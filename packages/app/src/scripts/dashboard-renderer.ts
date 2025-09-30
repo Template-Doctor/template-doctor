@@ -129,6 +129,23 @@ class DashboardRenderer {
       this.renderPassedPanel(adaptedData, container);
       this.renderActionFooter(adaptedData, container);
       this.addEventListeners(container);
+      
+      // Update agents tile status AFTER tiles are rendered
+      setTimeout(() => {
+        const agentsIssue = adaptedData.compliance.issues.find((i: any) => i.category === 'agents');
+        if (agentsIssue) {
+          if (agentsIssue.id === 'agents-missing-file') {
+            updateAgentsTileStatus('missing');
+          } else {
+            updateAgentsTileStatus('invalid');
+          }
+        } else {
+          const agentsPassed = adaptedData.compliance.compliant.find((i: any) => i.category === 'agents');
+          if (agentsPassed) {
+            updateAgentsTileStatus('valid');
+          }
+        }
+      }, 150);
     } catch (error: any) {
       console.error('Error rendering dashboard:', error);
       container.innerHTML = `<div style="padding: 20px; background: #f8d7da; border-radius: 5px; margin: 20px 0; color: #721c24;"><h3>Dashboard Rendering Error</h3><p>${error.message}</p><pre style="background: #f5f5f5; padding: 10px; border-radius: 3px;">${error.stack}</pre><h4 style="margin-top: 20px;">Raw Data</h4><pre style="background: #f5f5f5; padding: 10px; border-radius: 3px; max-height: 300px; overflow: auto;">${JSON.stringify(result, null, 2)}</pre></div>`;
