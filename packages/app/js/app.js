@@ -99,6 +99,72 @@ function initializeApp() {
   }
 }
 
+// Helper function to build categories from issues/compliant arrays (for backward compatibility)
+window.buildCategoriesFromIssues = function(issues, compliant) {
+  const categories = {
+    repositoryManagement: { enabled: true, issues: [], compliant: [], percentage: 0 },
+    functionalRequirements: { enabled: true, issues: [], compliant: [], percentage: 0 },
+    deployment: { enabled: true, issues: [], compliant: [], percentage: 0 },
+    security: { enabled: true, issues: [], compliant: [], percentage: 0 },
+    testing: { enabled: true, issues: [], compliant: [], percentage: 0 },
+    agents: { enabled: true, issues: [], compliant: [], percentage: 0 }
+  };
+
+  // Category mapping (same as analyzer)
+  const categoryMap = {
+    'file': 'repositoryManagement',
+    'folder': 'repositoryManagement',
+    'missing': 'repositoryManagement',
+    'required': 'repositoryManagement',
+    'readme': 'functionalRequirements',
+    'documentation': 'functionalRequirements',
+    'workflow': 'deployment',
+    'infra': 'deployment',
+    'infrastructure': 'deployment',
+    'azure': 'deployment',
+    'bicep': 'deployment',
+    'bicepFiles': 'deployment',
+    'security': 'security',
+    'auth': 'security',
+    'authentication': 'security',
+    'testing': 'testing',
+    'test': 'testing',
+    'agents': 'agents',
+    'meta': 'meta'
+  };
+
+  // Distribute issues
+  if (Array.isArray(issues)) {
+    for (const issue of issues) {
+      const cat = issue.category || 'general';
+      const mappedCat = categoryMap[cat] || 'repositoryManagement';
+      if (categories[mappedCat]) {
+        categories[mappedCat].issues.push(issue);
+      }
+    }
+  }
+
+  // Distribute compliant items (exclude meta)
+  if (Array.isArray(compliant)) {
+    for (const item of compliant) {
+      const cat = item.category || 'general';
+      const mappedCat = categoryMap[cat] || 'repositoryManagement';
+      if (mappedCat !== 'meta' && categories[mappedCat]) {
+        categories[mappedCat].compliant.push(item);
+      }
+    }
+  }
+
+  // Calculate percentages
+  for (const key of Object.keys(categories)) {
+    const cat = categories[key];
+    const total = cat.issues.length + cat.compliant.length;
+    cat.percentage = total > 0 ? Math.round((cat.compliant.length / total) * 100) : 0;
+  }
+
+  return categories;
+};
+
 // Define a local reference to the internal analyzeRepo function that will be defined later
 let internalAnalyzeRepo;
 
@@ -2362,6 +2428,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         // Render existing result if we can load from results store (only if compliance present)
         if (priorScanMeta.compliance) {
+          // Ensure categories exist for backward compatibility with old cached results
+          if (!priorScanMeta.compliance.categories && priorScanMeta.compliance.issues && priorScanMeta.compliance.compliant) {
+            priorScanMeta.compliance.categories = window.buildCategoriesFromIssues(
+              priorScanMeta.compliance.issues,
+              priorScanMeta.compliance.compliant
+            );
+          }
+          
           document.getElementById('search-section').style.display = 'none';
           analysisSection.style.display = 'block';
           loadingContainer.style.display = 'none';
