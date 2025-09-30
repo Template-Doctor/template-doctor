@@ -375,71 +375,18 @@ export function updateAgentsTileStatus(status: 'missing' | 'invalid' | 'valid'):
   let owner = ownerRepoMatch[1];
   const repo = ownerRepoMatch[2];
   
-  // Check if user owns the repository, fork if not
+  // Check if user owns the repository
   const currentUser = gh.auth.getUsername();
-  let needsFork = false;
   
+  // If user doesn't own the repo, update owner to current user (assume fork exists or will be created)
   if (owner.toLowerCase() !== currentUser.toLowerCase()) {
-    needsFork = true;
-    console.log(`[AgentsEnrichment] Repository owned by ${owner}, not ${currentUser}. Will fork first.`);
+    console.log(`[AgentsEnrichment] Repository owned by ${owner}, not ${currentUser}. Creating issue in user's fork.`);
+    owner = currentUser;
   }
 
-  notify.showLoading(needsFork ? 'Forking repository and creating issue...' : 'Creating agents.md issue with Copilot assignment...');
+  notify.showLoading('Creating agents.md issue with Copilot assignment...');
 
   try {
-    // Fork the repository if needed (SAML/SSO workaround)
-    if (needsFork) {
-      const token = gh.auth.getToken();
-      if (!token) {
-        notify.showError('Error', 'GitHub token not available', 6000);
-        return false;
-      }
-      
-      try {
-        notify.showLoading('Forking repository...');
-        
-        // Just fork directly - don't check existence first (avoids SAML 403 on GET)
-        // GitHub API handles existing forks gracefully (returns 202 for new, 200 for existing)
-        const forkResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/forks`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-            Accept: 'application/vnd.github+json'
-          }
-        });
-        
-        if (!forkResponse.ok) {
-          const errorData = await forkResponse.json();
-          console.error('[AgentsEnrichment] Fork failed:', errorData);
-          throw new Error(`Failed to fork repository: ${forkResponse.status} ${JSON.stringify(errorData)}`);
-        }
-        
-        const forkData = await forkResponse.json();
-        console.log('[AgentsEnrichment] Fork created/confirmed:', forkData.full_name);
-        
-        // Wait for fork to be ready
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        owner = currentUser;
-        notify.showLoading('Creating issue in your fork...')
-        
-      } catch (forkError: any) {
-        console.error('[AgentsEnrichment] Fork error:', forkError);
-        
-        // Don't show error if we already showed the SAML message
-        if (forkError.message?.includes('Manual Fork Required')) {
-          return false;
-        }
-        
-        notify.showError(
-          'Fork Failed',
-          `Could not fork repository: ${forkError.message}. You may need to fork it manually from GitHub.`,
-          8000
-        );
-        return false;
-      }
-    }
     const title = '[TD-BOT] Missing file: agents.md';
     const body = [
       'Please scan the repository and README and generate a suitable `agents.md` respecting the format at [https://agents.md](https://agents.md) - the specification for documenting AI Agents.',
