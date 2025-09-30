@@ -1,12 +1,6 @@
 import { HttpRequest, Context } from "@azure/functions";
 import { wrapHttp } from '../shared/http';
-
-// Load analyzer from built dist output of local package (source import avoided to prevent cross-rootDir issues)
-async function getRunAnalyzer() {
-  const mod = await import('analyzer-core');
-  if ((mod as any).runAnalyzer) return (mod as any).runAnalyzer;
-  throw new Error('runAnalyzer export missing from analyzer-core');
-}
+import { runAnalyzer } from 'analyzer-core';
 
 interface AnalyzeRequest {
   repoUrl: string;
@@ -107,7 +101,6 @@ export const handler = wrapHttp(async (req: HttpRequest, ctx: Context) => {
   }
 
   try {
-    const runAnalyzer = await getRunAnalyzer();
     const result = await runAnalyzer(repoUrl, enriched, {
       ruleSet,
       deprecatedModels: (process.env.DEPRECATED_MODELS || '').split(',').filter(Boolean),
