@@ -17,15 +17,18 @@ interface TemplateListAPI {
   isRendered: () => boolean;
   refresh: () => void; // re-render (used if templatesData changes dynamically)
   getCount: () => number;
+  getLoadedCount: () => number; // how many templates are currently loaded/displayed
+  loadMore: () => boolean; // load next batch of templates, returns true if more were loaded
+  loadUntilIndex: (index: number) => Promise<boolean>; // load templates until specified index is visible
 }
 
 const SECTION_ID = 'scanned-templates-section';
 const GRID_ID = 'template-grid';
-const PAGINATION_CLASS = 'pagination';
-const PAGE_SIZE = 6; // mimic legacy pagination sizing
+const LOAD_MORE_CLASS = 'load-more-container';
+const PAGE_SIZE = 9; // Load 9 templates at a time
 
 let rendered = false;
-let currentPage = 1;
+let loadedCount = 0; // Track how many templates are currently loaded/displayed
 
 function ensureSection(): HTMLElement | null {
   let section = document.getElementById(SECTION_ID);
@@ -106,42 +109,96 @@ function createCard(t: ScannedTemplateEntry): HTMLElement {
 }
 
 function renderPage(page: number, data: ScannedTemplateEntry[], grid: Element) {
+  // Deprecated - kept for compatibility but now using loadMore pattern
   grid.innerHTML = '';
   const start = (page - 1) * PAGE_SIZE;
   data.slice(start, start + PAGE_SIZE).forEach((entry) => grid.appendChild(createCard(entry)));
 }
 
-function renderPagination(total: number, section: HTMLElement) {
-  let container = section.querySelector(`.${PAGINATION_CLASS}`) as HTMLElement | null;
+function renderLoadedTemplates(data: ScannedTemplateEntry[], grid: Element) {
+  // Render all templates up to loadedCount
+  grid.innerHTML = '';
+  data.slice(0, loadedCount).forEach((entry) => grid.appendChild(createCard(entry)));
+}
+
+function loadMore(data: ScannedTemplateEntry[], grid: Element, section: HTMLElement): boolean {
+  // Load next PAGE_SIZE templates and return true if more templates were loaded
+  const previousCount = loadedCount;
+  loadedCount = Math.min(loadedCount + PAGE_SIZE, data.length);
+  
+  if (loadedCount > previousCount) {
+    // Append only the newly loaded cards (more efficient than re-rendering all)
+    data.slice(previousCount, loadedCount).forEach((entry) => grid.appendChild(createCard(entry)));
+    updateLoadMoreButton(data.length, section);
+    return true;
+  }
+  
+  return false;
+}
+
+function renderLoadMoreButton(total: number, section: HTMLElement) {
+  let container = section.querySelector(`.${LOAD_MORE_CLASS}`) as HTMLElement | null;
   if (!container) {
     container = document.createElement('div');
-    container.className = PAGINATION_CLASS;
+    container.className = LOAD_MORE_CLASS;
     container.innerHTML = `
-      <button class="prev-page" disabled>&laquo; Prev</button>
-      <span class="page-info"></span>
-      <button class="next-page" disabled>Next &raquo;</button>`;
+      <button class="load-more-btn">
+        <i class="fas fa-sync-alt"></i>
+        <span class="load-more-text">Load More Templates</span>
+      </button>
+      <div class="load-more-info"></div>`;
     section.appendChild(container);
+    
+    const btn = container.querySelector('.load-more-btn') as HTMLButtonElement;
+    btn.onclick = () => {
+      const data = window.templatesData;
+      if (!Array.isArray(data)) return;
+      const grid = section.querySelector(`#${GRID_ID}`);
+      if (!grid) return;
+      
+      // Show loading state
+      btn.disabled = true;
+      btn.classList.add('loading');
+      const icon = btn.querySelector('i');
+      if (icon) {
+        icon.className = 'fas fa-spinner fa-spin';
+      }
+      
+      // Simulate slight delay for better UX (feels more deliberate)
+      setTimeout(() => {
+        loadMore(data, grid, section);
+        btn.disabled = false;
+        btn.classList.remove('loading');
+        if (icon) {
+          icon.className = 'fas fa-sync-alt';
+        }
+      }, 150);
+    };
   }
-  const totalPages = Math.ceil(total / PAGE_SIZE);
-  const prev = container.querySelector('.prev-page') as HTMLButtonElement;
-  const next = container.querySelector('.next-page') as HTMLButtonElement;
-  const info = container.querySelector('.page-info') as HTMLElement;
-  info.textContent = `Page ${currentPage} of ${totalPages || 1}`;
-  prev.disabled = currentPage <= 1;
-  next.disabled = currentPage >= totalPages;
-  prev.onclick = () => {
-    if (currentPage > 1) {
-      currentPage--;
-      refresh();
-    }
-  };
-  next.onclick = () => {
-    if (currentPage < totalPages) {
-      currentPage++;
-      refresh();
-    }
-  };
-  container.style.display = totalPages > 1 ? 'flex' : 'none';
+  
+  updateLoadMoreButton(total, section);
+}
+
+function updateLoadMoreButton(total: number, section: HTMLElement) {
+  const container = section.querySelector(`.${LOAD_MORE_CLASS}`) as HTMLElement | null;
+  if (!container) return;
+  
+  const btn = container.querySelector('.load-more-btn') as HTMLButtonElement;
+  const info = container.querySelector('.load-more-info') as HTMLElement;
+  
+  if (loadedCount >= total) {
+    // All templates loaded - hide button
+    container.style.display = 'none';
+  } else {
+    container.style.display = 'flex';
+    const remaining = total - loadedCount;
+    info.textContent = `Showing ${loadedCount} of ${total} templates (${remaining} more)`;
+  }
+}
+
+function renderPagination(total: number, section: HTMLElement) {
+  // Deprecated - kept for API compatibility but replaced by Load More
+  console.debug('[TemplateList] renderPagination is deprecated, using Load More button instead');
 }
 
 function render() {
@@ -161,8 +218,12 @@ function render() {
     const section = ensureSection();
     const grid = section?.querySelector(`#${GRID_ID}`);
     if (!grid) { console.debug('[TemplateList] render aborted: grid element missing'); return; }
-    renderPage(currentPage, data, grid);
-    renderPagination(data.length, section as HTMLElement);
+    
+    // Initialize with first PAGE_SIZE templates
+    loadedCount = Math.min(PAGE_SIZE, data.length);
+    renderLoadedTemplates(data, grid);
+    renderLoadMoreButton(data.length, section as HTMLElement);
+    
     if (!rendered) {
       rendered = true;
       document.dispatchEvent(
@@ -183,8 +244,10 @@ function refresh() {
   if (!grid) return;
   if (!Array.isArray(window.templatesData)) return;
   console.debug('[TemplateList] refresh executing');
-  renderPage(currentPage, window.templatesData, grid);
-  renderPagination(window.templatesData.length, section);
+  
+  // Keep current loadedCount but re-render all loaded templates
+  renderLoadedTemplates(window.templatesData, grid);
+  renderLoadMoreButton(window.templatesData.length, section);
 }
 
 function tryRenderSoon() {
@@ -222,7 +285,38 @@ function init() {
   tryRenderSoon();
 }
 
-window.TemplateList = { init, render, isRendered: () => rendered, refresh, getCount: () => (Array.isArray(window.templatesData) ? window.templatesData.length : 0) };
+window.TemplateList = { 
+  init, 
+  render, 
+  isRendered: () => rendered, 
+  refresh, 
+  getCount: () => (Array.isArray(window.templatesData) ? window.templatesData.length : 0),
+  getLoadedCount: () => loadedCount,
+  loadMore: (): boolean => {
+    const section = document.getElementById(SECTION_ID);
+    const grid = section?.querySelector(`#${GRID_ID}`);
+    const data = window.templatesData;
+    if (!section || !grid || !Array.isArray(data)) return false;
+    return loadMore(data, grid, section as HTMLElement);
+  },
+  loadUntilIndex: async (index: number): Promise<boolean> => {
+    const data = window.templatesData;
+    if (!Array.isArray(data) || index < 0 || index >= data.length) return false;
+    
+    const section = document.getElementById(SECTION_ID);
+    const grid = section?.querySelector(`#${GRID_ID}`);
+    if (!section || !grid) return false;
+    
+    // Load templates progressively until the target index is visible
+    while (loadedCount <= index && loadedCount < data.length) {
+      loadMore(data, grid, section as HTMLElement);
+      // Small delay for smoother UX and to allow DOM updates
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    return loadedCount > index;
+  }
+};
 
 // Auto-init after DOM is ready if loaded late in the document lifecycle
 if (document.readyState === 'complete' || document.readyState === 'interactive') {

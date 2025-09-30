@@ -127,13 +127,56 @@ function findScannedTemplate(query: string): ScannedTemplateEntry | null {
 }
 
 // Scroll to and highlight a template card
-function scrollToTemplate(template: ScannedTemplateEntry): void {
+async function scrollToTemplate(template: ScannedTemplateEntry): Promise<void> {
   console.log('[Search DEBUG] scrollToTemplate called with template:', template);
   
   if (!template.relativePath) {
     console.log('[Search DEBUG] Template has no relativePath, cannot scroll to it');
     log('Template has no relativePath, cannot scroll to it');
     return;
+  }
+  
+  // Find the index of this template in the full dataset
+  const data = window.templatesData;
+  if (!Array.isArray(data)) {
+    console.log('[Search DEBUG] templatesData not available');
+    return;
+  }
+  
+  const templateIndex = data.findIndex(t => t.relativePath === template.relativePath);
+  console.log('[Search DEBUG] Template found at index:', templateIndex);
+  
+  if (templateIndex === -1) {
+    console.log('[Search DEBUG] Template not found in dataset');
+    log('Template not found in dataset');
+    return;
+  }
+  
+  // Check if template is already loaded
+  const loadedCount = window.TemplateList?.getLoadedCount?.() || 0;
+  console.log('[Search DEBUG] Current loaded count:', loadedCount, 'Template index:', templateIndex);
+  
+  if (templateIndex >= loadedCount) {
+    // Template not yet loaded - load templates progressively until we reach it
+    console.log('[Search DEBUG] Template not loaded yet, loading templates...');
+    log(`Template at position ${templateIndex + 1} not loaded yet. Loading more templates...`);
+    
+    if (window.TemplateList?.loadUntilIndex) {
+      const success = await window.TemplateList.loadUntilIndex(templateIndex);
+      if (!success) {
+        console.log('[Search DEBUG] Failed to load template');
+        log('Failed to load template');
+        return;
+      }
+      console.log('[Search DEBUG] Successfully loaded templates up to index', templateIndex);
+      
+      // Give DOM a moment to update
+      await new Promise(resolve => setTimeout(resolve, 200));
+    } else {
+      console.log('[Search DEBUG] TemplateList.loadUntilIndex not available');
+      log('Cannot load more templates - TemplateList API not available');
+      return;
+    }
   }
   
   // Extract the template ID from relativePath
