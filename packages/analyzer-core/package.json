@@ -2,18 +2,11 @@
   "name": "analyzer-core",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
   "description": "Core analyzer for template-doctor",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "exports": {
-    ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    }
-  },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "echo 'Using pre-built CommonJS dist files'",
     "test": "node test/run-analyzer-smoke.mjs"
   },
   "dependencies": {
