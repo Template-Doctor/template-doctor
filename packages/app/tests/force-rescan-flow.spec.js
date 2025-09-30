@@ -2,9 +2,21 @@
 import { test, expect } from '@playwright/test';
 
 /**
- * Force-rescan flow:
- * 1. Initial analysis caches.
- * 2. Second run with force-rescan sentinel triggers fresh fork sync (no reuse) -> expect another merge-upstream POST but no second fork.
+ * Force-rescan flow test:
+ * 
+ * This test validates the fork=1 URL parameter pattern used to avoid SAML/SSO authentication errors
+ * when analyzing organization repositories.
+ * 
+ * Pattern Overview:
+ * - Production uses ?fork=1 or &fork=1 URL parameters to signal fork usage
+ * - This avoids GitHub API calls (GET/POST) that trigger SAML 403 errors on org repos
+ * - The analyzer assumes user's fork exists and updates owner to currentUser internally
+ * - See window.forkAndAnalyzeRepo in app.js for the production implementation
+ * 
+ * Test Flow:
+ * 1. Initial analysis: Creates fork via POST (first time setup)
+ * 2. Force-rescan: Uses existing fork with merge-upstream sync (no second fork POST)
+ * 3. Validates that fork=1 prevents duplicate fork API calls
  */
 
 test.describe('Force rescan flow', () => {
@@ -89,6 +101,12 @@ test.describe('Force rescan flow', () => {
     expect(forkPostsFirst.length).toBe(1);
 
     // Second run with force-rescan sentinel
+    // NOTE: The ?fork=1 parameter is the production pattern for signaling fork usage without API calls.
+    // This pattern avoids SAML 403 errors on organization repositories by:
+    // 1. Not making GET requests to check fork existence (triggers SAML auth on org repos)
+    // 2. Not making POST requests to create forks (also triggers SAML auth on org repos)
+    // 3. Simply assuming the user's fork exists and using it directly
+    // The fork=1 directive tells the analyzer to update owner to currentUser internally.
     const beforeSecond = networkLog.length;
     await page.evaluate(() => {
       if (window.analyzeRepository) window.analyzeRepository('https://github.com/SomeOrg/sample', 'force-rescan');
