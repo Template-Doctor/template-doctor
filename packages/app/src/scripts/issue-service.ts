@@ -13,7 +13,8 @@ interface ReportData {
 }
 
 function getReportData(): ReportData | undefined {
-  return (window as any).reportData;
+  // Check both reportData (fresh scan) and reportDataOriginal (saved report)
+  return (window as any).reportData || (window as any).reportDataOriginal;
 }
 
 function currentGitHubClient(): any {
@@ -125,24 +126,47 @@ function ensureContextWrapper(mainTitle: string, issue: ComplianceIssue, data: R
 }
 
 // Resolve a safe fork target (user-owned) avoiding SAML org restrictions.
+// Ensures the fork exists before returning the context
 interface ForkContext { owner: string; repo: string; forked: boolean; hasIssues: boolean }
 
 async function resolveForkContext(owner: string, repo: string): Promise<ForkContext>{
   const gh = currentGitHubClient();
-  if(!gh || !gh.ensureAccessibleRepo) return { owner, repo, forked: false, hasIssues: true };
-  try {
-    // ensureAccessibleRepo returns { repo: meta, source }
-    const result = await gh.ensureAccessibleRepo(owner, repo, { forceFork: false });
-    const repoMeta = result?.repo || {};
-    const login = gh.getCurrentUsername && gh.getCurrentUsername();
-    if (login && login.toLowerCase() !== owner.toLowerCase()) {
-      return { owner: login, repo, forked: true, hasIssues: repoMeta.has_issues !== false };
-    }
-    // If ensureAccessibleRepo forced a fork but owner already user, still treat as safe
-    return { owner: login || owner, repo, forked: result?.source === 'fork', hasIssues: repoMeta.has_issues !== false };
-  } catch(e){
-    console.warn('[IssueService] resolveForkContext failed, falling back to original repo', (e as any)?.message||e);
+  
+  // Get current user
+  const currentUser = gh?.auth?.getUsername?.() || gh?.getCurrentUsername?.();
+  
+  if (!currentUser) {
+    console.warn('[IssueService] No current user found, using original owner');
     return { owner, repo, forked: false, hasIssues: true };
+  }
+  
+  // If user already owns the repo, no need to fork
+  if (owner.toLowerCase() === currentUser.toLowerCase()) {
+    console.log(`[IssueService] User ${currentUser} owns the repository, no fork needed.`);
+    return { owner, repo, forked: false, hasIssues: true };
+  }
+  
+  // User doesn't own the repo - need to ensure fork exists
+  console.log(`[IssueService] Repository owned by ${owner}, not ${currentUser}. Ensuring fork exists...`);
+  
+  try {
+    // Use ensureAccessibleRepo which creates fork if needed
+    if (gh && typeof gh.ensureAccessibleRepo === 'function') {
+      const result = await gh.ensureAccessibleRepo(owner, repo, { forceFork: false });
+      const repoMeta = result?.repo || {};
+      return { 
+        owner: currentUser, 
+        repo, 
+        forked: true, 
+        hasIssues: repoMeta.has_issues !== false 
+      };
+    } else {
+      console.warn('[IssueService] ensureAccessibleRepo not available, assuming fork exists');
+      return { owner: currentUser, repo, forked: true, hasIssues: true };
+    }
+  } catch(e){
+    console.error('[IssueService] Fork operation failed:', (e as any)?.message || e);
+    throw new Error(`Failed to ensure fork exists: ${(e as any)?.message || e}`);
   }
 }
 
@@ -151,7 +175,9 @@ async function createIssues(){
   if(!data){ return showError('Error','No report data'); }
   const { owner, repo } = parseOwnerRepo(data.repoUrl);
   if(!owner || !repo){ return showError('Error','Cannot parse repository owner/repo'); }
+  
   // Ensure we operate on user fork to avoid org label/issue 403
+  // This will create the fork if it doesn't exist
   const forkCtx = await resolveForkContext(owner, repo);
   const targetOwner = forkCtx.owner;
   const issues = data.compliance?.issues || [];
@@ -244,18 +270,63 @@ document.addEventListener('issue-service-ready', ()=>{});
 // ---------------- Legacy Compatibility Shim for existing tests -----------------
 // Re-implements a subset of legacy logic (labels + body + child issues) in TS.
 async function processIssueCreation(github: any){
+  console.log('[IssueService] processIssueCreation starting...');
+  console.log('[IssueService] Checking for report data...');
+  console.log('[IssueService] window.reportData:', !!(window as any).reportData);
+  console.log('[IssueService] window.reportDataOriginal:', !!(window as any).reportDataOriginal);
+  
   const data = getReportData();
-  if(!data) return;
+  if(!data) {
+    console.error('[IssueService] No report data available');
+    console.log('[IssueService] Available window properties:', Object.keys(window).filter(k => k.toLowerCase().includes('report')));
+    showError('Error', 'No report data available. Please run an analysis first.');
+    return;
+  }
+  
+  console.log('[IssueService] Report data found:', { 
+    hasRepoUrl: !!data.repoUrl, 
+    hasCompliance: !!data.compliance,
+    issueCount: data.compliance?.issues?.length || 0
+  });
+  
   const { owner, repo } = parseOwnerRepo(data.repoUrl);
-  if(!owner || !repo) return;
-  // Legacy path also needs to target user fork
-  const forkCtx = await resolveForkContext(owner, repo);
+  if(!owner || !repo) {
+    console.error('[IssueService] Cannot parse owner/repo from', data.repoUrl);
+    showError('Error', 'Invalid repository URL');
+    return;
+  }
+  
+  console.log(`[IssueService] Parsed owner=${owner}, repo=${repo}`);
+  
+  // Legacy path also needs to ensure fork exists
+  console.log('[IssueService] Resolving fork context...');
+  let notification = (window as any).NotificationSystem?.showLoading?.('Creating GitHub Issues', 'Checking repository access...') 
+    || (window as any).Notifications?.loading?.('Creating GitHub Issues', 'Checking repository access...');
+  
+  let forkCtx;
+  try {
+    forkCtx = await resolveForkContext(owner, repo);
+    console.log('[IssueService] Fork context resolved:', forkCtx);
+  } catch(e) {
+    console.error('[IssueService] Fork context failed:', e);
+    if(notification?.error) {
+      notification.error('Fork Failed', (e as any)?.message || String(e));
+    } else if(notification?.close) {
+      notification.close();
+      showError('Fork Failed', (e as any)?.message || String(e));
+    }
+    return;
+  }
+  
   if(!forkCtx.hasIssues){
     console.warn('[IssueService] Issues disabled in target fork; aborting legacy issue creation');
+    if(notification?.close) notification.close();
     showWarn('Issues Disabled', 'Issues are disabled in target fork; enable them in repository settings to create issues.');
     return;
   }
   const issues = data.compliance?.issues || [];
+  console.log(`[IssueService] Found ${issues.length} issues to create`);
+  
   // Lazy enrichment for legacy path (mirrors createIssues enrichment)
   try {
     const percentageCompliant = data.compliance?.compliant?.find(c => c.details && typeof c.details.percentageCompliant === 'number')?.details?.percentageCompliant;
@@ -270,45 +341,196 @@ async function processIssueCreation(github: any){
       }
     }
   } catch {/* ignore enrichment wrapper errors */}
+  
   const ruleSet = data.ruleSet || 'dod';
   const today = new Date().toISOString().split('T')[0];
+  const now = new Date();
+  const timestamp = `${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
   const summary = data.compliance?.summary || 'Template Doctor Analysis';
-  const issueTitle = `Template Doctor Analysis: ${summary} [${today}]`;
+  const issueTitle = `Template Doctor Analysis: ${summary} [${timestamp}]`;
   const rulesetLabel = `ruleset:${ruleSet}`;
   const severityFamily = ['severity:high','severity:medium','severity:low'];
   const baseLabels = (window as any).GITHUB_LABELS && Array.isArray((window as any).GITHUB_LABELS) ? (window as any).GITHUB_LABELS : ['template-doctor','template-doctor-full-scan'];
   const mainLabels = Array.from(new Set([...baseLabels, rulesetLabel, ...severityFamily]));
+  
+  console.log(`[IssueService] Creating main issue with title: ${issueTitle}`);
+  
   try {
-    // Ensure label family (legacy test captures this)
-    if(github.ensureLabelsExist){
-      await github.ensureLabelsExist(forkCtx.owner, forkCtx.repo, mainLabels);
+    // Check for existing top-level issue first
+    if(notification?.update) {
+      notification.update('Checking for existing issues', `Looking for existing Template Doctor issues...`);
     }
+    
+    console.log('[IssueService] Checking for existing top-level issues...');
+    let existingIssues = [];
+    try {
+      if(github.findIssuesByTitle) {
+        existingIssues = await github.findIssuesByTitle(forkCtx.owner, forkCtx.repo, 'Template Doctor Analysis', 'template-doctor');
+        console.log(`[IssueService] Found ${existingIssues.length} existing Template Doctor issues`);
+      }
+    } catch(e) {
+      console.warn('[IssueService] Could not check for existing issues:', e);
+    }
+    
+    if(existingIssues && existingIssues.length > 0) {
+      const firstIssue = existingIssues[0];
+      console.log('[IssueService] Existing issue found:', firstIssue);
+      
+      // Close the loading notification and ask user
+      if(notification?.close) notification.close();
+      
+      // Show confirmation to proceed
+      const proceed = await new Promise<boolean>((resolve) => {
+        const n = (window as any).NotificationSystem || (window as any).Notifications;
+        if(n?.confirm) {
+          n.confirm(
+            'Existing Issue Found',
+            `A Template Doctor issue already exists: #${firstIssue.number} - ${firstIssue.title}\n\nDo you want to create a new issue anyway?`,
+            {
+              confirmLabel: 'Create New Issue',
+              cancelLabel: 'Cancel',
+              onConfirm: () => resolve(true),
+              onCancel: () => resolve(false)
+            }
+          );
+        } else if(window.confirm(`Existing Template Doctor issue found: #${firstIssue.number}\n\nCreate a new issue anyway?`)) {
+          resolve(true);
+        } else {
+          resolve(false);
+        }
+      });
+      
+      if(!proceed) {
+        console.log('[IssueService] User cancelled issue creation');
+        showInfo('Cancelled', 'Issue creation cancelled');
+        return;
+      }
+      
+      // Recreate loading notification
+      notification = (window as any).NotificationSystem?.showLoading?.('Creating GitHub Issues', 'Continuing with issue creation...') 
+        || (window as any).Notifications?.loading?.('Creating GitHub Issues', 'Continuing with issue creation...');
+    }
+    
+    // Ensure label family (legacy test captures this)
+    if(notification?.update) {
+      notification.update('Ensuring labels exist', `Creating labels in ${forkCtx.owner}/${forkCtx.repo}...`);
+    }
+    
+    if(github.ensureLabelsExist){
+      console.log('[IssueService] Ensuring labels exist:', mainLabels);
+      await github.ensureLabelsExist(forkCtx.owner, forkCtx.repo, mainLabels);
+      console.log('[IssueService] Labels ensured');
+    }
+    
+    if(notification?.update) {
+      notification.update('Creating main issue', 'Creating top-level tracking issue with Copilot assignment...');
+    }
+    
     const mainBody = buildMainIssueBody(data);
+    console.log('[IssueService] Creating top-level issue via GraphQL...');
     const mainIssue = await github.createIssueGraphQL(forkCtx.owner, forkCtx.repo, issueTitle, mainBody, mainLabels);
-    // Create child issues for each compliance issue
-    for(const c of issues){
+    console.log('[IssueService] Top-level issue created:', mainIssue);
+    
+    // Create child issues (sub-issues) for each compliance problem
+    const childIssues = [];
+    for(let i = 0; i < issues.length; i++){
+      const c = issues[i];
+      
+      if(notification?.update) {
+        notification.update('Creating sub-issues', `Creating sub-issue ${i + 1} of ${issues.length}...`);
+      }
+      
+      console.log(`[IssueService] Creating child issue ${i + 1}/${issues.length} for ${c.id}`);
+      
       const sev = mapSeverity(c.severity);
       const childLabels = ['template-doctor','template-doctor-child-issue', `ruleset:${ruleSet}`, `severity:${sev}`];
       const templated = c.issueTemplate;
-      const childTitle = templated?.title || c.message;
-      const childBody = templated?.body ? ensureContextWrapper(issueTitle, c, data, templated.body) : buildChildIssueBody(issueTitle, c, data);
-      if(github.createIssueWithoutCopilot){
-        await github.createIssueWithoutCopilot(forkCtx.owner, forkCtx.repo, childTitle, childBody, childLabels);
-      } else if (github.createIssueGraphQL){
-        await github.createIssueGraphQL(forkCtx.owner, forkCtx.repo, childTitle, childBody, childLabels);
+      
+      // Use [TD-BOT] prefix for child issue titles
+      const problemTitle = templated?.title || c.message;
+      const childTitle = `[TD-BOT] ${problemTitle}`;
+      
+      // Build child body with reference to parent issue
+      let childBody = `**Parent Issue:** #${mainIssue.number}\n\n`;
+      if(templated?.body) {
+        childBody += ensureContextWrapper(issueTitle, c, data, templated.body);
+      } else {
+        childBody += buildChildIssueBody(issueTitle, c, data);
+      }
+      
+      try {
+        if(github.createIssueWithoutCopilot){
+          const childIssue = await github.createIssueWithoutCopilot(forkCtx.owner, forkCtx.repo, childTitle, childBody, childLabels);
+          childIssues.push(childIssue);
+          console.log(`[IssueService] Child issue ${i + 1} created:`, childIssue);
+        } else if (github.createIssueGraphQL){
+          const childIssue = await github.createIssueGraphQL(forkCtx.owner, forkCtx.repo, childTitle, childBody, childLabels);
+          childIssues.push(childIssue);
+          console.log(`[IssueService] Child issue ${i + 1} created:`, childIssue);
+        }
+      } catch(childErr) {
+        console.error(`[IssueService] Failed to create child issue ${i + 1}:`, childErr);
       }
     }
+    
+    console.log(`[IssueService] Created ${childIssues.length} child issues`);
+    
+    // Show success
+    const repoIssuesUrl = `https://github.com/${forkCtx.owner}/${forkCtx.repo}/issues`;
+    if(notification?.success) {
+      notification.success(
+        'Issues Created Successfully',
+        `Top-level issue #${mainIssue.number} created with ${childIssues.length} sub-issues.`,
+        {
+          actions: [
+            {
+              label: 'Open Top-Level Issue',
+              onClick: () => window.open(mainIssue.url, '_blank'),
+              primary: true
+            },
+            {
+              label: 'View All Issues',
+              onClick: () => window.open(repoIssuesUrl, '_blank')
+            }
+          ]
+        }
+      );
+    } else if(notification?.close) {
+      notification.close();
+      showInfo('Issues Created', `Top-level issue #${mainIssue.number} created with ${childIssues.length} sub-issues.`);
+    }
+    
     return mainIssue;
   } catch (e){
-    console.error('processIssueCreation failed', e);
+    console.error('[IssueService] processIssueCreation failed', e);
+    if(notification?.error) {
+      notification.error('Error Creating Issues', (e as any)?.message || String(e));
+    } else if(notification?.close) {
+      notification.close();
+      showError('Error Creating Issues', (e as any)?.message || String(e));
+    }
   }
 }
 
 function createGitHubIssue(){
-  // Minimal wrapper to keep API parity with legacy if still referenced.
-  if((window as any).GitHubClient){
-    processIssueCreation((window as any).GitHubClient);
+  // Wrapper to keep API parity with legacy if still referenced.
+  // Shows confirmation dialog before creating issues
+  const gh = (window as any).GitHubClient;
+  if(!gh){
+    showError('Error', 'GitHub client not available');
+    return;
   }
+  
+  if(!gh.auth || !gh.auth.isAuthenticated()){
+    showWarn('Authentication Required', 'You need to be logged in with GitHub to create issues.');
+    if(gh.auth && typeof gh.auth.login === 'function'){
+      gh.auth.login();
+    }
+    return;
+  }
+  
+  // Show confirmation dialog
+  confirmCreate(() => processIssueCreation(gh));
 }
 
 (window as any).processIssueCreation = processIssueCreation;
