@@ -74,6 +74,7 @@ import './app/service-readiness.ts';
 import './scripts/search.ts'; // Search functionality + UI event handlers
 import './scripts/template-list.ts'; // Renders template cards in search results
 import './scripts/template-card-view-handler.ts'; // Handles clicking on template cards
+import './scripts/ruleset-modal.ts'; // Ruleset configuration modal (migrated from legacy)
 
 // Expose a typed-friendly facade (will refine later)
 // Minimal surface typings; deeper analyzer/api client types live in their respective modules.
