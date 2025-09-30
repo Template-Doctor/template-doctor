@@ -23,7 +23,7 @@ function ensureAnalysisContainers() {
         <button id="back-button" class="back-button"><i class="fas fa-arrow-left"></i> Back to Search</button>
         <div class="repo-info">
           <h3 id="repo-name">Repository Name</h3>
-          <span id="repo-url">Repository URL</span>
+          <a id="repo-url" href="#" target="_blank" rel="noopener noreferrer" style="color: #0078d4; text-decoration: none;">Repository URL</a>
         </div>
       </div>
       <div class="loading-container" id="loading-container" style="display:none">
@@ -106,6 +106,30 @@ function handleTemplateCardView(e: Event) {
   
   // Pass the full template object (not just repoUrl) so ReportLoader can access metadata
   console.debug('[template-card-view-handler] Loading report for template:', tmpl);
+  
+  // Update repo name and URL in header
+  const repoNameEl = document.getElementById('repo-name');
+  const repoUrlEl = document.getElementById('repo-url');
+  if (repoNameEl && repoUrlEl) {
+    // Extract owner/repo from URL for display
+    try {
+      const url = new URL(repoUrl);
+      const pathParts = url.pathname.split('/').filter(Boolean);
+      if (pathParts.length >= 2) {
+        const repoName = `${pathParts[0]}/${pathParts[1]}`;
+        repoNameEl.textContent = repoName;
+        repoUrlEl.textContent = repoUrl;
+        repoUrlEl.setAttribute('href', repoUrl);
+        repoUrlEl.style.cursor = 'pointer';
+        repoUrlEl.style.color = '#0078d4';
+      }
+    } catch (err) {
+      console.warn('[template-card-view-handler] Failed to parse repo URL:', err);
+      repoNameEl.textContent = repoUrl;
+      repoUrlEl.textContent = repoUrl;
+    }
+  }
+  
   window.ReportLoader.loadReport(tmpl)
     .then((reportData) => {
       console.debug('[template-card-view-handler] Report loaded successfully:', reportData);
