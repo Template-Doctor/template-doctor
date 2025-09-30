@@ -193,7 +193,7 @@ class DashboardRenderer {
   const adaptedData: AdaptedData = {
           repoUrl: result.repoUrl || window.location.href,
           ruleSet: result.ruleSet || 'dod',
-          compliance: { issues: issuesDeduped, compliant: compliantDeduped, summary: `${percentageCompliant}% compliant` },
+          compliance: { issues: issuesDeduped, compliant: compliantDeduped, summary: `${percentageCompliant}% compliant`, categories: result.compliance?.categories || result.categories || null },
           totalIssues: issuesDeduped.length,
           totalPassed: compliantDeduped.length
         };
