@@ -1,5 +1,4 @@
 import { HttpRequest, Context } from "@azure/functions";
-import { Octokit } from '@octokit/rest';
 import { wrapHttp } from '../shared/http';
 
 // Load analyzer from built dist output of local package (source import avoided to prevent cross-rootDir issues)
@@ -42,14 +41,15 @@ export const handler = wrapHttp(async (req: HttpRequest, ctx: Context) => {
     return { status: 400, body: { error: 'repoUrl is required' } };
   }
 
-  const token = process.env.GITHUB_TOKEN_ANALYZER || process.env.GH_WORKFLOW_TOKEN || null;
-  const octokit = new Octokit(token ? { auth: token } : {});
+  // Lightweight GitHub client via fetch to avoid ESM @octokit/rest incompatibility in CJS Functions build
+  const token = process.env.GITHUB_TOKEN_ANALYZER || process.env.GH_WORKFLOW_TOKEN || undefined;
+  const gh = createGitHubClient(token);
 
   let owner: string; let repo: string; let defaultBranch: string;
   try {
     ({ owner, repo } = extractRepoInfo(repoUrl));
-    const repoMeta = await octokit.repos.get({ owner, repo });
-    defaultBranch = repoMeta.data.default_branch;
+    const repoMeta = await gh("/repos/" + owner + "/" + repo);
+    defaultBranch = repoMeta.default_branch;
   } catch (e: any) {
     return { status: 400, body: { error: 'Failed to resolve repository', details: e?.message } };
   }
@@ -57,7 +57,7 @@ export const handler = wrapHttp(async (req: HttpRequest, ctx: Context) => {
   // List files (bounded) & selectively fetch content
   let files: GitHubFile[] = [];
   try {
-    files = await listAllFiles(octokit, owner, repo, defaultBranch);
+    files = await listAllFilesFetch(gh, owner, repo, defaultBranch);
   } catch (e: any) {
     return { status: 502, body: { error: 'Failed to list repository files', details: e?.message } };
   }
@@ -66,7 +66,7 @@ export const handler = wrapHttp(async (req: HttpRequest, ctx: Context) => {
   for (const f of files.slice(0, 400)) {
     if (/\.(md|bicep|ya?ml|json)$/i.test(f.path)) {
       try {
-        f.content = await getFileContent(octokit, owner, repo, f.path, defaultBranch);
+        f.content = await getFileContentFetch(gh, owner, repo, f.path, defaultBranch);
       } catch {}
     }
     enriched.push(f);
@@ -84,40 +84,64 @@ export const handler = wrapHttp(async (req: HttpRequest, ctx: Context) => {
     if (archiveOverride === true) result.archiveRequested = true;
     return { status: 200, body: result };
   } catch (e: any) {
-    ctx.log.error('analyze-template error', e?.message || e);
-    return { status: 500, body: { error: 'Analyzer execution failed', details: e?.message } };
+    const msg = e?.message || String(e);
+    const stack = e?.stack;
+    ctx.log.error('analyze-template error', msg, stack);
+    // Provide additional diagnostics in local/dev only (heuristic: presence of localhost hostname or explicit flag)
+    const isLocal = /localhost|127\.0\.0\.1/.test(process.env.WEBSITE_HOSTNAME || '') || process.env.NODE_ENV !== 'production';
+    const diagnostic = isLocal ? { stack, fileCount: enriched.length, repoUrl, ruleSet } : {};
+    return { status: 500, body: { error: 'Analyzer execution failed', details: msg, ...diagnostic } };
   }
 });
 
-function extractRepoInfo(url: string): { owner: string; repo: string } { 
-  const m = url.match(/github\.com\/([^/]+)\/([^/]+)(\.git)?/i); 
-  if (!m) throw new Error('Invalid GitHub URL'); 
-  return { owner: m[1], repo: m[2] }; 
+function extractRepoInfo(url: string): { owner: string; repo: string } {
+  const m = url.match(/github\.com\/([^/]+)\/([^/]+)(\.git)?/i);
+  if (!m) throw new Error('Invalid GitHub URL');
+  return { owner: m[1], repo: m[2] };
 }
 
-async function listAllFiles(octokit: Octokit, owner: string, repo: string, ref: string, path: string = ''): Promise<GitHubFile[]> { 
-  const res = await octokit.repos.getContent({ owner, repo, path: path || '', ref }); 
-  const entries = Array.isArray(res.data) ? res.data : [res.data]; 
-  let files: GitHubFile[] = []; 
-  
-  for (const entry of entries) { 
-    if ('type' in entry && entry.type === 'file') { 
-      files.push({ path: entry.path, sha: entry.sha }); 
-    } else if ('type' in entry && entry.type === 'dir') { 
-      const sub = await listAllFiles(octokit, owner, repo, ref, entry.path); 
-      files = files.concat(sub); 
-    } 
-  } 
-  
-  return files; 
+function createGitHubClient(token?: string) {
+  return async function gh(path: string): Promise<any> {
+    const base = 'https://api.github.com';
+    const url = base + path;
+    const res = await fetch(url, {
+      headers: {
+        'Accept': 'application/vnd.github+json',
+        'User-Agent': 'template-doctor-analyzer',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      }
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error('GitHub request failed ' + res.status + ' ' + path + ' ' + text.slice(0, 200));
+    }
+    return res.json();
+  };
 }
 
-async function getFileContent(octokit: Octokit, owner: string, repo: string, path: string, ref: string): Promise<string> { 
-  const { data } = await octokit.repos.getContent({ owner, repo, path, ref }); 
-  if (!Array.isArray(data) && 'type' in data && data.type === 'file' && 'content' in data) { 
-    return Buffer.from(data.content, 'base64').toString(); 
-  } 
-  throw new Error('Unable to get content for ' + path); 
+async function listAllFilesFetch(gh: (p: string)=>Promise<any>, owner: string, repo: string, ref: string, path: string = ''): Promise<GitHubFile[]> {
+  const apiPath = `/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}`.replace(/%2F/g,'/');
+  const data = await gh(apiPath + (ref ? `?ref=${encodeURIComponent(ref)}` : ''));
+  const entries = Array.isArray(data) ? data : [data];
+  let files: GitHubFile[] = [];
+  for (const entry of entries) {
+    if (entry.type === 'file') {
+      files.push({ path: entry.path, sha: entry.sha });
+    } else if (entry.type === 'dir') {
+      const sub = await listAllFilesFetch(gh, owner, repo, ref, entry.path);
+      files = files.concat(sub);
+    }
+  }
+  return files;
+}
+
+async function getFileContentFetch(gh: (p: string)=>Promise<any>, owner: string, repo: string, path: string, ref: string): Promise<string> {
+  const apiPath = `/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}`.replace(/%2F/g,'/');
+  const data = await gh(apiPath + (ref ? `?ref=${encodeURIComponent(ref)}` : ''));
+  if (data && data.type === 'file' && data.content) {
+    try { return Buffer.from(data.content, 'base64').toString(); } catch {}
+  }
+  throw new Error('Unable to get content for ' + path);
 }
 
 // Export default for function.json entryPoint compatibility

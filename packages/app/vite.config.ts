@@ -12,6 +12,10 @@ export default defineConfig({
     port: 4000,
     strictPort: true
   },
+  define: {
+    // Inject BASE from environment so runtime-config.ts can access it
+    'window.BASE': JSON.stringify(process.env.BASE || '')
+  },
   build: {
     outDir: 'dist',
     emptyOutDir: true,

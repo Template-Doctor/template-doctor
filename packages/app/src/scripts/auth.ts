@@ -239,9 +239,8 @@ class GitHubAuth {
     const isLocalhost = window.location.hostname === 'localhost';
     let apiUrl;
     if (isLocalhost) {
-      apiUrl = (window.location.port === '7071')
-        ? 'http://localhost:7071/api/v4/github-oauth-token'
-        : `${window.location.origin}/v4/github-oauth-token`;
+      // On localhost, always use port 7071 for Functions
+      apiUrl = 'http://localhost:7071/api/v4/github-oauth-token';
     } else if ((window as any).ApiRoutes) {
       apiUrl = (window as any).ApiRoutes.build('github-oauth-token');
     } else {

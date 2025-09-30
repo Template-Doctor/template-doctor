@@ -1,5 +1,6 @@
 {
   "githubOAuth": {
+    "clientId": "Ov23li6IDVTv9Ml50OKi",
     "scope": "repo read:user",
     "redirectUri": ""
   },

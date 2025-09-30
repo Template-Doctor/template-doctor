@@ -73,7 +73,12 @@ async function submitAnalysisToGitHub(result, username) {
     // Post via server to avoid org OAuth restrictions (uses server GH_WORKFLOW_TOKEN)
     // cfg already defined above
     const apiBase = cfg.apiBase || window.location.origin;
-    const serverUrl = `${apiBase.replace(/\/$/, '')}/api/submit-analysis-dispatch`;
+    // Prefer versioned v4 route (Functions binding route: v4/submit-analysis-dispatch)
+    let serverUrl = `${apiBase.replace(/\/$/, '')}/api/v4/submit-analysis-dispatch`;
+    // Allow explicit opt-out via config.forceLegacyDispatchPath
+    if (cfg.forceLegacyDispatchPath) {
+      serverUrl = `${apiBase.replace(/\/$/, '')}/api/submit-analysis-dispatch`;
+    }
     console.log(`Submitting via server endpoint: ${serverUrl}`);
 
     // Build headers; include function key if provided by runtime config
@@ -109,7 +114,27 @@ async function submitAnalysisToGitHub(result, username) {
       const details = parsed || rawText;
 
       if (response.status === 404) {
-        throw new Error('Endpoint not found (404): Verify the Azure Function name/path and apiBase.');
+        // If we tried v4 first, attempt one silent legacy retry before failing (in case backend not updated yet)
+        if (/\/api\/v4\//.test(serverUrl) && !cfg.forceLegacyDispatchPath) {
+          try {
+            const legacyUrl = serverUrl.replace('/api/v4/','/api/');
+            console.warn('[analysis-dispatch] v4 endpoint 404, retrying legacy path', legacyUrl);
+            const legacyResp = await fetch(legacyUrl, {
+              method: 'POST',
+              headers,
+              body: JSON.stringify({
+                event_type: 'template-analysis-completed',
+                client_payload: payload,
+              }),
+            });
+            if (legacyResp.ok) {
+              return { success: true, message: 'Analysis submitted successfully (legacy path fallback).' };
+            }
+          } catch (legacyErr) {
+            console.warn('[analysis-dispatch] legacy fallback failed', legacyErr?.message||legacyErr);
+          }
+        }
+        throw new Error('Endpoint not found (404): Verify Azure Function deployed with route v4/submit-analysis-dispatch or set TemplateDoctorConfig.forceLegacyDispatchPath=true to use legacy path.');
       }
       if (response.status === 401) {
         // Distinguish between server-to-GitHub bad token vs missing function key

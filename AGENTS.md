@@ -36,11 +36,76 @@ Template Doctor analyzes and validates sample templates, with a focus on Azure D
    ```bash
    cp .env.example .env
    ```
-   Edit the `.env` file with appropriate values.
+   Edit the `.env` file with appropriate values. **CRITICAL**: You must set `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` in `.env`.
 
-4. Start services (in separate terminals):
-   - API: `npm run -w packages/api start`
-   - Frontend (Vite dev): `npm run -w packages/app dev`
+4. Configure local Azure Functions:
+   ```bash
+   cd packages/api
+   cp local.settings.example.json local.settings.json
+   ```
+   Edit `local.settings.json` and add the same `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` from `.env`.
+
+5. Configure frontend:
+   ```bash
+   cd packages/app
+   cp config.json.example config.json
+   ```
+   Edit `config.json` and ensure:
+   - `githubOAuth.clientId` matches your `GITHUB_CLIENT_ID`
+   - `backend.baseUrl` is set to `"http://localhost:7071"` for local dev
+
+6. Build both packages:
+   ```bash
+   cd /path/to/template-doctor
+   npm run build -w packages/api
+   npm run build -w packages/app
+   ```
+
+7. **IMPORTANT**: Start services in SEPARATE terminals (do not use background processes):
+   
+   **Terminal 1 - Azure Functions (backend on port 7071):**
+   ```bash
+   cd packages/api
+   npm start
+   ```
+   
+   **Terminal 2 - Vite dev server (frontend on port 4000):**
+   ```bash
+   cd packages/app
+   npm run dev
+   ```
+
+8. Access the application at http://localhost:4000
+
+### Critical Local Development Requirements
+
+- **Two separate terminals required**: One for Azure Functions (port 7071), one for Vite (port 4000)
+- **Azure Functions MUST be running** before using OAuth login or analysis features
+- **Hard refresh required** (Cmd+Shift+R / Ctrl+Shift+R) after any config changes
+- **Port conflicts**: If you see EADDRINUSE errors, kill processes: `lsof -ti :4000 | xargs kill -9` and `lsof -ti :7071 | xargs kill -9`
+
+## Configuration Architecture (Post-Migration)
+
+The configuration system has three layers that must be properly aligned:
+
+1. **Server-side** (`packages/api/local.settings.json`): Azure Functions configuration
+   - Required: `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GH_WORKFLOW_TOKEN`
+   - Used by OAuth token exchange and API endpoints
+
+2. **Client-side** (`packages/app/config.json`): Frontend configuration
+   - Required: `githubOAuth.clientId` (must match server's `GITHUB_CLIENT_ID`)
+   - Required: `backend.baseUrl` set to `"http://localhost:7071"` for local dev
+   - Used by frontend for OAuth flow and API calls
+
+3. **Environment** (`.env` at repo root): Shared configuration
+   - Used by build tools and CLI scripts
+   - Values must be duplicated into `local.settings.json` for Functions to access them
+
+**Local Development Flow:**
+- On localhost, frontend skips the server's `/api/v4/client-settings` endpoint
+- Config is loaded directly from `config.json` (simpler, no server dependency during startup)
+- OAuth calls hardcoded to `http://localhost:7071/api/v4/github-oauth-token`
+- Analysis calls use `apiBase` from `config.json` → `http://localhost:7071`
 
 5. Access the application at http://localhost:5173
 

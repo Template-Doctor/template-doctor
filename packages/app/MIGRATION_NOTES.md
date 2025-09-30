@@ -9,6 +9,9 @@ Date: 2025-09-28
 - Wrapped legacy `app.js` via `src/app.ts` for incremental typing.
 - Playwright config updated to launch Vite instead of python static server; baseURL = `http://localhost:4000`.
 - Smoke test (`should handle search functionality`) passes via explicit config.
+- Analyzer resilience improvements (2025-09-30):
+   - Added automatic retry to `http://localhost:7071` when initial same-origin POST to `/api/v4/analyze-template` returns 404 in local dev.
+   - Added silent client-side fallback analysis when a 404 occurs on localhost (non-test) so users don't see "Server-side analysis failed" during partial backend setup.
 
 ## Pending / Next Steps
 1. Remove legacy analyzer & api-client bundles:

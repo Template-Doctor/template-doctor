@@ -21,7 +21,8 @@ export function loadEnv(): AppEnv {
     GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID,
     GITHUB_CLIENT_SECRET: process.env.GITHUB_CLIENT_SECRET,
     GH_WORKFLOW_TOKEN: process.env.GH_WORKFLOW_TOKEN,
-    GITHUB_OAUTH_ALLOWED_ORIGINS: (process.env.GITHUB_OAUTH_ALLOWED_ORIGINS || 'http://localhost:8080')
+    // Include common dev ports (4000 Vite primary, 5173 Vite default fallback) plus legacy 8080 for backward compatibility
+    GITHUB_OAUTH_ALLOWED_ORIGINS: (process.env.GITHUB_OAUTH_ALLOWED_ORIGINS || 'http://localhost:4000,http://localhost:5173,http://localhost:8080')
       .split(',')
       .map(s => s.trim())
       .filter(Boolean),

@@ -39,7 +39,11 @@ export default wrapHttp(async (req: any, _ctx: Context, requestId: string) => {
 
   const payload: PublicConfig = {
     GITHUB_CLIENT_ID: githubClientId,
-    backend: { baseUrl, functionKey: functionKey || '' },
+    backend: {
+      // Only include baseUrl if it has a non-empty value (let client config.json provide default for local dev)
+      ...(baseUrl ? { baseUrl } : {}),
+      ...(functionKey ? { functionKey } : {})
+    } as any,
     DISPATCH_TARGET_REPO: dispatchTargetRepo,
     DEFAULT_RULE_SET: defaultRuleSet,
     REQUIRE_AUTH_FOR_RESULTS: requireAuthForResults,

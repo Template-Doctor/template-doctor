@@ -65,6 +65,8 @@ import '../js/ruleset-docs/analyzer.js';
 import './data/templates-loader.ts';
 import '../js/tooltips.js';
 import '../js/ruleset-modal.js';
+// Load TS action hook first (provides submitAnalysisToGitHub) then legacy JS as fallback
+import './scripts/github-action-hook.ts';
 import '../js/github-action-hook.js';
 import '../js/azd-provision.js';
 import '../js/github-workflow-validation.js';

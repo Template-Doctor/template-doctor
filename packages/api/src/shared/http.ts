@@ -16,9 +16,20 @@ export function wrapHttp(handler: SimpleHandler): (ctx: Context, req: HttpReques
   return async (ctx, req) => {
     const requestId = `req-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
     const env = loadEnv();
-    const origin = (req.headers && (req.headers['origin'] || req.headers['Origin'])) || '';
+  const origin = (req.headers && (req.headers['origin'] || req.headers['Origin'])) || '';
     const allowAll = env.GITHUB_OAUTH_ALLOWED_ORIGINS.includes('*');
-    const resolvedOrigin = allowAll || env.GITHUB_OAUTH_ALLOWED_ORIGINS.includes(origin) ? (origin || env.GITHUB_OAUTH_ALLOWED_ORIGINS[0]) : env.GITHUB_OAUTH_ALLOWED_ORIGINS[0];
+    // Prefer explicit requesting origin if allowed; else favor port 4000, then 5173, then first configured.
+    let resolvedOrigin: string;
+    if (allowAll) {
+      resolvedOrigin = origin || 'http://localhost:4000';
+    } else if (origin && env.GITHUB_OAUTH_ALLOWED_ORIGINS.includes(origin)) {
+      resolvedOrigin = origin;
+    } else {
+      const pref = env.GITHUB_OAUTH_ALLOWED_ORIGINS.find(o => /:4000$/.test(o))
+        || env.GITHUB_OAUTH_ALLOWED_ORIGINS.find(o => /:5173$/.test(o))
+        || env.GITHUB_OAUTH_ALLOWED_ORIGINS[0];
+      resolvedOrigin = pref;
+    }
     const baseHeaders: Record<string,string> = {
       'Access-Control-Allow-Origin': resolvedOrigin,
       'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',

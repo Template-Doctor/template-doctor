@@ -110,31 +110,49 @@ class TemplateAnalyzer {
         w.__tdForkedRepos = w.__tdForkedRepos || new Set();
         const already = w.__tdForkedRepos.has(earlyKey);
         if (!already) {
-          console.log('[fork-preflight] starting deterministic fork POST for', earlyKey);
-          w.__tdForkLog.push({ phase: 'start', repo: earlyKey, ts: Date.now() });
-          let usedGitHubClient = false;
-          try {
-            const gh = w.GitHubClient;
-            if (gh && typeof gh.forkRepository === 'function') {
-              usedGitHubClient = true;
-              await gh.forkRepository(earlyOwner, earlyRepo);
-              w.__tdForkLog.push({ phase: 'ghClientForkRepository', repo: earlyKey, ts: Date.now(), ok: true });
-            } else {
-              const token = (w.GitHubAuth?.getAccessToken?.()) || localStorage.getItem('gh_access_token');
-              const forkResp = await fetch(`https://api.github.com/repos/${earlyOwner}/${earlyRepo}/forks`, {
-                method: 'POST',
-                headers: {
-                  'Accept': 'application/vnd.github+json',
-                  ...(token ? { 'Authorization': `token ${token}` } : {})
-                }
-              });
-              w.__tdForkLog.push({ phase: 'rawFetchFork', repo: earlyKey, ts: Date.now(), status: forkResp.status });
+          // Determine authenticated username (only safe scope for existence check to avoid SAML/403 on org repos)
+          let userLogin: string | null = null;
+          try { userLogin = (w.GitHubAuth?.getUsername?.()) || (w.GitHubClient?.getCurrentUsername?.()) || null; } catch {}
+          let forkExists = false;
+          if (userLogin) {
+            try {
+              const head = await fetch(`https://api.github.com/repos/${userLogin}/${earlyRepo}`, { headers: { 'Accept': 'application/vnd.github+json' } });
+              if (head.ok) {
+                forkExists = true;
+                w.__tdForkLog.push({ phase: 'skip-existing-fork', repo: earlyKey, owner: userLogin, ts: Date.now() });
+                w.__tdForkedRepos.add(earlyKey);
+              }
+            } catch(existsErr) {
+              // Swallow existence check errors silently (network, 404, etc.)
             }
-            w.__tdForkedRepos.add(earlyKey);
-            console.log('[fork-preflight] fork POST completed for', earlyKey, usedGitHubClient ? '(GitHubClient)' : '(raw fetch)');
-          } catch(forkErr) {
-            console.warn('[fork-preflight] fork attempt error (continuing):', (forkErr as any)?.message || forkErr);
-            w.__tdForkLog.push({ phase: 'error', repo: earlyKey, ts: Date.now(), error: (forkErr as any)?.message || String(forkErr) });
+          }
+          if (!forkExists) {
+            console.log('[fork-preflight] starting deterministic fork POST for', earlyKey);
+            w.__tdForkLog.push({ phase: 'start', repo: earlyKey, ts: Date.now(), owner: userLogin });
+            let usedGitHubClient = false;
+            try {
+              const gh = w.GitHubClient;
+              if (gh && typeof gh.forkRepository === 'function') {
+                usedGitHubClient = true;
+                await gh.forkRepository(earlyOwner, earlyRepo);
+                w.__tdForkLog.push({ phase: 'ghClientForkRepository', repo: earlyKey, ts: Date.now(), ok: true });
+              } else {
+                const token = (w.GitHubAuth?.getAccessToken?.()) || localStorage.getItem('gh_access_token');
+                const forkResp = await fetch(`https://api.github.com/repos/${earlyOwner}/${earlyRepo}/forks`, {
+                  method: 'POST',
+                  headers: {
+                    'Accept': 'application/vnd.github+json',
+                    ...(token ? { 'Authorization': `token ${token}` } : {})
+                  }
+                });
+                w.__tdForkLog.push({ phase: 'rawFetchFork', repo: earlyKey, ts: Date.now(), status: forkResp.status });
+              }
+              w.__tdForkedRepos.add(earlyKey);
+              console.log('[fork-preflight] fork POST completed for', earlyKey, usedGitHubClient ? '(GitHubClient)' : '(raw fetch)');
+            } catch(forkErr) {
+              console.warn('[fork-preflight] fork attempt error (continuing):', (forkErr as any)?.message || forkErr);
+              w.__tdForkLog.push({ phase: 'error', repo: earlyKey, ts: Date.now(), error: (forkErr as any)?.message || String(forkErr) });
+            }
           }
         } else {
           w.__tdForkLog.push({ phase: 'skip-alreadyForked', repo: earlyKey, ts: Date.now() });
@@ -212,6 +230,63 @@ class TemplateAnalyzer {
     if (cfg.functionKey) { headers['x-functions-key'] = cfg.functionKey; }
     if ((window as any).GitHubClient && (window as any).GitHubClient.auth && (window as any).GitHubClient.auth.isAuthenticated()) { const token = (window as any).GitHubClient.auth.getToken(); if (token) { headers['Authorization'] = `Bearer ${token}`; } }
     const response = await fetch(endpoint, { method: 'POST', headers, body: JSON.stringify(payload) }); if (!response.ok) { const errorText = await response.text(); // SAML / SSO enforcement detection
+      // Dev fallback: if backend missing (404) on localhost (non-Playwright) attempt seamless client-side analysis
+      try {
+        const isLocalHost = ['localhost','127.0.0.1'].includes(window.location.hostname);
+        const isTest = (navigator.userAgent.includes('Playwright') || (window as any).PLAYWRIGHT_TEST);
+        if (response.status === 404 && isLocalHost && !isTest) {
+          console.warn('[analyzer] Local dev 404 for server endpoint – performing client-side fallback analysis');
+          const prevPref = cfg.analysis?.useServerSide;
+          try {
+            cfg.analysis = cfg.analysis || {}; // ensure object
+            cfg.analysis.useServerSide = false; // disable to avoid recursion
+            // Run client analysis path inline
+            const clientResult = await (this as any).analyzeTemplate(repoUrl, ruleSet);
+            clientResult.meta = Object.assign({}, clientResult.meta || {}, { server404Fallback: true });
+            return clientResult;
+          } finally {
+            // restore preference for subsequent explicit calls
+            cfg.analysis.useServerSide = prevPref;
+          }
+        }
+      } catch(fbClientErr) {
+        console.debug('[analyzer] client fallback attempt failed (ignored)', fbClientErr);
+      }
+      // Local dev smart fallback: if hitting Vite dev origin (e.g. :4000/:5173) with 404, try common Functions host :7071 automatically
+      try {
+        const loc = window.location;
+        const isLocalHost = ['localhost','127.0.0.1'].includes(loc.hostname);
+        const endpointUrl = new URL(endpoint);
+        const alreadyTargeting7071 = /:7071$/.test(endpointUrl.host) || endpointUrl.port === '7071';
+        if (isLocalHost && response.status === 404 && !alreadyTargeting7071) {
+          if (endpointUrl.origin === loc.origin) { // only auto-hop if user didn't explicitly set a different apiBase
+            const altBase = 'http://localhost:7071';
+            const altEndpoint = endpoint.replace(endpointUrl.origin, altBase);
+            console.log('[analyzer] 404 on primary endpoint, attempting functions fallback', { altEndpoint });
+            try {
+              const altResp = await fetch(altEndpoint, { method: 'POST', headers, body: JSON.stringify(payload) });
+              if (altResp.ok) {
+                const altJson = await altResp.json();
+                if (!altJson.timestamp) altJson.timestamp = new Date().toISOString();
+                try {
+                  const cfgMut = (window as any).TemplateDoctorConfig || ((window as any).TemplateDoctorConfig = {});
+                  if (!cfgMut.apiBase || cfgMut.apiBase === endpointUrl.origin) {
+                    cfgMut.apiBase = altBase;
+                    console.log('[analyzer] Updated TemplateDoctorConfig.apiBase ->', altBase);
+                  }
+                } catch {}
+                return altJson;
+              } else {
+                console.warn('[analyzer] functions fallback failed', altResp.status);
+              }
+            } catch(fallbackErr) {
+              console.warn('[analyzer] functions fallback error', (fallbackErr as any)?.message || fallbackErr);
+            }
+          }
+        }
+      } catch(fbOuterErr) {
+        console.debug('[analyzer] fallback evaluation error (ignored)', fbOuterErr);
+      }
       if (/saml/i.test(errorText) || /sso/i.test(errorText) || response.status === 403) {
         try { document.dispatchEvent(new CustomEvent('analysis-saml-blocked', { detail: { repoUrl, status: response.status, body: errorText } })); } catch(_){}
       }
