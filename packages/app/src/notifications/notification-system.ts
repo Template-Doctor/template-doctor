@@ -1,5 +1,5 @@
-// Basic typed wrapper around legacy notification-system.js for migration.
-// NOTE: Will eventually replace direct DOM construction with a component-based approach.
+// Simplified notification API - delegates to full notifications.ts implementation
+import { Notifications } from './notifications.ts';
 
 export type NotificationType = 'success' | 'error' | 'warning' | 'info';
 
@@ -7,14 +7,16 @@ export interface NotificationOptions {
   type: NotificationType;
   title: string;
   message: string;
-  duration?: number; // ms, 0 = persistent
+  duration?: number;
 }
 
 export interface NotificationAPI {
-  showSuccess(title: string, message: string, duration?: number): HTMLElement | undefined;
-  showError(title: string, message: string, duration?: number): HTMLElement | undefined;
-  showWarning(title: string, message: string, duration?: number): HTMLElement | undefined;
-  showInfo(title: string, message: string, duration?: number): HTMLElement | undefined;
+  showSuccess(title: string, message: string, duration?: number): string;
+  showError(title: string, message: string, duration?: number): string;
+  showWarning(title: string, message: string, duration?: number): string;
+  showInfo(title: string, message: string, duration?: number): string;
+  showLoading(title?: string, message?: string): any;
+  hideLoading(): void;
   confirm(
     title: string,
     message: string,
@@ -24,40 +26,54 @@ export interface NotificationAPI {
       onConfirm?: () => void;
       onCancel?: () => void;
     }
-  ): string | undefined;
+  ): string;
 }
 
-// Re-export the existing global if present (loaded via legacy script) for incremental migration.
-export function getLegacyNotificationSystem(): NotificationAPI | undefined {
-  return (window as any).NotificationSystem as NotificationAPI | undefined;
-}
+let currentLoadingController: any = null;
 
-export function showTransient(options: NotificationOptions) {
-  const api = getLegacyNotificationSystem();
-  if (!api) {
-    console.warn('[notifications] legacy NotificationSystem not initialized yet');
-    return;
+export const NotificationSystem: NotificationAPI = {
+  showSuccess(title: string, message: string, duration = 5000): string {
+    return Notifications.success(title, message, duration);
+  },
+  
+  showError(title: string, message: string, duration = 8000): string {
+    return Notifications.error(title, message, duration);
+  },
+  
+  showWarning(title: string, message: string, duration = 6000): string {
+    return Notifications.warning(title, message, duration);
+  },
+  
+  showInfo(title: string, message: string, duration = 5000): string {
+    return Notifications.info(title, message, duration);
+  },
+  
+  showLoading(title = 'Loading...', message?: string): any {
+    currentLoadingController = Notifications.loading(title, message);
+    return currentLoadingController;
+  },
+  
+  hideLoading(): void {
+    if (currentLoadingController) {
+      currentLoadingController.close();
+      currentLoadingController = null;
+    }
+  },
+  
+  confirm(
+    title: string,
+    message: string,
+    opts?: {
+      confirmLabel?: string;
+      cancelLabel?: string;
+      onConfirm?: () => void;
+      onCancel?: () => void;
+    }
+  ): string {
+    return Notifications.confirm(title, message, opts);
   }
-  const { type, title, message, duration } = options;
-  switch (type) {
-    case 'success':
-      return api.showSuccess(title, message, duration);
-    case 'error':
-      return api.showError(title, message, duration);
-    case 'warning':
-      return api.showWarning(title, message, duration);
-    case 'info':
-    default:
-      return api.showInfo(title, message, duration);
-  }
-}
+};
 
-export function confirm(
-  title: string,
-  message: string,
-  opts: { confirmLabel?: string; cancelLabel?: string; onConfirm?: () => void; onCancel?: () => void } = {}
-) {
-  const api = getLegacyNotificationSystem();
-  if (!api) return;
-  return api.confirm(title, message, opts);
-}
+(window as any).NotificationSystem = NotificationSystem;
+
+console.debug('[TemplateDoctor] NotificationSystem API ready');

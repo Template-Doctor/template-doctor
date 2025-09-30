@@ -523,8 +523,17 @@ export function updateAgentsTileStatus(status: 'missing' | 'invalid' | 'valid'):
           });
 
           if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.message || `HTTP ${response.status}`);
+            let errorMessage = `Failed to create issue in ${owner}/${repo}: HTTP ${response.status}`;
+            try {
+              const errorData = await response.json();
+              const apiError = errorData.message || errorData.error || '';
+              if (apiError) {
+                errorMessage = `Failed to create issue in ${owner}/${repo}: ${apiError}`;
+              }
+            } catch (parseErr) {
+              // Failed to parse error JSON, use status code
+            }
+            throw new Error(errorMessage);
           }
 
           created = await response.json();
@@ -564,7 +573,27 @@ export function updateAgentsTileStatus(status: 'missing' | 'invalid' | 'valid'):
     return false;
   } catch (error: any) {
     console.error('[AgentsEnrichment] Issue creation error:', error);
-    notify.showError('Failed to create issue', error.message || String(error), 8000);
+    
+    // Extract meaningful error message
+    let errorMsg = 'Unknown error occurred';
+    if (error?.message) {
+      errorMsg = error.message;
+    } else if (typeof error === 'string') {
+      errorMsg = error;
+    } else if (error?.toString && error.toString() !== '[object Object]') {
+      errorMsg = error.toString();
+    }
+    
+    // Use the beautiful NotificationSystem!
+    const realNotify = (window as any).NotificationSystem;
+    if (realNotify && typeof realNotify.showError === 'function') {
+      realNotify.showError(
+        'Failed to Create Issue',
+        errorMsg,
+        8000
+      );
+    }
+    
     return false;
   }
 };
