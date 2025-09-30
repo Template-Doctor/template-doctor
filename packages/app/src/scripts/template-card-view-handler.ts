@@ -93,6 +93,13 @@ function handleTemplateCardView(e: Event) {
   // Use UIController to manage section visibility
   document.dispatchEvent(new CustomEvent('show-analysis-section'));
   
+  // Smooth scroll to analysis section after a short delay to ensure it's visible
+  setTimeout(() => {
+    if (analysisSection) {
+      analysisSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, 100);
+  
   if (resultsContainer) resultsContainer.style.display = 'block';
   if (reportDiv) {
     reportDiv.innerHTML = '<div class="loading-message">Loading report...</div>';
