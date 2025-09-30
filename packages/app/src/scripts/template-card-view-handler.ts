@@ -103,9 +103,30 @@ function handleTemplateCardView(e: Event) {
     console.warn('[template-card-view-handler] ReportLoader not available');
     return;
   }
-  window.ReportLoader.loadReport(repoUrl).catch((err) => {
-    if (reportDiv) reportDiv.innerHTML = `<div class="error-message">Failed to load report: ${err.message || err}</div>`;
-  });
+  
+  // Pass the full template object (not just repoUrl) so ReportLoader can access metadata
+  console.debug('[template-card-view-handler] Loading report for template:', tmpl);
+  window.ReportLoader.loadReport(tmpl)
+    .then((reportData) => {
+      console.debug('[template-card-view-handler] Report loaded successfully:', reportData);
+      
+      // Render the report using DashboardRenderer if available
+      if (reportDiv && (window as any).DashboardRenderer) {
+        (window as any).DashboardRenderer.render(reportData, reportDiv);
+      } else if (reportDiv) {
+        // Fallback: show raw JSON if renderer not available
+        reportDiv.innerHTML = `
+          <div class="report-data">
+            <h3>Report Data</h3>
+            <pre style="background: #f5f5f5; padding: 15px; border-radius: 5px; overflow: auto; max-height: 600px;">${JSON.stringify(reportData, null, 2)}</pre>
+          </div>
+        `;
+      }
+    })
+    .catch((err) => {
+      console.error('[template-card-view-handler] Failed to load report:', err);
+      if (reportDiv) reportDiv.innerHTML = `<div class="error-message">Failed to load report: ${err.message || err}</div>`;
+    });
 }
 
 document.addEventListener('template-card-view', handleTemplateCardView);
