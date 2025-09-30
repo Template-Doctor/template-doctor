@@ -348,9 +348,20 @@ export function updateAgentsTileStatus(status: 'missing' | 'invalid' | 'valid'):
     }
   }
 
-  const reportData = (window as any).reportData;
+  // Get report data with fallback to reportDataOriginal
+  let reportData = (window as any).reportData;
   if (!reportData || !reportData.repoUrl) {
-    notify.showError('Error', 'Repository URL not found', 6000);
+    console.debug('[AgentsEnrichment] Primary reportData not found, trying reportDataOriginal');
+    reportData = (window as any).reportDataOriginal;
+  }
+  
+  if (!reportData || !reportData.repoUrl) {
+    console.error('[AgentsEnrichment] No report data available:', {
+      reportData: !!(window as any).reportData,
+      reportDataOriginal: !!(window as any).reportDataOriginal,
+      hasRepoUrl: !!reportData?.repoUrl
+    });
+    notify.showError('Error', 'Repository data not loaded. Please wait for the analysis to complete.', 6000);
     return false;
   }
 
