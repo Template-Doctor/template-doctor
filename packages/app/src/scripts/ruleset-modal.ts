@@ -7,6 +7,14 @@ declare global {
   }
 }
 
+interface SelectedCategories {
+  repositoryManagement: boolean;
+  functionalRequirements: boolean;
+  deployment: boolean;
+  security: boolean;
+  testing: boolean;
+}
+
 let currentRepoUrl = '';
 
 export function initRulesetModal(): void {
@@ -16,7 +24,7 @@ export function initRulesetModal(): void {
     return;
   }
 
-  // Create modal HTML
+  // Create modal HTML with all features
   const modalDiv = document.createElement('div');
   modalDiv.id = 'ruleset-modal';
   modalDiv.className = 'modal';
@@ -57,6 +65,7 @@ export function initRulesetModal(): void {
             </label>
             <p class="ruleset-description">Use a custom configuration ruleset.</p>
           </div>
+          
           <div id="custom-config-container" style="display: none;">
             <div class="custom-config-tabs">
               <button type="button" class="tab-btn active" data-tab="paste">Paste JSON</button>
@@ -79,6 +88,34 @@ export function initRulesetModal(): void {
               <a href="https://gist.github.com/anfibiacreativa/d8f29b232397069ec3157c8be799c1ac" target="_blank">Learn More</a>
             </p>
           </div>
+
+          <div id="advanced-config">
+            <strong>Advanced: Select categories to check</strong>
+            <div id="advanced-checkboxes">
+              <label><input type="checkbox" name="adv-category" value="repositoryManagement" /> Repository management</label>
+              <label><input type="checkbox" name="adv-category" value="functionalRequirements" /> Functional requirements</label>
+              <label><input type="checkbox" name="adv-category" value="deployment" /> Deployment</label>
+              <label><input type="checkbox" name="adv-category" value="security" /> Security</label>
+              <label><input type="checkbox" name="adv-category" value="testing" /> Testing</label>
+            </div>
+          </div>
+
+          <div id="global-checks">
+            <div class="section-title">Global checks</div>
+            <label class="always-on">
+              <input type="checkbox" id="ai-deprecation-toggle" checked />
+              AI model deprecation (Az Dev CLI only)
+              <div id="ai-deprecation-hint" class="hint-text">Check will run by default if AI detected.</div>
+            </label>
+          </div>
+
+          <div id="archive-override-container" style="display: none;">
+            <label>
+              <input type="checkbox" id="archive-override" />
+              Also save metadata to the centralized archive for this analysis
+              <div id="archive-override-hint" class="hint-text">Global archive is OFF. Check this to archive this single run.</div>
+            </label>
+          </div>
         </form>
       </div>
       <div class="modal-footer">
@@ -90,6 +127,84 @@ export function initRulesetModal(): void {
   document.body.appendChild(modalDiv);
   setupModalHandlers();
   console.log('[RulesetModal] Modal initialized');
+}
+
+// Helper function to apply preset category selections
+function applyPresetToAdvanced(preset: string): void {
+  const modal = document.getElementById('ruleset-modal');
+  if (!modal) return;
+
+  const setCategory = (name: string, checked: boolean) => {
+    const input = modal.querySelector<HTMLInputElement>(`input[name="adv-category"][value="${name}"]`);
+    if (input) input.checked = checked;
+  };
+
+  if (preset === 'dod') {
+    setCategory('repositoryManagement', true);
+    setCategory('functionalRequirements', true);
+    setCategory('deployment', true);
+    setCategory('security', true);
+    setCategory('testing', false);
+  } else if (preset === 'partner') {
+    setCategory('repositoryManagement', false);
+    setCategory('functionalRequirements', true);
+    setCategory('deployment', true);
+    setCategory('security', true);
+    setCategory('testing', false);
+  } else if (preset === 'docs') {
+    setCategory('repositoryManagement', true);
+    setCategory('functionalRequirements', true);
+    setCategory('deployment', false);
+    setCategory('security', true);
+    setCategory('testing', false);
+  } else if (preset === 'custom') {
+    setCategory('repositoryManagement', false);
+    setCategory('functionalRequirements', false);
+    setCategory('deployment', false);
+    setCategory('security', false);
+    setCategory('testing', false);
+  }
+}
+
+// Helper function to get selected categories
+function getSelectedCategories(): SelectedCategories {
+  const modal = document.getElementById('ruleset-modal');
+  if (!modal) {
+    return {
+      repositoryManagement: false,
+      functionalRequirements: false,
+      deployment: false,
+      security: false,
+      testing: false
+    };
+  }
+
+  const selected = Array.from(
+    modal.querySelectorAll<HTMLInputElement>('input[name="adv-category"]:checked')
+  ).map(input => input.value);
+
+  return {
+    repositoryManagement: selected.includes('repositoryManagement'),
+    functionalRequirements: selected.includes('functionalRequirements'),
+    deployment: selected.includes('deployment'),
+    security: selected.includes('security'),
+    testing: selected.includes('testing')
+  };
+}
+
+// Helper function to show notifications
+function showNotification(type: 'success' | 'error' | 'warning', message: string): void {
+  if ((window as any).NotificationSystem) {
+    if (type === 'success') {
+      (window as any).NotificationSystem.showSuccess(message);
+    } else if (type === 'error') {
+      (window as any).NotificationSystem.showError(message);
+    } else {
+      (window as any).NotificationSystem.showWarning(message);
+    }
+  } else {
+    alert(message);
+  }
 }
 
 function setupModalHandlers(): void {
@@ -120,14 +235,19 @@ function setupModalHandlers(): void {
     }
   });
 
-  // Show/hide custom config based on selection
+  // Show/hide custom config and apply presets
   rulesetInputs.forEach((input) => {
     input.addEventListener('change', () => {
       if (customConfigContainer) {
         customConfigContainer.style.display = input.value === 'custom' ? 'block' : 'none';
       }
+      // Apply preset to advanced checkboxes
+      applyPresetToAdvanced(input.value);
     });
   });
+
+  // Initialize with DoD preset
+  applyPresetToAdvanced('dod');
 
   // Tab switching
   tabBtns.forEach((btn) => {
@@ -155,7 +275,7 @@ function setupModalHandlers(): void {
 
       const gistUrl = gistUrlInput.value.trim();
       if (!gistUrl) {
-        alert('Please enter a GitHub Gist URL.');
+        showNotification('warning', 'Please enter a GitHub Gist URL.');
         return;
       }
 
@@ -166,7 +286,7 @@ function setupModalHandlers(): void {
         gistId = urlParts[urlParts.length - 1];
         if (!gistId) throw new Error('Could not extract Gist ID');
       } catch (e) {
-        alert('Invalid Gist URL format.');
+        showNotification('error', 'Invalid Gist URL format.');
         return;
       }
 
@@ -197,9 +317,9 @@ function setupModalHandlers(): void {
         modal.querySelector('.tab-btn[data-tab="paste"]')?.classList.add('active');
         modal.querySelector('#paste-tab')?.classList.add('active');
 
-        alert('Gist loaded successfully!');
+        showNotification('success', 'Gist loaded successfully!');
       } catch (error: any) {
-        alert(`Error loading Gist: ${error.message}`);
+        showNotification('error', `Error loading Gist: ${error.message}`);
       } finally {
         fetchGistBtn.textContent = 'Fetch Gist';
         fetchGistBtn.disabled = false;
@@ -207,52 +327,70 @@ function setupModalHandlers(): void {
     });
   }
 
-  // Analyze button
+  // Analyze button - full implementation with all features
   if (analyzeBtn) {
     analyzeBtn.addEventListener('click', async () => {
       const selectedRuleset = modal.querySelector<HTMLInputElement>('input[name="ruleset"]:checked')?.value || 'dod';
 
       let ruleSetToUse = selectedRuleset;
-      let customConfig = null;
+      let gistUrl = '';
 
       // Handle custom config
       if (selectedRuleset === 'custom') {
         const customJson = customConfigInput.value.trim();
         if (!customJson) {
-          alert('Please provide a custom configuration or select a different ruleset.');
+          showNotification('error', 'Please provide a custom configuration or select a different ruleset.');
           return;
         }
 
         try {
-          customConfig = JSON.parse(customJson);
+          const customConfig = JSON.parse(customJson);
+          gistUrl = gistUrlInput.value.trim();
+          
+          // Save custom config to localStorage with gistUrl if provided
+          if (gistUrl) {
+            customConfig.gistUrl = gistUrl;
+          }
+          localStorage.setItem('td_custom_ruleset', JSON.stringify(customConfig));
         } catch (e) {
-          alert('Invalid JSON in custom configuration. Please check and try again.');
+          showNotification('error', 'Invalid JSON in custom configuration. Please check and try again.');
           return;
         }
       }
 
+      // Get selected categories
+      const selectedCategories = getSelectedCategories();
+
+      // Save global config preferences
+      const cfg = (window as any).TemplateDoctorConfig || {};
+      const aiToggle = modal.querySelector<HTMLInputElement>('#ai-deprecation-toggle');
+      const archiveOverride = modal.querySelector<HTMLInputElement>('#archive-override');
+      
+      if (aiToggle) {
+        cfg.aiDeprecationCheckEnabled = aiToggle.checked;
+      }
+      
+      if (archiveOverride && archiveOverride.parentElement && 
+          (archiveOverride.parentElement as HTMLElement).style.display !== 'none') {
+        cfg.nextAnalysisArchiveEnabledOverride = archiveOverride.checked;
+      }
+
+      // Update global config
+      (window as any).TemplateDoctorConfig = cfg;
+
       // Close modal
       modal.style.display = 'none';
 
-      // Call analyzer
-      console.log('[RulesetModal] Analyzing with ruleset:', ruleSetToUse, 'customConfig:', customConfig);
-      
-      if (window.TemplateAnalyzer && typeof window.TemplateAnalyzer.analyzeTemplate === 'function') {
-        try {
-          await window.TemplateAnalyzer.analyzeTemplate(currentRepoUrl, ruleSetToUse);
-        } catch (error: any) {
-          console.error('[RulesetModal] Analysis error:', error);
-          alert(`Analysis error: ${error.message}`);
-        }
-      } else if (window.analyzeRepo && typeof window.analyzeRepo === 'function') {
-        try {
-          await window.analyzeRepo(currentRepoUrl, ruleSetToUse);
-        } catch (error: any) {
-          console.error('[RulesetModal] Analysis error:', error);
-          alert(`Analysis error: ${error.message}`);
-        }
+      // Trigger analysis with all three parameters
+      if (typeof window.analyzeRepo === 'function') {
+        // Cast to extended signature that accepts selectedCategories
+        (window.analyzeRepo as any)(currentRepoUrl, ruleSetToUse, selectedCategories);
+      } else if ((window as any).TemplateAnalyzer?.analyzeTemplate) {
+        // Fallback for legacy compatibility
+        await (window as any).TemplateAnalyzer.analyzeTemplate(currentRepoUrl, ruleSetToUse, selectedCategories);
       } else {
-        alert('Analyzer not available. Please refresh the page and try again.');
+        console.error('[RulesetModal] No analysis function available');
+        showNotification('error', 'Analysis function not available');
       }
     });
   }
@@ -269,6 +407,26 @@ export function showRulesetModal(repoUrl: string): void {
     return;
   }
 
+  // Refresh archive override visibility based on runtime config
+  try {
+    const cfg = (window as any).TemplateDoctorConfig || {};
+    const container = modal.querySelector('#archive-override-container') as HTMLElement;
+    const checkbox = modal.querySelector<HTMLInputElement>('#archive-override');
+    
+    if (cfg.archiveEnabled === true) {
+      if (container) container.style.display = 'none';
+    } else {
+      if (container) container.style.display = 'block';
+      if (checkbox) checkbox.checked = false;
+    }
+  } catch (e) {
+    console.warn('[RulesetModal] Error updating archive override UI:', e);
+  }
+
+  // Apply preset for currently selected ruleset
+  const selectedRuleset = modal.querySelector<HTMLInputElement>('input[name="ruleset"]:checked')?.value || 'dod';
+  applyPresetToAdvanced(selectedRuleset);
+
   console.log('[RulesetModal] Showing modal for:', repoUrl);
   modal.style.display = 'block';
 }
@@ -283,9 +441,9 @@ if (document.readyState === 'loading') {
 // Expose globally
 window.showRulesetModal = showRulesetModal;
 
-// Also expose a simple analyzeRepo stub if not already available
+// Expose analyzeRepo stub if not already available
 if (!window.analyzeRepo) {
-  window.analyzeRepo = async function(repoUrl: string, ruleSet: string = 'dod', selectedCategories: string[] | null = null) {
+  window.analyzeRepo = async function(repoUrl: string, ruleSet: string = 'dod', selectedCategories: any = null) {
     console.log('[RulesetModal] analyzeRepo stub called:', { repoUrl, ruleSet, selectedCategories });
     
     if (ruleSet === 'show-modal') {
@@ -294,12 +452,12 @@ if (!window.analyzeRepo) {
     }
     
     // Try to use TemplateAnalyzer if available
-    if (window.TemplateAnalyzer && typeof window.TemplateAnalyzer.analyzeTemplate === 'function') {
-      return window.TemplateAnalyzer.analyzeTemplate(repoUrl, ruleSet);
+    if ((window as any).TemplateAnalyzer && typeof (window as any).TemplateAnalyzer.analyzeTemplate === 'function') {
+      return (window as any).TemplateAnalyzer.analyzeTemplate(repoUrl, ruleSet, selectedCategories);
     }
     
     console.warn('[RulesetModal] No analyzer available');
-    alert('Template analyzer not available. Please refresh the page.');
+    showNotification('error', 'Template analyzer not available. Please refresh the page.');
   };
 }
 
