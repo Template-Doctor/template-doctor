@@ -25,12 +25,27 @@ class UIController {
 
   private initializeUI() {
     // Initial state: show welcome and search, hide analysis and error
-    this.showWelcome();
-    this.showSearch();
-    this.hideAnalysis();
-    this.hideError();
+    // CRITICAL: Analysis section MUST be hidden until user clicks "View Report" or starts new scan
+    if (this.sections.welcome) this.sections.welcome.style.display = 'block';
+    if (this.sections.search) this.sections.search.style.display = 'block';
+    if (this.sections.analysis) this.sections.analysis.style.display = 'none';
+    if (this.sections.error) this.sections.error.style.display = 'none';
     
-    console.debug('[UIController] Initialized with default section visibility');
+    console.debug('[UIController] Initialized: welcome+search visible, analysis+error hidden');
+    
+    // DEBUG: Add MutationObserver to catch who's changing analysis section display
+    if (this.sections.analysis) {
+      const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+            const display = (mutation.target as HTMLElement).style.display;
+            console.warn('[UIController] Analysis section display changed to:', display);
+            console.trace('Call stack:');
+          }
+        });
+      });
+      observer.observe(this.sections.analysis, { attributes: true, attributeFilter: ['style'] });
+    }
   }
 
   private attachEventListeners() {
@@ -114,11 +129,20 @@ class UIController {
   }
 
   showAnalysis() {
-    if (this.sections.analysis) this.sections.analysis.style.display = 'block';
+    if (this.sections.search) this.sections.search.style.display = 'none';
+    if (this.sections.analysis) {
+      this.sections.analysis.style.display = 'block';
+      this.sections.analysis.classList.add('active');
+    }
+    console.debug('[UIController] Showing analysis section');
   }
 
   hideAnalysis() {
-    if (this.sections.analysis) this.sections.analysis.style.display = 'none';
+    if (this.sections.analysis) {
+      this.sections.analysis.style.display = 'none';
+      this.sections.analysis.classList.remove('active');
+    }
+    console.debug('[UIController] Hiding analysis section');
   }
 
   showError(message: string) {
@@ -137,10 +161,28 @@ if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
     const controller = new UIController();
     (window as any).UIController = controller;
+    
+    // FORCE hide analysis section after a delay to override any other code
+    setTimeout(() => {
+      const analysisSection = document.getElementById('analysis-section');
+      if (analysisSection && !analysisSection.querySelector('.results-container')?.hasChildNodes()) {
+        analysisSection.style.display = 'none';
+        console.debug('[UIController] Force-hiding empty analysis section');
+      }
+    }, 100);
   });
 } else {
   const controller = new UIController();
   (window as any).UIController = controller;
+  
+  // FORCE hide analysis section after a delay to override any other code
+  setTimeout(() => {
+    const analysisSection = document.getElementById('analysis-section');
+    if (analysisSection && !analysisSection.querySelector('.results-container')?.hasChildNodes()) {
+      analysisSection.style.display = 'none';
+      console.debug('[UIController] Force-hiding empty analysis section');
+    }
+  }, 100);
 }
 
 export {};

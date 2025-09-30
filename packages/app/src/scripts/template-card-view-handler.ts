@@ -54,19 +54,17 @@ function ensureAnalysisContainers() {
     resultsContainer.appendChild(reportDiv);
   }
 
-  // Only reveal if authenticated; otherwise keep hidden until login.
+  // DO NOT show analysis section here - it should only show when user clicks "View Report"
+  // Just ensure the section exists and is ready to be shown by UI controller
+  (analysisSection as HTMLElement).style.display = 'none';
+  (resultsContainer as HTMLElement).style.display = 'block'; // Container visible when section shown
+  (reportDiv as HTMLElement).style.display = 'block'; // Report div visible when section shown
+  
+  // Mark as ready for authenticated users
   const auth: any = (window as any).GitHubAuth;
   const authed = auth && typeof auth.isAuthenticated === 'function' && auth.isAuthenticated();
   if (authed) {
-    (analysisSection as HTMLElement).style.display = 'block';
-    (resultsContainer as HTMLElement).style.display = 'block';
-    (reportDiv as HTMLElement).style.display = 'block';
-    (analysisSection as HTMLElement).removeAttribute('aria-hidden');
-    (resultsContainer as HTMLElement).removeAttribute('aria-hidden');
     try { analysisSection.setAttribute('data-auth-ready','true'); } catch {}
-  } else {
-    (analysisSection as HTMLElement).style.display = 'none';
-    (resultsContainer as HTMLElement).style.display = 'none';
   }
 }
 

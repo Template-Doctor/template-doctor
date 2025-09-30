@@ -487,6 +487,11 @@ main {
   border-radius: 8px;
   padding: 24px;
   box-shadow: var(--shadow);
+  display: none; /* Hidden by default - only show when clicking View Report */
+}
+
+.analysis-section.active {
+  display: block; /* Shown when active class is added */
 }
 
 .analysis-header {
