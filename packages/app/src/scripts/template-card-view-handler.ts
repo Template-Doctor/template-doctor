@@ -91,7 +91,10 @@ function handleTemplateCardView(e: Event) {
   const analysisSection = document.getElementById('analysis-section');
   const resultsContainer = document.getElementById('results-container');
   const reportDiv = document.getElementById('report');
-  if (analysisSection) analysisSection.style.display = 'block';
+  
+  // Use UIController to manage section visibility
+  document.dispatchEvent(new CustomEvent('show-analysis-section'));
+  
   if (resultsContainer) resultsContainer.style.display = 'block';
   if (reportDiv) {
     reportDiv.innerHTML = '<div class="loading-message">Loading report...</div>';

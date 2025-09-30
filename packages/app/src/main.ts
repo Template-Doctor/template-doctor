@@ -1,18 +1,13 @@
 // Transitional unified entrypoint for Vite. Mirrors prior index.html script ordering.
 // @ts-nocheck removed – incremental typing applied where practical without altering legacy globals.
 
-import '../js/debug-console.js';
-// Legacy JS imports removed: api-routes.js, notification-system.js (fully migrated to TS)
-// import '../js/api-routes.js'; // removed during Phase 2 cleanup
-// import '../js/notification-system.js'; // removed during Phase 2 cleanup
-import '../js/notifications.js';
-import '../js/notifications-compat.js';
-import '../js/notifications-init.js';
-// Typed facades (TS) layering on top of legacy implementations
+// LEGACY JS CLEANUP (2025-09-30): All legacy JS files deleted except bundles
+// Notification system now fully TypeScript
 import './notifications/notification-system.ts';
 import './notifications/notifications.ts';
-// Legacy config-loader.js removed (TS version in scripts/config-loader.ts)
-// import '../js/config-loader.js';
+
+// UI Controller MUST load early to manage section visibility
+import './app/ui-controller.ts';
 
 // Early CSP/apiBase normalization (previous inline script)
 (function(){
@@ -36,8 +31,7 @@ import './scripts/auth.ts';
 import './github/github-client.ts';
 // Use TypeScript source directly (legacy bundle removed)
 import './scripts/api-client.ts';
-import '../js/github-client-patch.js';
-import '../js/markdown-renderer.js';
+// DELETED: github-client-patch.js, markdown-renderer.js
 // Legacy dashboard-renderer.js removed (scripts/dashboard-renderer.ts authoritative)
 // import '../js/dashboard-renderer.js';
 // TS extraction: dashboard data adapter (used by legacy renderer via window.__TD_adaptResultData)
@@ -52,43 +46,34 @@ import './report/report-loader.ts';
 import './issue/template-engine.ts';
 // TS migration: issue service (provides TemplateDoctorIssueService global for tests & UI)
 import './scripts/issue-service.ts';
-import '../js/issue-ai-provider.js';
-import '../js/github-issue-handler.js';
+// DELETED: issue-ai-provider.js, github-issue-handler.js
 // Direct TS analyzer (was previously bundled)
 import './scripts/analyzer.ts';
 // New unified TS server analysis bridge (combines bridge + server-only enforcement)
 import './analyzer/server-bridge.ts';
 // TS dashboard renderer must load before any legacy app.js calls to appDashboard.render
 import './scripts/dashboard-renderer.ts';
-import '../js/ruleset-docs/analyzer.js';
+// DELETED: ruleset-docs/analyzer.js (niche, low usage)
 // TS migration: templates data loader
 import './data/templates-loader.ts';
-import '../js/tooltips.js';
-import '../js/ruleset-modal.js';
-// Load TS action hook first (provides submitAnalysisToGitHub) then legacy JS as fallback
+// DELETED: tooltips.js, ruleset-modal.js (migrated to TS)
+// Load TS action hook first (provides submitAnalysisToGitHub)
 import './scripts/github-action-hook.ts';
-import '../js/github-action-hook.js';
-import '../js/azd-provision.js';
-import '../js/github-workflow-validation.js';
-import '../js/enable-demo-mode.js';
+// DELETED: github-action-hook.js, azd-provision.js, github-workflow-validation.js, enable-demo-mode.js
 // Transitional TS wrapper for legacy app logic
 import './app.ts';
-import '../js/action-buttons-fallback.js';
-import '../js/action-buttons-direct.js';
-import '../js/docs-validation-badge.js';
-import '../js/github-fork-patch-fix.js';
-// Provide TemplateDoctorPatches (patchGitHubClient, getEnhancedCheckAndUpdateRepoUrl) before patch loader
-// Provide base checkAndUpdateRepoUrl implementation for patch enhancement
-import '../js/app-fork-patch.js';
-import '../js/github-fork-patch.js';
-// Bootstrap stub for checkAndUpdateRepoUrl prior to patch loader (replaced/enhanced later)
-import './bootstrap/check-and-update-stub.ts';
-import '../js/saml-batch-patch-loader.js';
+// DELETED: action-buttons-fallback.js, action-buttons-direct.js, docs-validation-badge.js, github-fork-patch-fix.js, app-fork-patch.js, github-fork-patch.js, saml-batch-patch-loader.js
 // New TS batch facade (non-disruptive; wraps legacy processBatchUrls)
 import './batch/facade.ts';
 // Service readiness & analysis queue (extracted from legacy app.js) – must load before tests that access TemplateDoctorServiceReadiness / TemplateDoctorAnalysisQueue
 import './app/analysis-queue.ts';
 import './app/service-readiness.ts';
+
+// CRITICAL UI MODULES (2025-09-30 restoration after legacy cleanup)
+// These were part of app.js and need to be explicitly imported
+import './scripts/search.ts'; // Search functionality + UI event handlers
+import './scripts/template-list.ts'; // Renders template cards in search results
+import './scripts/template-card-view-handler.ts'; // Handles clicking on template cards
 
 // Expose a typed-friendly facade (will refine later)
 // Minimal surface typings; deeper analyzer/api client types live in their respective modules.
