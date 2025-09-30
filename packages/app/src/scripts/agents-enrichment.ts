@@ -314,16 +314,23 @@ export function updateAgentsTileStatus(status: 'missing' | 'invalid' | 'valid'):
 (window as any).createAgentsMdIssue = async function (event: Event) {
   event?.preventDefault();
 
-  const notify = (window as any).NotificationSystem;
-  if (!notify) {
-    console.error('[AgentsEnrichment] NotificationSystem not available');
+  // Check authentication first
+  const gh = (window as any).GitHubClient;
+  if (!gh || !gh.auth || !gh.auth.isAuthenticated()) {
+    // Try to use NotificationSystem if available, otherwise just log
+    const notify = (window as any).NotificationSystem;
+    if (notify && typeof notify.showError === 'function') {
+      notify.showError('Sign In Required', 'Please sign in with GitHub to create issues.', 6000);
+    } else {
+      console.error('[AgentsEnrichment] Please sign in with GitHub to create issues.');
+    }
     return false;
   }
 
-  // Check authentication
-  const gh = (window as any).GitHubClient;
-  if (!gh || !gh.auth || !gh.auth.isAuthenticated()) {
-    notify.showError('Sign In Required', 'Please sign in with GitHub to create issues.', 6000);
+  // Get NotificationSystem - should be available by this point
+  const notify = (window as any).NotificationSystem;
+  if (!notify || typeof notify.showLoading !== 'function') {
+    console.error('[AgentsEnrichment] NotificationSystem not available');
     return false;
   }
 
