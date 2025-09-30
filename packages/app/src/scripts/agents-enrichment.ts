@@ -397,6 +397,9 @@ export function updateAgentsTileStatus(status: 'missing' | 'invalid' | 'valid'):
       
       try {
         notify.showLoading('Forking repository...');
+        
+        // Just fork directly - don't check existence first (avoids SAML 403 on GET)
+        // GitHub API handles existing forks gracefully (returns 202 for new, 200 for existing)
         const forkResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/forks`, {
           method: 'POST',
           headers: {
@@ -407,28 +410,28 @@ export function updateAgentsTileStatus(status: 'missing' | 'invalid' | 'valid'):
         });
         
         if (!forkResponse.ok) {
-          // Check if fork already exists
-          if (forkResponse.status === 202 || forkResponse.status === 200) {
-            console.log('[AgentsEnrichment] Fork request accepted');
-          } else {
-            const errorText = await forkResponse.text();
-            console.error('[AgentsEnrichment] Fork failed:', errorText);
-            throw new Error(`Failed to fork repository: ${forkResponse.status} ${errorText}`);
-          }
+          const errorData = await forkResponse.json();
+          console.error('[AgentsEnrichment] Fork failed:', errorData);
+          throw new Error(`Failed to fork repository: ${forkResponse.status} ${JSON.stringify(errorData)}`);
         }
         
         const forkData = await forkResponse.json();
-        console.log('[AgentsEnrichment] Fork created or already exists:', forkData.full_name);
+        console.log('[AgentsEnrichment] Fork created/confirmed:', forkData.full_name);
         
-        // Wait briefly for fork to be ready
+        // Wait for fork to be ready
         await new Promise(resolve => setTimeout(resolve, 2000));
         
-        // Update owner to point to user's fork
         owner = currentUser;
-        notify.showLoading('Creating issue in your fork...');
+        notify.showLoading('Creating issue in your fork...')
         
       } catch (forkError: any) {
         console.error('[AgentsEnrichment] Fork error:', forkError);
+        
+        // Don't show error if we already showed the SAML message
+        if (forkError.message?.includes('Manual Fork Required')) {
+          return false;
+        }
+        
         notify.showError(
           'Fork Failed',
           `Could not fork repository: ${forkError.message}. You may need to fork it manually from GitHub.`,
