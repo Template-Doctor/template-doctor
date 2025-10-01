@@ -76,7 +76,8 @@ import './scripts/template-list.ts'; // Renders template cards in search results
 import './scripts/template-card-view-handler.ts'; // Handles clicking on template cards
 import './scripts/template-card-rescan-handler.ts'; // Handles rescan button clicks (uses fork=1 pattern)
 import './scripts/ruleset-modal.ts'; // Ruleset configuration modal (migrated from legacy)
-import './scripts/batch-scan-legacy.ts'; // Legacy batch scan UI handler (client-side, no backend required)
+import './scripts/batch-scan.ts'; // Batch scan with cancel/resume support and IndexedDB persistence
+import './scripts/azd-validation.ts'; // AZD provision testing with live log streaming
 
 // Expose a typed-friendly facade (will refine later)
 // Minimal surface typings; deeper analyzer/api client types live in their respective modules.
