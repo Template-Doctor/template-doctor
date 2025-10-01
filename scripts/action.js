@@ -191,6 +191,75 @@ async function run() {
     const dashboardPath = path.join(repoResultsDir, templateData.dashboardPath);
     fs.writeFileSync(dashboardPath, dashboardHtml);
 
+    // ===== CREATE latest.json =====
+    const latestJsonPath = path.join(repoResultsDir, 'latest.json');
+    const latestJson = {
+      repoUrl,
+      ruleSet,
+      timestamp,
+      dataPath: templateData.dataPath,
+      dashboardPath: templateData.dashboardPath,
+      compliance: {
+        percentage: percentageCompliant,
+        issues: issuesCount,
+        passed: passedCount
+      }
+    };
+    fs.writeFileSync(latestJsonPath, JSON.stringify(latestJson, null, 2));
+    core.info(`Created/updated latest.json: ${latestJsonPath}`);
+
+    // ===== CREATE/UPDATE history.json =====
+    const historyJsonPath = path.join(repoResultsDir, 'history.json');
+    let historyArray = [];
+    if (fs.existsSync(historyJsonPath)) {
+      try {
+        const existingHistory = fs.readFileSync(historyJsonPath, 'utf8');
+        historyArray = JSON.parse(existingHistory);
+      } catch (e) {
+        core.warning(`Could not parse existing history.json, starting fresh: ${e.message}`);
+        historyArray = [];
+      }
+    }
+    
+    const historyEntry = {
+      timestamp,
+      ruleSet,
+      percentage: percentageCompliant,
+      issues: issuesCount,
+      passed: passedCount,
+      dataPath: templateData.dataPath,
+      dashboardPath: templateData.dashboardPath
+    };
+    historyArray.push(historyEntry);
+    
+    // Sort by timestamp descending (newest first)
+    historyArray.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    
+    fs.writeFileSync(historyJsonPath, JSON.stringify(historyArray, null, 2));
+    core.info(`Created/updated history.json: ${historyJsonPath}`);
+
+    // ===== CREATE scan-meta-{timestamp}.js =====
+    const scanMetaPath = path.join(repoResultsDir, `scan-meta-${fileTimestamp}.js`);
+    const scanMetaContent = `window.__TD_DYNAMIC_RESULTS = window.__TD_DYNAMIC_RESULTS || [];
+window.__TD_DYNAMIC_RESULTS.push({
+  timestamp: "${timestamp}",
+  dashboardPath: "${templateData.dashboardPath}",
+  dataPath: "${templateData.dataPath}",
+  repoUrl: "${repoUrl}",
+  collection: "${templateData.collection}",
+  ruleSet: "${ruleSet}",
+  compliance: ${JSON.stringify({
+    percentage: percentageCompliant,
+    issues: issuesCount,
+    passed: passedCount
+  })},
+  scannedBy: ${JSON.stringify([username])},
+  relativePath: "${templateData.relativePath}"
+});
+`;
+    fs.writeFileSync(scanMetaPath, scanMetaContent);
+    core.info(`Created scan-meta file: ${scanMetaPath}`);
+
     core.setOutput('template-data', JSON.stringify(templateData));
     core.info(`Successfully updated template analysis for ${repoUrl}`);
   } catch (error) {
