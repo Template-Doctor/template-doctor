@@ -27,8 +27,10 @@ function ensureAnalysisContainers() {
         </div>
       </div>
       <div class="loading-container" id="loading-container" style="display:none">
-        <div class="loading-spinner"></div>
-        <p>Analyzing repository... This may take a moment.</p>
+        <div class="loading-spinner-wrapper">
+            <div class="loading-spinner"></div>
+            <p>Analyzing repository... This may take a moment.</p>
+        </div>
       </div>
       <div id="results-container" class="results-container" style="display:none"></div>
       <div class="error-container" id="analysis-error" style="display:none"><p class="error-text"></p></div>
