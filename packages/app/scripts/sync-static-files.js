@@ -27,6 +27,9 @@ dirs.forEach(dir => {
 
 // Copy files
 const copyOps = [
+  // Root files
+  { src: 'robots.txt', dest: 'robots.txt' },
+  
   // Config files
   { src: 'config.json', dest: 'config.json' },
   { src: 'config.json.example', dest: 'config.json.example' },
