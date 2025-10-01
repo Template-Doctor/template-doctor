@@ -81,7 +81,7 @@ test.describe('Category breakdown tiles display', () => {
 
     // Verify section header
     const header = page.locator('.category-breakdown h3');
-    await expect(header).toHaveText('By Category');
+    await expect(header).toHaveText('Category Breakdown');
 
     // Verify all 6 tiles are present
     const tiles = page.locator('.category-breakdown .tile');
