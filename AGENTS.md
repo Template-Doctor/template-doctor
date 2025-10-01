@@ -9,7 +9,7 @@ Template Doctor analyzes and validates sample templates, with a focus on Azure D
 - **packages/app**: Static web app (frontend UI)
 - **packages/api**: Azure Functions (PR creation, OAuth helpers, AZD validation)
 - **packages/analyzer-core**: Core analyzer functionality
-- **packages/server**: Server-side functions (deprecated)
+- **packages/parity-tests**: Test suite for feature parity validation
 
 ## Development Environment Setup
 
