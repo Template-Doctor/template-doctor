@@ -441,24 +441,146 @@ if (document.readyState === 'loading') {
 // Expose globally
 window.showRulesetModal = showRulesetModal;
 
-// Expose analyzeRepo stub if not already available
-if (!window.analyzeRepo) {
+// Install integrated analyzeRepo implementation with DETAILED LOGGING
+(function installAnalyzeRepoIntegration() {
+  console.log('[AnalyzeRepoIntegr] ✓ Integration installed at', new Date().toISOString());
+
+  function ensureAnalysisSection(repoUrl: string) {
+    console.log('[AnalyzeRepoIntegr] ensureAnalysisSection START');
+    let section = document.getElementById('analysis-section');
+    if (!section) {
+      console.log('[AnalyzeRepoIntegr] Creating NEW #analysis-section');
+      section = document.createElement('section');
+      section.id = 'analysis-section';
+      section.className = 'analysis-section';
+      document.querySelector('main')?.appendChild(section);
+    } else {
+      console.log('[AnalyzeRepoIntegr] Found EXISTING #analysis-section, display:', section.style.display);
+    }
+
+    let header = section.querySelector('.analysis-header') as HTMLElement;
+    if (!header) {
+      header = document.createElement('div');
+      header.className = 'analysis-header';
+      section.insertBefore(header, section.firstChild);
+    }
+    header.innerHTML = `<h2>Template Analysis Report</h2><p class="repo-url">${repoUrl}</p>`;
+
+    let loadingContainer = section.querySelector('.loading-container') as HTMLElement;
+    if (!loadingContainer) {
+      console.log('[AnalyzeRepoIntegr] Creating loading-container');
+      loadingContainer = document.createElement('div');
+      loadingContainer.className = 'loading-container';
+      loadingContainer.style.display = 'none';
+      loadingContainer.innerHTML = '<div class="spinner"></div><p>Analyzing template...</p>';
+      section.appendChild(loadingContainer);
+    }
+
+    let resultsContainer = section.querySelector('.results-container') as HTMLElement;
+    if (!resultsContainer) {
+      console.log('[AnalyzeRepoIntegr] Creating results-container');
+      resultsContainer = document.createElement('div');
+      resultsContainer.className = 'results-container';
+      resultsContainer.style.display = 'none';
+      section.appendChild(resultsContainer);
+    }
+
+    let reportDiv = resultsContainer.querySelector('.report') as HTMLElement;
+    if (!reportDiv) {
+      reportDiv = document.createElement('div');
+      reportDiv.className = 'report';
+      resultsContainer.appendChild(reportDiv);
+    }
+
+    console.log('[AnalyzeRepoIntegr] ensureAnalysisSection COMPLETE');
+    return { section, loadingContainer, resultsContainer, reportDiv };
+  }
+
+  function showSpinner(containers: ReturnType<typeof ensureAnalysisSection>) {
+    const before = containers.loadingContainer.style.display;
+    console.log('[AnalyzeRepoIntegr] showSpinner BEFORE:', before);
+    containers.loadingContainer.style.display = 'block';
+    containers.resultsContainer.style.display = 'none';
+    console.log('[AnalyzeRepoIntegr] showSpinner AFTER: block ✓ SPINNER VISIBLE');
+  }
+
+  function showResults(containers: ReturnType<typeof ensureAnalysisSection>) {
+    console.log('[AnalyzeRepoIntegr] showResults - hiding spinner, showing results');
+    containers.loadingContainer.style.display = 'none';
+    containers.resultsContainer.style.display = 'block';
+    console.log('[AnalyzeRepoIntegr] ✓ Results container visible');
+  }
+
+  function showError(containers: ReturnType<typeof ensureAnalysisSection>, message: string) {
+    containers.loadingContainer.style.display = 'none';
+    containers.resultsContainer.style.display = 'block';
+    containers.reportDiv.innerHTML = `<div class="error-message"><p>${message}</p></div>`;
+    console.log('[AnalyzeRepoIntegr] Error displayed');
+  }
+
+  document.addEventListener('analysis-saml-blocked', ((evt: CustomEvent) => {
+    console.warn('[AnalyzeRepoIntegr] SAML blocked', evt.detail);
+    const containers = ensureAnalysisSection(evt.detail.repoUrl);
+    showError(containers, `<strong>Authentication Required</strong><br>SAML/SSO required. <a href="#" onclick="window.analyzeRepo('${evt.detail.repoUrl}', 'dod'); return false;">Retry</a>.`);
+  }) as EventListener);
+
   window.analyzeRepo = async function(repoUrl: string, ruleSet: string = 'dod', selectedCategories: any = null) {
-    console.log('[RulesetModal] analyzeRepo stub called:', { repoUrl, ruleSet, selectedCategories });
-    
+    console.log('═══════════════════════════════════════════════════════');
+    console.log('[AnalyzeRepoIntegr] ▶ START at', new Date().toISOString());
+    console.log('[AnalyzeRepoIntegr] Params:', { repoUrl, ruleSet, selectedCategories });
+
     if (ruleSet === 'show-modal') {
       showRulesetModal(repoUrl);
       return;
     }
-    
-    // Try to use TemplateAnalyzer if available
-    if ((window as any).TemplateAnalyzer && typeof (window as any).TemplateAnalyzer.analyzeTemplate === 'function') {
-      return (window as any).TemplateAnalyzer.analyzeTemplate(repoUrl, ruleSet, selectedCategories);
+
+    console.log('[AnalyzeRepoIntegr] Step 1: Creating DOM...');
+    const containers = ensureAnalysisSection(repoUrl);
+
+    console.log('[AnalyzeRepoIntegr] Step 2: Dispatching show-analysis-section event...');
+    document.dispatchEvent(new CustomEvent('show-analysis-section'));
+    console.log('[AnalyzeRepoIntegr] ✓ Event dispatched');
+
+    setTimeout(() => {
+      console.log('[AnalyzeRepoIntegr] Step 3: Scrolling...');
+      containers.section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      console.log('[AnalyzeRepoIntegr] ✓ Scrolled');
+    }, 50);
+
+    console.log('[AnalyzeRepoIntegr] Step 4: Showing spinner...');
+    showSpinner(containers);
+    showNotification('info', 'Starting analysis...');
+
+    try {
+      console.log('[AnalyzeRepoIntegr] Step 5: Calling analyzeTemplateServerSide...');
+      const result = await (window as any).TemplateAnalyzer.analyzeTemplateServerSide(repoUrl, ruleSet);
+      console.log('[AnalyzeRepoIntegr] ✓ Analysis complete');
+
+      console.log('[AnalyzeRepoIntegr] Step 6: Showing results...');
+      showResults(containers);
+
+      console.log('[AnalyzeRepoIntegr] Step 7: Rendering...');
+      if ((window as any).DashboardRenderer && typeof (window as any).DashboardRenderer.render === 'function') {
+        (window as any).DashboardRenderer.render(result, containers.reportDiv);
+        console.log('[AnalyzeRepoIntegr] ✓ Rendered');
+      } else {
+        containers.reportDiv.innerHTML = '<pre>' + JSON.stringify(result, null, 2) + '</pre>';
+        console.warn('[AnalyzeRepoIntegr] ⚠ DashboardRenderer unavailable');
+      }
+
+      showNotification('success', 'Analysis complete!');
+      document.dispatchEvent(new CustomEvent('analysis-completed', { detail: { repoUrl, result } }));
+      console.log('[AnalyzeRepoIntegr] ✓ COMPLETE');
+      console.log('═══════════════════════════════════════════════════════');
+      return result;
+    } catch (error: any) {
+      console.error('[AnalyzeRepoIntegr] ✗ FAILED:', error);
+      console.log('═══════════════════════════════════════════════════════');
+      showError(containers, error.message || 'Analysis failed');
+      showNotification('error', `Failed: ${error.message || 'Unknown error'}`);
+      throw error;
     }
-    
-    console.warn('[RulesetModal] No analyzer available');
-    showNotification('error', 'Template analyzer not available. Please refresh the page.');
   };
-}
+})();
 
 export {};
