@@ -3,7 +3,8 @@ import { wrapHttp } from '../shared/http';
 import { runAnalyzer } from 'analyzer-core';
 
 interface AnalyzeRequest {
-  repoUrl: string;
+  repoUrl?: string;           // Single repo (legacy)
+  repos?: string[];           // Batch repos (new)
   ruleSet?: string;
   azureDeveloperCliEnabled?: boolean;
   aiDeprecationCheckEnabled?: boolean;
@@ -17,6 +18,17 @@ interface GitHubFile {
   type?: string;
 }
 
+interface BatchAnalyzeResult {
+  batchId: string;
+  total: number;
+  results: Array<{
+    repoUrl: string;
+    status: 'success' | 'error';
+    result?: any;
+    error?: string;
+  }>;
+}
+
 export const handler = wrapHttp(async (req: HttpRequest, ctx: Context) => {
   if (req.method !== 'POST') {
     return { status: 405, body: { error: 'Method not allowed' } };
@@ -26,15 +38,36 @@ export const handler = wrapHttp(async (req: HttpRequest, ctx: Context) => {
   try {
     body = req.body || (await (req as any).json?.());
   } catch {}
-  const requestBody: AnalyzeRequest = body || { repoUrl: '' };
-  const { repoUrl, ruleSet = 'dod', azureDeveloperCliEnabled, aiDeprecationCheckEnabled, archiveOverride } = requestBody;
+  const requestBody: AnalyzeRequest = body || {};
+  const { repoUrl, repos, ruleSet = 'dod', azureDeveloperCliEnabled, aiDeprecationCheckEnabled, archiveOverride } = requestBody;
   const categoriesRaw = (req.query?.categories as string) || '';
   const categoriesParam = categoriesRaw.split(',').filter(x => x);
 
-  if (!repoUrl) {
-    return { status: 400, body: { error: 'repoUrl is required' } };
+  // Handle batch analysis
+  if (repos && Array.isArray(repos) && repos.length > 0) {
+    ctx.log(`Batch analysis requested for ${repos.length} repositories`);
+    return handleBatchAnalysis(req, ctx, repos, ruleSet, azureDeveloperCliEnabled, aiDeprecationCheckEnabled, archiveOverride, categoriesParam);
   }
 
+  // Handle single analysis (legacy path)
+  if (!repoUrl) {
+    return { status: 400, body: { error: 'repoUrl or repos array is required' } };
+  }
+
+  // Delegate to core analysis function
+  return await analyzeSingleRepository(req, ctx, repoUrl, ruleSet, azureDeveloperCliEnabled, aiDeprecationCheckEnabled, archiveOverride, categoriesParam);
+});
+
+async function analyzeSingleRepository(
+  req: HttpRequest,
+  ctx: Context,
+  repoUrl: string,
+  ruleSet: string,
+  azureDeveloperCliEnabled?: boolean,
+  aiDeprecationCheckEnabled?: boolean,
+  archiveOverride?: boolean,
+  categoriesParam?: string[]
+): Promise<{ status: number; body: any }> {
   // Lightweight GitHub client via fetch to avoid ESM @octokit/rest incompatibility in CJS Functions build
   const token = process.env.GITHUB_TOKEN_ANALYZER || process.env.GH_WORKFLOW_TOKEN || undefined;
   const gh = createGitHubClient(token);
@@ -119,7 +152,71 @@ export const handler = wrapHttp(async (req: HttpRequest, ctx: Context) => {
     const diagnostic = isLocal ? { stack, fileCount: enriched.length, repoUrl, ruleSet } : {};
     return { status: 500, body: { error: 'Analyzer execution failed', details: msg, ...diagnostic } };
   }
-});
+}
+
+async function handleBatchAnalysis(
+  req: HttpRequest,
+  ctx: Context,
+  repos: string[],
+  ruleSet: string,
+  azureDeveloperCliEnabled?: boolean,
+  aiDeprecationCheckEnabled?: boolean,
+  archiveOverride?: boolean,
+  categoriesParam?: string[]
+): Promise<{ status: number; body: BatchAnalyzeResult }> {
+  const batchId = `batch-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+  const results: BatchAnalyzeResult['results'] = [];
+
+  ctx.log(`[${batchId}] Starting batch analysis of ${repos.length} repositories`);
+
+  // Process repos sequentially to avoid overwhelming GitHub API and analyzer
+  for (let i = 0; i < repos.length; i++) {
+    const repoUrl = repos[i];
+    ctx.log(`[${batchId}] Analyzing ${i + 1}/${repos.length}: ${repoUrl}`);
+
+    try {
+      // Call the extracted core analysis function directly
+      const response = await analyzeSingleRepository(
+        req, ctx, repoUrl, ruleSet,
+        azureDeveloperCliEnabled, aiDeprecationCheckEnabled,
+        archiveOverride, categoriesParam
+      );
+      
+      if (response.status === 200) {
+        results.push({
+          repoUrl,
+          status: 'success',
+          result: response.body
+        });
+      } else {
+        results.push({
+          repoUrl,
+          status: 'error',
+          error: response.body?.error || `HTTP ${response.status}`
+        });
+      }
+    } catch (error: any) {
+      ctx.log.error(`[${batchId}] Error analyzing ${repoUrl}:`, error?.message);
+      results.push({
+        repoUrl,
+        status: 'error',
+        error: error?.message || String(error)
+      });
+    }
+  }
+
+  const successCount = results.filter(r => r.status === 'success').length;
+  ctx.log(`[${batchId}] Batch complete: ${successCount}/${repos.length} successful`);
+
+  return {
+    status: 200,
+    body: {
+      batchId,
+      total: repos.length,
+      results
+    }
+  };
+}
 
 function extractRepoInfo(url: string): { owner: string; repo: string } {
   const m = url.match(/github\.com\/([^/]+)\/([^/]+)(\.git)?/i);
