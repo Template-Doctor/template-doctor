@@ -27,11 +27,7 @@ export interface NotificationAPI {
   loading(title?: string, message?: string): LoadingHandle;
   // Legacy alias occasionally used in JS
   showLoading?(title?: string, message?: string): LoadingHandle;
-  confirm(
-    title: string,
-    message: string,
-    options?: ConfirmOptions,
-  ): string | undefined;
+  confirm(title: string, message: string, options?: ConfirmOptions): string | undefined;
   // Back-compat surface (added at runtime by compat layer): info/success/warning/error/showX etc.
   [key: string]: any; // eslint-disable-line @typescript-eslint/no-explicit-any
 }
@@ -78,7 +74,12 @@ function iconFor(type: NotificationType): string {
   }
 }
 
-function showNotification(type: NotificationType, title: string, message: string, duration = 5000): HTMLElement | undefined {
+function showNotification(
+  type: NotificationType,
+  title: string,
+  message: string,
+  duration = 5000,
+): HTMLElement | undefined {
   injectStyleOnce();
   const parent = ensureContainer();
   const notificationId = 'notification-' + Date.now();
@@ -116,24 +117,45 @@ export const NotificationSystem: NotificationAPI = {
     if (!el) {
       // Fallback no-op handle
       return {
-        update(){},
-        success(st?: string, sm?: string, dur?: number){ NotificationSystem.showSuccess(st||'Done', sm||'', dur||4000); },
-        error(et?: string, em?: string, dur?: number){ NotificationSystem.showError(et||'Error', em||'', dur||8000); },
-        close(){}
+        update() {},
+        success(st?: string, sm?: string, dur?: number) {
+          NotificationSystem.showSuccess(st || 'Done', sm || '', dur || 4000);
+        },
+        error(et?: string, em?: string, dur?: number) {
+          NotificationSystem.showError(et || 'Error', em || '', dur || 8000);
+        },
+        close() {},
       } as LoadingHandle;
     }
     const titleEl = el.querySelector('.notification-title') as HTMLElement | null;
     const msgEl = el.querySelector('.notification-message') as HTMLElement | null;
     const handle: LoadingHandle = {
-      update(nt?: string, nm?: string){ if(nt && titleEl) titleEl.textContent = nt; if(nm && msgEl) msgEl.textContent = nm; },
-      success(st?: string, sm?: string, dur?: number){ try { el.remove(); } catch{} NotificationSystem.showSuccess(st||'Success', sm||'', dur||4000); },
-      error(et?: string, em?: string, dur?: number){ try { el.remove(); } catch{} NotificationSystem.showError(et||'Error', em||'', dur||8000); },
-      close(){ try { el.remove(); } catch{} }
+      update(nt?: string, nm?: string) {
+        if (nt && titleEl) titleEl.textContent = nt;
+        if (nm && msgEl) msgEl.textContent = nm;
+      },
+      success(st?: string, sm?: string, dur?: number) {
+        try {
+          el.remove();
+        } catch {}
+        NotificationSystem.showSuccess(st || 'Success', sm || '', dur || 4000);
+      },
+      error(et?: string, em?: string, dur?: number) {
+        try {
+          el.remove();
+        } catch {}
+        NotificationSystem.showError(et || 'Error', em || '', dur || 8000);
+      },
+      close() {
+        try {
+          el.remove();
+        } catch {}
+      },
     };
     return handle;
   },
   // Provide showLoading alias for any legacy direct calls
-  showLoading: (t?: string, m?: string) => (NotificationSystem.loading(t, m)),
+  showLoading: (t?: string, m?: string) => NotificationSystem.loading(t, m),
   confirm: (title, message, opts = {}) => {
     const { confirmLabel = 'Confirm', cancelLabel = 'Cancel', onConfirm, onCancel } = opts;
     const el = showNotification('warning', title, message, 0);
@@ -154,7 +176,11 @@ export const NotificationSystem: NotificationAPI = {
       cancelBtn.style.borderRadius = '6px';
       cancelBtn.textContent = cancelLabel;
       cancelBtn.addEventListener('click', () => {
-        try { onCancel?.(); } finally { el.remove(); }
+        try {
+          onCancel?.();
+        } finally {
+          el.remove();
+        }
       });
       const confirmBtn = document.createElement('button');
       confirmBtn.className = 'btn btn-primary notification-action';
@@ -166,7 +192,11 @@ export const NotificationSystem: NotificationAPI = {
       confirmBtn.style.borderRadius = '6px';
       confirmBtn.textContent = confirmLabel;
       confirmBtn.addEventListener('click', () => {
-        try { onConfirm?.(); } finally { el.remove(); }
+        try {
+          onConfirm?.();
+        } finally {
+          el.remove();
+        }
       });
       actionsDiv.appendChild(cancelBtn);
       actionsDiv.appendChild(confirmBtn);
@@ -191,10 +221,18 @@ if (typeof window !== 'undefined') {
         queued.forEach((n: any) => {
           try {
             switch (n.type) {
-              case 'success': NotificationSystem.showSuccess(n.title, n.message, n.duration); break;
-              case 'error': NotificationSystem.showError(n.title, n.message, n.duration); break;
-              case 'warning': NotificationSystem.showWarning(n.title, n.message, n.duration); break;
-              default: NotificationSystem.showInfo(n.title, n.message, n.duration); break;
+              case 'success':
+                NotificationSystem.showSuccess(n.title, n.message, n.duration);
+                break;
+              case 'error':
+                NotificationSystem.showError(n.title, n.message, n.duration);
+                break;
+              case 'warning':
+                NotificationSystem.showWarning(n.title, n.message, n.duration);
+                break;
+              default:
+                NotificationSystem.showInfo(n.title, n.message, n.duration);
+                break;
             }
           } catch (e) {
             // eslint-disable-next-line no-console

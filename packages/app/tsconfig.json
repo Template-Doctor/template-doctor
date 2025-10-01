@@ -3,9 +3,9 @@
     "target": "ES2020",
     "module": "ESNext",
     "moduleResolution": "Node",
-  "strict": false, // keep umbrella strict off for incremental migration
-  "noImplicitAny": true,
-  "strictNullChecks": true,
+    "strict": false, // keep umbrella strict off for incremental migration
+    "noImplicitAny": true,
+    "strictNullChecks": true,
     "skipLibCheck": true,
     "allowJs": true,
     "checkJs": false,

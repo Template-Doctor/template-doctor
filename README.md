@@ -12,9 +12,7 @@
 
 [Overview](#overview) | [Features](#features) | [Install](#installation-and-setup) | [Usage](#usage)
 
-
 </div>
-
 
 > [!IMPORTANT]
 > This app has been built with vanilla JavaScript for fast prototyping and will be migrated to TypeScript for robustness.
@@ -46,11 +44,12 @@ Template Doctor analyzes and validates samples and templates, including but not 
 This repository is structured as a monorepo with independently deployable packages:
 
 - **packages/app** — Static web app (frontend UI)
-  - Serves the dashboard and loads scan results from `packages/app/results/`
+    - Serves the dashboard and loads scan results from `packages/app/results/`
 - **packages/api** — Azure Functions (PR creation, OAuth helpers, AZD validation)
 - **docs** — Documentation for GitHub Action/App and usage
 
 Results live under `packages/app/results/`:
+
 - `packages/app/results/index-data.js` — master list of scanned templates (window.templatesData)
 - `packages/app/results/<owner-repo>/<timestamp>-data.js` — per-scan data (window.reportData)
 - `packages/app/results/<owner-repo>/<timestamp>-dashboard.html` — per-scan dashboard
@@ -85,9 +84,10 @@ Results live under `packages/app/results/`:
 Template Doctor uses a consolidated approach to environment variables. All variables are defined in a single `.env` file at the root of the project.
 
 1. Copy the example file:
-   ```bash
-   cp .env.example .env
-   ```
+
+    ```bash
+    cp .env.example .env
+    ```
 
 2. Fill in the core variables required for your environment
 
@@ -98,21 +98,23 @@ See the [Environment Variables Documentation](docs/development/ENVIRONMENT_VARIA
 ## Local Development
 
 1. Install dependencies:
-   ```bash
-   npm ci
-   ```
+    ```bash
+    npm ci
+    ```
 
-  The project enforces a Node.js LTS range: >=20 <23. A guard script (`scripts/ensure-node-version.js`) will fail fast if you use an unsupported version (e.g. early experimental 23.x). Use `nvm install 20 && nvm use 20` if needed.
+The project enforces a Node.js LTS range: >=20 <23. A guard script (`scripts/ensure-node-version.js`) will fail fast if you use an unsupported version (e.g. early experimental 23.x). Use `nvm install 20 && nvm use 20` if needed.
 
 2. Start the API locally:
-   ```bash
-   npm run -w packages/api start
-   ```
+
+    ```bash
+    npm run -w packages/api start
+    ```
 
 3. Start the frontend (Vite dev server with live reload & TypeScript support):
-  ```bash
-  npm run -w packages/app dev
-  ```
+
+```bash
+npm run -w packages/app dev
+```
 
 4. Open http://localhost:5173 (default Vite port) in your browser. The frontend will call the API at http://localhost:7071 by default.
 
@@ -122,6 +124,7 @@ See the [Environment Variables Documentation](docs/development/ENVIRONMENT_VARIA
 ## Testing
 
 Run frontend tests (Playwright) from the root:
+
 ```bash
 npm test           # Run all tests
 npm run test:ui    # Run tests with UI
@@ -129,6 +132,7 @@ npm run test:debug # Run tests in debug mode
 ```
 
 You can run a specific test with:
+
 ```bash
 npm run test -- "-g" "should handle search functionality" packages/app/tests/app.spec.js
 ```
@@ -144,19 +148,19 @@ npm run test -- "-g" "should handle search functionality" packages/app/tests/app
 Workflows under `.github/workflows/`:
 
 - **Azure Static Web Apps (SWA)**:
-  - Uses `Azure/static-web-apps-deploy@v1`
-  - `app_location: /packages/app`
-  - `api_location: /packages/api`
+    - Uses `Azure/static-web-apps-deploy@v1`
+    - `app_location: /packages/app`
+    - `api_location: /packages/api`
 
 - **Nightly Static Web Apps Deploy (SWA CLI)**:
-  - Workflow: `.github/workflows/nightly-swa-deploy.yml`
-  - Runs nightly at 02:15 UTC and can be triggered manually via "Run workflow"
-  - Requires repo secret `SWA_CLI_DEPLOYMENT_TOKEN` (Static Web App deployment token)
-  - See details: [docs/usage/DEPLOYMENT.md](docs/usage/DEPLOYMENT.md)
+    - Workflow: `.github/workflows/nightly-swa-deploy.yml`
+    - Runs nightly at 02:15 UTC and can be triggered manually via "Run workflow"
+    - Requires repo secret `SWA_CLI_DEPLOYMENT_TOKEN` (Static Web App deployment token)
+    - See details: [docs/usage/DEPLOYMENT.md](docs/usage/DEPLOYMENT.md)
 
 - Submit Template Analysis (repository_dispatch):
-  - Saves scan results and opens a PR using `peter-evans/create-pull-request`
-  - See setup guide (including bot token fallback): [docs/usage/GITHUB_ACTION_SETUP.md](docs/usage/GITHUB_ACTION_SETUP.md)
+    - Saves scan results and opens a PR using `peter-evans/create-pull-request`
+    - See setup guide (including bot token fallback): [docs/usage/GITHUB_ACTION_SETUP.md](docs/usage/GITHUB_ACTION_SETUP.md)
 
 Publishing results
 
@@ -167,19 +171,19 @@ Publishing results
 Template Doctor can also archive a small JSON metadata file to a central repository for each analysis.
 
 - How to enable and required variables: see
-  - Env vars reference: [docs/development/ENVIRONMENT_VARIABLES.md](docs/development/ENVIRONMENT_VARIABLES.md)
-  - Action setup (archive section): [docs/usage/GITHUB_ACTION_SETUP.md](docs/usage/GITHUB_ACTION_SETUP.md#6-centralized-archive-of-analysis-metadata-optional)
+    - Env vars reference: [docs/development/ENVIRONMENT_VARIABLES.md](docs/development/ENVIRONMENT_VARIABLES.md)
+    - Action setup (archive section): [docs/usage/GITHUB_ACTION_SETUP.md](docs/usage/GITHUB_ACTION_SETUP.md#6-centralized-archive-of-analysis-metadata-optional)
 
 Quick checklist
-- In GitHub repo (Settings → Secrets and variables → Actions):
-  - Set `TD_API_BASE` to your API base (e.g., `https://<your-swa>.azurestaticapps.net/api`).
-  - Optionally set `TD_ARCHIVE_COLLECTION` (defaults to `aigallery`).
-- In Azure Functions (Application Settings):
-  - Set `GH_WORKFLOW_TOKEN` with Contents & Pull requests write access to the central archive repo (authorize SSO if needed).
-- Enable archiving:
-  - Globally: set `archiveEnabled: true` in runtime-config, or
-  - Per-run: check the “Also save metadata to the centralized archive for this analysis” box in the analyze modal when global is off.
 
+- In GitHub repo (Settings → Secrets and variables → Actions):
+    - Set `TD_API_BASE` to your API base (e.g., `https://<your-swa>.azurestaticapps.net/api`).
+    - Optionally set `TD_ARCHIVE_COLLECTION` (defaults to `aigallery`).
+- In Azure Functions (Application Settings):
+    - Set `GH_WORKFLOW_TOKEN` with Contents & Pull requests write access to the central archive repo (authorize SSO if needed).
+- Enable archiving:
+    - Globally: set `archiveEnabled: true` in runtime-config, or
+    - Per-run: check the “Also save metadata to the centralized archive for this analysis” box in the analyze modal when global is off.
 
 ## Contributing
 
@@ -195,11 +199,11 @@ Template Doctor now includes enhanced security analysis for Bicep files:
 
 1. **Managed Identity Detection**: Identifies when Managed Identity is properly used in Azure resources.
 2. **Insecure Authentication Detection**: Identifies and flags insecure authentication methods like:
-   - Connection strings with embedded credentials
-   - Access keys
-   - SAS tokens
-   - Storage account keys
-   - KeyVault secrets accessed without Managed Identity
+    - Connection strings with embedded credentials
+    - Access keys
+    - SAS tokens
+    - Storage account keys
+    - KeyVault secrets accessed without Managed Identity
 
 3. **Anonymous Access Detection**: Identifies Azure resources that typically require authentication but may be configured for anonymous access.
 

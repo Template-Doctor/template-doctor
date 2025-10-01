@@ -13,18 +13,18 @@ export interface CategoriesShape {
   [key: string]: CategoryInfo;
 }
 
-const CATEGORY_MAP: { key:string; label:string; icon:string }[] = [
+const CATEGORY_MAP: { key: string; label: string; icon: string }[] = [
   { key: 'repositoryManagement', label: 'Repository Management', icon: 'fa-folder' },
   { key: 'functionalRequirements', label: 'Functional Requirements', icon: 'fa-tasks' },
   { key: 'deployment', label: 'Deployment', icon: 'fa-cloud-upload-alt' },
   { key: 'security', label: 'Security', icon: 'fa-shield-alt' },
   { key: 'testing', label: 'Testing', icon: 'fa-vial' },
-  { key: 'agents', label: 'Agents', icon: 'fa-robot' }
+  { key: 'agents', label: 'Agents', icon: 'fa-robot' },
 ];
 
 export function renderCategoryBreakdown(categories: CategoriesShape | undefined): DocumentFragment {
   const frag = document.createDocumentFragment();
-  if(!categories || typeof categories !== 'object') return frag;
+  if (!categories || typeof categories !== 'object') return frag;
 
   const section = document.createElement('div');
   section.className = 'category-breakdown';
@@ -33,7 +33,12 @@ export function renderCategoryBreakdown(categories: CategoriesShape | undefined)
   const tilesHtml = CATEGORY_MAP.map(({ key, label, icon }) => {
     const c = categories[key] || { enabled: false, issues: [], compliant: [], percentage: 0 };
     const total = (c.issues?.length || 0) + (c.compliant?.length || 0);
-    const pct = typeof c.percentage === 'number' ? c.percentage : (total > 0 ? Math.round(((c.compliant?.length || 0) / total) * 100) : 0);
+    const pct =
+      typeof c.percentage === 'number'
+        ? c.percentage
+        : total > 0
+          ? Math.round(((c.compliant?.length || 0) / total) * 100)
+          : 0;
     const enabledBadge = c.enabled
       ? '<span class="badge" style="background:#28a745; color:#fff; padding:2px 6px; border-radius:10px; font-size: 0.75rem;">Enabled</span>'
       : '<span class="badge" style="background:#6c757d; color:#fff; padding:2px 6px; border-radius:10px; font-size: 0.75rem;">Disabled</span>';
@@ -47,7 +52,7 @@ export function renderCategoryBreakdown(categories: CategoriesShape | undefined)
           ${enabledBadge}
         </div>
         <div class="tile-value">${pct}%</div>
-        <div class="tile-title" style="opacity:0.8;">${(c.compliant?.length || 0)} passed • ${(c.issues?.length || 0)} issues</div>
+        <div class="tile-title" style="opacity:0.8;">${c.compliant?.length || 0} passed • ${c.issues?.length || 0} issues</div>
       </div>`;
   }).join('');
 
@@ -60,6 +65,6 @@ export function renderCategoryBreakdown(categories: CategoriesShape | undefined)
 }
 
 // Provide optional global to allow legacy renderer patching without import wiring.
-if(!(window as any).__TD_renderCategoryBreakdown){
+if (!(window as any).__TD_renderCategoryBreakdown) {
   (window as any).__TD_renderCategoryBreakdown = renderCategoryBreakdown;
 }

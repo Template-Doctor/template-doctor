@@ -18,7 +18,8 @@ async function openModal(page) {
 async function getAdvancedStates(page) {
   // Return a map of category -> checked boolean
   return await page.evaluate(() => {
-    const q = (val) => !!document.querySelector(`input[name="adv-category"][value="${val}"]`)?.checked;
+    const q = (val) =>
+      !!document.querySelector(`input[name="adv-category"][value="${val}"]`)?.checked;
     return {
       repositoryManagement: q('repositoryManagement'),
       functionalRequirements: q('functionalRequirements'),

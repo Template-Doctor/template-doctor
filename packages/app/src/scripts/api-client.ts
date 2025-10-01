@@ -2,15 +2,39 @@
 // Falls back to direct GitHubClient if backend feature is disabled.
 
 interface IssueCreateRequest {
-  owner: string; repo: string; title: string; body?: string; labels?: string[]; assignCopilot?: boolean;
+  owner: string;
+  repo: string;
+  title: string;
+  body?: string;
+  labels?: string[];
+  assignCopilot?: boolean;
   childIssues?: { title: string; body: string; labels?: string[] }[];
 }
 interface IssueCreateResponse {
-  issueNumber: number; htmlUrl: string; labelsEnsured: string[]; labelsCreated: string[]; copilotAssigned?: boolean;
+  issueNumber: number;
+  htmlUrl: string;
+  labelsEnsured: string[];
+  labelsCreated: string[];
+  copilotAssigned?: boolean;
   childResults?: { title: string; issueNumber?: number; error?: string }[];
 }
-interface ForkRequest { sourceOwner: string; sourceRepo: string; targetOwner?: string; waitForReady?: boolean; }
-interface ForkResponse { forkOwner: string; repo: string; htmlUrl?: string; ready: boolean; attemptedCreate: boolean; samlRequired?: boolean; documentationUrl?: string; authorizeUrl?: string; error?: string; }
+interface ForkRequest {
+  sourceOwner: string;
+  sourceRepo: string;
+  targetOwner?: string;
+  waitForReady?: boolean;
+}
+interface ForkResponse {
+  forkOwner: string;
+  repo: string;
+  htmlUrl?: string;
+  ready: boolean;
+  attemptedCreate: boolean;
+  samlRequired?: boolean;
+  documentationUrl?: string;
+  authorizeUrl?: string;
+  error?: string;
+}
 
 const backendEnabled = () => true; // Hard-enable backend path for deterministic test behavior & migration phase
 const apiBase = () => (window as any).TemplateDoctorConfig?.apiBase || '/api';
@@ -18,11 +42,13 @@ const apiBase = () => (window as any).TemplateDoctorConfig?.apiBase || '/api';
 async function httpJson(path: string, init: RequestInit): Promise<any> {
   const res = await fetch(apiBase().replace(/\/$/, '') + path, {
     ...init,
-    headers: { 'Content-Type': 'application/json', ...(init.headers || {}) }
+    headers: { 'Content-Type': 'application/json', ...(init.headers || {}) },
   });
   if (!res.ok) {
     let detail: any = undefined;
-    try { detail = await res.json(); } catch {}
+    try {
+      detail = await res.json();
+    } catch {}
     const err: any = new Error(`HTTP ${res.status} ${path} ${(detail && detail.error) || ''}`);
     if (detail) Object.assign(err, detail);
     err.status = res.status;
@@ -43,11 +69,25 @@ export const ApiClient = {
     if (req.labels?.length) {
       await gh.ensureLabelsExist(req.owner, req.repo, req.labels);
     }
-    const issue = await gh.createIssueGraphQL({ owner: req.owner, repo: req.repo, title: req.title, body: req.body, labels: req.labels });
+    const issue = await gh.createIssueGraphQL({
+      owner: req.owner,
+      repo: req.repo,
+      title: req.title,
+      body: req.body,
+      labels: req.labels,
+    });
     if (req.assignCopilot) {
-      try { await gh.assignIssueToCopilotBot(issue.issueNodeId); } catch {}
+      try {
+        await gh.assignIssueToCopilotBot(issue.issueNodeId);
+      } catch {}
     }
-    return { issueNumber: issue.number, htmlUrl: issue.url, labelsEnsured: req.labels || [], labelsCreated: [], copilotAssigned: !!req.assignCopilot };
+    return {
+      issueNumber: issue.number,
+      htmlUrl: issue.url,
+      labelsEnsured: req.labels || [],
+      labelsCreated: [],
+      copilotAssigned: !!req.assignCopilot,
+    };
   },
   async forkRepository(req: ForkRequest): Promise<ForkResponse> {
     if (backendEnabled()) {
@@ -63,20 +103,32 @@ export const ApiClient = {
           try {
             const showSamlNotification = () => {
               try {
-                const w:any = window as any;
-                if (!w.NotificationSystem && w.Notifications) w.NotificationSystem = w.Notifications;
+                const w: any = window as any;
+                if (!w.NotificationSystem && w.Notifications)
+                  w.NotificationSystem = w.Notifications;
                 const ns = w.NotificationSystem;
                 if (ns && typeof ns.show === 'function') {
                   ns.show({
                     title: 'SAML Authorization Required',
-                    message: 'This repository requires SAML SSO authorization before forking. Use the authorization link if provided.',
+                    message:
+                      'This repository requires SAML SSO authorization before forking. Use the authorization link if provided.',
                     type: 'warning',
                     duration: 12000,
-                    actions: e.authorizeUrl ? [{ label: 'Authorize SAML', primary: true, onClick: () => window.open(e.authorizeUrl,'_blank') }] : []
+                    actions: e.authorizeUrl
+                      ? [
+                          {
+                            label: 'Authorize SAML',
+                            primary: true,
+                            onClick: () => window.open(e.authorizeUrl, '_blank'),
+                          },
+                        ]
+                      : [],
                   });
                   try {
                     // Post-enhance last inserted warning if attributes missing
-                    const container = document.getElementById('notification-container') || document.querySelector('.notification-container');
+                    const container =
+                      document.getElementById('notification-container') ||
+                      document.querySelector('.notification-container');
                     if (container) {
                       const last = container.querySelector('.notification.warning:last-of-type');
                       if (last && !last.getAttribute('role')) {
@@ -84,18 +136,33 @@ export const ApiClient = {
                         last.setAttribute('aria-live', 'assertive');
                       }
                     }
-                  } catch(_) {}
+                  } catch (_) {}
                 }
-              } catch(_) {}
+              } catch (_) {}
             };
-            const w:any = window as any;
-            if ((w.NotificationSystem || w.Notifications) && (w.NotificationSystem?.show || w.Notifications?.show)) {
+            const w: any = window as any;
+            if (
+              (w.NotificationSystem || w.Notifications) &&
+              (w.NotificationSystem?.show || w.Notifications?.show)
+            ) {
               showSamlNotification();
             } else {
-              document.addEventListener('notifications-ready', showSamlNotification, { once: true });
+              document.addEventListener('notifications-ready', showSamlNotification, {
+                once: true,
+              });
             }
-          } catch(_) {}
-          return { forkOwner: req.targetOwner || 'unknown', repo: req.sourceRepo, htmlUrl: undefined, ready: false, attemptedCreate: false, samlRequired: true, documentationUrl: e.documentationUrl, authorizeUrl: e.authorizeUrl, error: e.error };
+          } catch (_) {}
+          return {
+            forkOwner: req.targetOwner || 'unknown',
+            repo: req.sourceRepo,
+            htmlUrl: undefined,
+            ready: false,
+            attemptedCreate: false,
+            samlRequired: true,
+            documentationUrl: e.documentationUrl,
+            authorizeUrl: e.authorizeUrl,
+            error: e.error,
+          };
         }
         throw e;
       }
@@ -103,20 +170,46 @@ export const ApiClient = {
     const gh: any = (window as any).GitHubClient;
     if (!gh) throw new Error('GitHubClient not ready');
     // Defensive: ensure auth object & accessor don't throw
-    try { if (!gh.auth || (typeof gh.auth.getAccessToken !== 'function' && typeof gh.auth.getToken !== 'function')) { console.warn('[ApiClient] GitHubClient.auth incomplete; proceeding with forkRepository anyway'); } } catch {}
-    const result = await gh.forkRepository(req.sourceOwner, req.sourceRepo).catch((e:any)=>{ console.error('[ApiClient] direct forkRepository error', e?.message||e); throw e; });
-    return { forkOwner: result.forkOwner || (gh.auth?.getUsername?.() || 'unknown'), repo: req.sourceRepo, htmlUrl: result.htmlUrl || result.html_url, ready: true, attemptedCreate: true };
+    try {
+      if (
+        !gh.auth ||
+        (typeof gh.auth.getAccessToken !== 'function' && typeof gh.auth.getToken !== 'function')
+      ) {
+        console.warn(
+          '[ApiClient] GitHubClient.auth incomplete; proceeding with forkRepository anyway',
+        );
+      }
+    } catch {}
+    const result = await gh.forkRepository(req.sourceOwner, req.sourceRepo).catch((e: any) => {
+      console.error('[ApiClient] direct forkRepository error', e?.message || e);
+      throw e;
+    });
+    return {
+      forkOwner: result.forkOwner || gh.auth?.getUsername?.() || 'unknown',
+      repo: req.sourceRepo,
+      htmlUrl: result.htmlUrl || result.html_url,
+      ready: true,
+      attemptedCreate: true,
+    };
   },
-  async startBatchScan(repos: string[], mode?: string): Promise<{ batchId: string; acceptedCount: number; }> {
+  async startBatchScan(
+    repos: string[],
+    mode?: string,
+  ): Promise<{ batchId: string; acceptedCount: number }> {
     if (!backendEnabled()) throw new Error('Backend feature disabled');
-    return httpJson('/v4/batch-scan-start', { method: 'POST', body: JSON.stringify({ repos, mode }) });
+    return httpJson('/v4/batch-scan-start', {
+      method: 'POST',
+      body: JSON.stringify({ repos, mode }),
+    });
   },
   async getBatchStatus(batchId: string): Promise<any> {
     if (!backendEnabled()) throw new Error('Backend feature disabled');
-    const res = await fetch(apiBase().replace(/\/$/, '') + '/v4/batch-scan-status?batchId=' + encodeURIComponent(batchId));
+    const res = await fetch(
+      apiBase().replace(/\/$/, '') + '/v4/batch-scan-status?batchId=' + encodeURIComponent(batchId),
+    );
     if (!res.ok) throw new Error('HTTP ' + res.status + ' batch-scan-status');
     return res.json();
-  }
+  },
 };
 
 // Expose for debugging

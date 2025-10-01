@@ -42,31 +42,31 @@ function ensureContainer(): HTMLElement {
 function createNotification(opts: ShowOptions): HTMLElement {
   const { title, message = '', type = 'info', duration = 5000, actions = [] } = opts;
   const id = `notification-${++notificationCounter}`;
-  
+
   const notification = document.createElement('div');
   notification.className = `notification ${type}`;
   notification.id = id;
   notification.setAttribute('role', 'alert');
   notification.setAttribute('aria-live', 'assertive');
-  
+
   // Header with title and close button
   const header = document.createElement('div');
   header.className = 'notification-header';
-  
+
   const titleEl = document.createElement('div');
   titleEl.className = 'notification-title';
   titleEl.textContent = title;
-  
+
   const closeBtn = document.createElement('button');
   closeBtn.className = 'notification-close';
   closeBtn.innerHTML = '×';
   closeBtn.setAttribute('aria-label', 'Close notification');
   closeBtn.onclick = () => removeNotification(notification);
-  
+
   header.appendChild(titleEl);
   header.appendChild(closeBtn);
   notification.appendChild(header);
-  
+
   // Message content
   if (message) {
     const content = document.createElement('div');
@@ -74,13 +74,13 @@ function createNotification(opts: ShowOptions): HTMLElement {
     content.innerHTML = message; // Allow HTML for links
     notification.appendChild(content);
   }
-  
+
   // Action buttons
   if (actions.length > 0) {
     const actionsContainer = document.createElement('div');
     actionsContainer.className = 'notification-actions';
-    
-    actions.forEach(action => {
+
+    actions.forEach((action) => {
       const btn = document.createElement('button');
       btn.className = `notification-action ${action.primary ? 'primary' : 'secondary'}`;
       btn.textContent = action.label;
@@ -90,10 +90,10 @@ function createNotification(opts: ShowOptions): HTMLElement {
       };
       actionsContainer.appendChild(btn);
     });
-    
+
     notification.appendChild(actionsContainer);
   }
-  
+
   // Progress bar for timed notifications
   if (duration > 0) {
     const progress = document.createElement('div');
@@ -103,17 +103,17 @@ function createNotification(opts: ShowOptions): HTMLElement {
     progressBar.style.width = '0%'; // Start at 0
     progress.appendChild(progressBar);
     notification.appendChild(progress);
-    
+
     // Animate progress bar
     setTimeout(() => {
       progressBar.style.transition = `width ${duration}ms linear`;
       progressBar.style.width = '100%';
     }, 50);
-    
+
     // Auto-remove
     setTimeout(() => removeNotification(notification), duration);
   }
-  
+
   return notification;
 }
 
@@ -126,10 +126,10 @@ function show(opts: ShowOptions): string {
   const container = ensureContainer();
   const notification = createNotification(opts);
   container.appendChild(notification);
-  
+
   // Trigger animation
   setTimeout(() => notification.classList.add('show'), 10);
-  
+
   return notification.id;
 }
 
@@ -152,7 +152,7 @@ function error(title: string, message?: string, duration?: number): string {
 function loading(title: string = 'Loading...', message?: string): LoadingController {
   const id = show({ title, message, type: 'info', duration: 0 });
   const notification = document.getElementById(id);
-  
+
   return {
     id,
     update(newTitle?: string, newMessage?: string) {
@@ -177,14 +177,19 @@ function loading(title: string = 'Loading...', message?: string): LoadingControl
     },
     close() {
       if (notification) removeNotification(notification);
-    }
+    },
   };
 }
 
 function confirm(
   title: string,
   message: string,
-  opts?: { confirmLabel?: string; cancelLabel?: string; onConfirm?: () => void; onCancel?: () => void }
+  opts?: {
+    confirmLabel?: string;
+    cancelLabel?: string;
+    onConfirm?: () => void;
+    onCancel?: () => void;
+  },
 ): string {
   return show({
     title,
@@ -195,14 +200,14 @@ function confirm(
       {
         label: opts?.confirmLabel || 'Confirm',
         primary: true,
-        onClick: opts?.onConfirm
+        onClick: opts?.onConfirm,
       },
       {
         label: opts?.cancelLabel || 'Cancel',
         primary: false,
-        onClick: opts?.onCancel
-      }
-    ]
+        onClick: opts?.onCancel,
+      },
+    ],
   });
 }
 
@@ -213,7 +218,7 @@ export const Notifications = {
   warning,
   error,
   loading,
-  confirm
+  confirm,
 };
 
 // Expose global API for legacy compatibility

@@ -1,19 +1,19 @@
 {
-  "scriptFile": "../dist/functions/setup.js",
-  "entryPoint": "handler",
-  "bindings": [
-    {
-      "authLevel": "anonymous",
-      "type": "httpTrigger",
-      "direction": "in",
-      "name": "req",
-      "methods": ["post", "options"],
-      "route": "v4/setup"
-    },
-    {
-      "type": "http",
-      "direction": "out",
-      "name": "res"
-    }
-  ]
+    "scriptFile": "../dist/functions/setup.js",
+    "entryPoint": "handler",
+    "bindings": [
+        {
+            "authLevel": "anonymous",
+            "type": "httpTrigger",
+            "direction": "in",
+            "name": "req",
+            "methods": ["post", "options"],
+            "route": "v4/setup"
+        },
+        {
+            "type": "http",
+            "direction": "out",
+            "name": "res"
+        }
+    ]
 }

@@ -2,7 +2,15 @@
 import { ApiClient } from './api-client';
 import { mapAnalyzerIssueToViolation, formatViolationAsIssue } from './issue-format';
 
-interface ComplianceIssue { id: string; message: string; severity?: string; error?: string; filePath?: string; snippet?: string; issueTemplate?: { title: string; body: string }; }
+interface ComplianceIssue {
+  id: string;
+  message: string;
+  severity?: string;
+  error?: string;
+  filePath?: string;
+  snippet?: string;
+  issueTemplate?: { title: string; body: string };
+}
 interface ReportData {
   repoUrl: string;
   compliance: { issues: ComplianceIssue[]; compliant: any[]; summary?: string };
@@ -21,128 +29,162 @@ function currentGitHubClient(): any {
   return (window as any).GitHubClient;
 }
 
-function notification(){
+function notification() {
   return (window as any).NotificationSystem || (window as any).Notifications;
 }
 
-function showWarn(title: string, msg: string){
+function showWarn(title: string, msg: string) {
   const n = notification();
-  if(!n) return console.warn(title+': '+msg);
-  if (n.showWarning) n.showWarning(title,msg,7000); else if (n.warning) n.warning(title,msg); else console.warn(title+': '+msg);
+  if (!n) return console.warn(title + ': ' + msg);
+  if (n.showWarning) n.showWarning(title, msg, 7000);
+  else if (n.warning) n.warning(title, msg);
+  else console.warn(title + ': ' + msg);
 }
-function showError(title: string, msg: string){
+function showError(title: string, msg: string) {
   const n = notification();
-  if(!n) return console.error(title+': '+msg);
-  if (n.showError) n.showError(title,msg,10000); else if (n.error) n.error(title,msg); else console.error(title+': '+msg);
+  if (!n) return console.error(title + ': ' + msg);
+  if (n.showError) n.showError(title, msg, 10000);
+  else if (n.error) n.error(title, msg);
+  else console.error(title + ': ' + msg);
 }
-function showInfo(title: string, msg: string){
+function showInfo(title: string, msg: string) {
   const n = notification();
-  if(!n) return console.log(title+': '+msg);
-  if (n.showInfo) n.showInfo(title,msg,5000); else if (n.info) n.info(title,msg); else console.log(title+': '+msg);
+  if (!n) return console.log(title + ': ' + msg);
+  if (n.showInfo) n.showInfo(title, msg, 5000);
+  else if (n.info) n.info(title, msg);
+  else console.log(title + ': ' + msg);
 }
 
-function confirmCreate(cb: ()=>void){
+function confirmCreate(cb: () => void) {
   const n = notification();
-  if(n?.confirm){
-    n.confirm('Create GitHub Issues','This will create GitHub issues for all compliance problems. Proceed?',{confirmLabel:'Create',cancelLabel:'Cancel',onConfirm:cb});
+  if (n?.confirm) {
+    n.confirm(
+      'Create GitHub Issues',
+      'This will create GitHub issues for all compliance problems. Proceed?',
+      { confirmLabel: 'Create', cancelLabel: 'Cancel', onConfirm: cb },
+    );
   } else if (window.confirm('Create GitHub issues for all problems?')) cb();
 }
 
-function parseOwnerRepo(url: string){
-  try { const u = new URL(url); const parts = u.pathname.split('/'); if(parts.length>=3) return { owner: parts[1], repo: parts[2] }; } catch {}
+function parseOwnerRepo(url: string) {
+  try {
+    const u = new URL(url);
+    const parts = u.pathname.split('/');
+    if (parts.length >= 3) return { owner: parts[1], repo: parts[2] };
+  } catch {}
   return { owner: undefined, repo: undefined };
 }
 
-function capitalizeFirst(s: string){ return s ? s.charAt(0).toUpperCase()+s.slice(1) : s; }
+function capitalizeFirst(s: string) {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+}
 
-function mapSeverity(sev?: string): 'high'|'medium'|'low' {
-  if(!sev) return 'low';
+function mapSeverity(sev?: string): 'high' | 'medium' | 'low' {
+  if (!sev) return 'low';
   const lower = sev.toLowerCase();
-  if(lower === 'error' || lower === 'critical') return 'high';
-  if(lower === 'warning' || lower === 'warn') return 'medium';
+  if (lower === 'error' || lower === 'critical') return 'high';
+  if (lower === 'warning' || lower === 'warn') return 'medium';
   return 'low';
 }
 
-function buildMainIssueBody(data: ReportData){
+function buildMainIssueBody(data: ReportData) {
   const issues = data.compliance?.issues || [];
   const ruleSet = data.ruleSet || 'dod';
   const ruleSetCap = capitalizeFirst(ruleSet);
-  const sevCounts = { high:0, medium:0, low:0 };
-  issues.forEach(i=>{ sevCounts[mapSeverity(i.severity)]++; });
+  const sevCounts = { high: 0, medium: 0, low: 0 };
+  issues.forEach((i) => {
+    sevCounts[mapSeverity(i.severity)]++;
+  });
   // Build body with required sections for tests
   let body = '# Template Doctor Analysis\n\n';
   body += `Repo: ${data.repoUrl}\n`;
   body += '## Configuration\n';
-  if(ruleSet === 'custom' && data.customConfig?.gistUrl){
+  if (ruleSet === 'custom' && data.customConfig?.gistUrl) {
     body += `Rule Set: ${ruleSetCap} (custom from ${data.customConfig.gistUrl})\n`;
   } else {
     body += `Rule Set: ${ruleSetCap}\n`;
   }
   body += `Severity Breakdown: High ${sevCounts.high}, Medium ${sevCounts.medium}, Low ${sevCounts.low}\n\n`;
-  if(issues.length){
+  if (issues.length) {
     body += '## Issues to Fix\n';
-    issues.forEach((it,i)=>{ body += `${i+1}. **${it.message}**${it.error?` - ${it.error}`:''}\n`; });
+    issues.forEach((it, i) => {
+      body += `${i + 1}. **${it.message}**${it.error ? ` - ${it.error}` : ''}\n`;
+    });
   }
   body += '\n---\n*Generated by Template Doctor*';
   return body;
 }
 
-function buildChildIssueBody(mainTitle: string, issue: ComplianceIssue, data: ReportData){
+function buildChildIssueBody(mainTitle: string, issue: ComplianceIssue, data: ReportData) {
   const sev = mapSeverity(issue.severity);
   const ruleSet = data.ruleSet || 'dod';
   const ruleSetCap = capitalizeFirst(ruleSet);
   let body = `Child issue of: ${mainTitle}\n\n`;
   body += `## Context\n`;
   body += `Severity: ${capitalizeFirst(sev)}\n`;
-  if(ruleSet === 'custom' && data.customConfig?.gistUrl){
+  if (ruleSet === 'custom' && data.customConfig?.gistUrl) {
     body += `Rule Set: ${ruleSetCap} (custom from ${data.customConfig.gistUrl})\n`;
   } else {
     body += `Rule Set: ${ruleSetCap}\n`;
   }
   body += `Problem: ${issue.message}\n`;
-  if(issue.error) body += `Details: ${issue.error}\n`;
+  if (issue.error) body += `Details: ${issue.error}\n`;
   body += '\n---\n*Generated by Template Doctor*';
   return body;
 }
 
 // Ensure newer formatted violation bodies still include legacy "## Context" section expected by tests
-function ensureContextWrapper(mainTitle: string, issue: ComplianceIssue, data: ReportData, existingBody: string){
-  if(/##\s*Context/i.test(existingBody)) return existingBody; // already present
+function ensureContextWrapper(
+  mainTitle: string,
+  issue: ComplianceIssue,
+  data: ReportData,
+  existingBody: string,
+) {
+  if (/##\s*Context/i.test(existingBody)) return existingBody; // already present
   const sev = mapSeverity(issue.severity);
   const ruleSet = data.ruleSet || 'dod';
   const ruleSetCap = capitalizeFirst(ruleSet);
   let prefix = `Child issue of: ${mainTitle}\n\n`;
   prefix += '## Context\n';
   prefix += `Severity: ${capitalizeFirst(sev)}\n`;
-  if(ruleSet === 'custom' && data.customConfig?.gistUrl){
+  if (ruleSet === 'custom' && data.customConfig?.gistUrl) {
     prefix += `Rule Set: ${ruleSetCap} (custom from ${data.customConfig.gistUrl})\n`;
   } else {
     prefix += `Rule Set: ${ruleSetCap}\n`;
   }
   prefix += `Problem: ${issue.message}\n`;
-  if(issue.error) prefix += `Details: ${issue.error}\n`;
+  if (issue.error) prefix += `Details: ${issue.error}\n`;
   prefix += '\n';
-  return prefix + existingBody.replace(/^\n+/,'');
+  return prefix + existingBody.replace(/^\n+/, '');
 }
 
 // For issue creation: just use the original repo (no fork needed)
 // User must have SAML authorization if the org requires it
-interface ForkContext { owner: string; repo: string; forked: boolean; hasIssues: boolean }
+interface ForkContext {
+  owner: string;
+  repo: string;
+  forked: boolean;
+  hasIssues: boolean;
+}
 
-async function resolveForkContext(owner: string, repo: string): Promise<ForkContext>{
+async function resolveForkContext(owner: string, repo: string): Promise<ForkContext> {
   console.log(`[IssueService] Using original repository: ${owner}/${repo}`);
-  
+
   // Issues are created directly in the original repo (legacy behavior)
   // If the repo is SAML-protected, the user's token must be authorized
   return { owner, repo, forked: false, hasIssues: true };
 }
 
-async function createIssues(){
+async function createIssues() {
   const data = getReportData();
-  if(!data){ return showError('Error','No report data'); }
+  if (!data) {
+    return showError('Error', 'No report data');
+  }
   const { owner, repo } = parseOwnerRepo(data.repoUrl);
-  if(!owner || !repo){ return showError('Error','Cannot parse repository owner/repo'); }
-  
+  if (!owner || !repo) {
+    return showError('Error', 'Cannot parse repository owner/repo');
+  }
+
   // Ensure we operate on user fork to avoid org label/issue 403
   // This will create the fork if it doesn't exist
   const forkCtx = await resolveForkContext(owner, repo);
@@ -154,161 +196,221 @@ async function createIssues(){
   const issueTitle = `Template Doctor Analysis: ${summary} [${today}]`;
   const body = buildMainIssueBody(data);
 
-  const baseLabels = (window as any).GITHUB_LABELS && Array.isArray((window as any).GITHUB_LABELS) ? (window as any).GITHUB_LABELS : ['template-doctor','template-doctor-full-scan'];
+  const baseLabels =
+    (window as any).GITHUB_LABELS && Array.isArray((window as any).GITHUB_LABELS)
+      ? (window as any).GITHUB_LABELS
+      : ['template-doctor', 'template-doctor-full-scan'];
   const rulesetLabel = `ruleset:${ruleSet}`;
-  const severityFamily = ['severity:high','severity:medium','severity:low'];
+  const severityFamily = ['severity:high', 'severity:medium', 'severity:low'];
   const mainLabels = Array.from(new Set([...baseLabels, rulesetLabel, ...severityFamily]));
 
   let button = document.getElementById('create-github-issue-btn') as HTMLButtonElement | null;
-  const restore = button ? prepButtonLoading(button,'Creating Issues...') : () => {};
+  const restore = button ? prepButtonLoading(button, 'Creating Issues...') : () => {};
   try {
     // Lazy enrichment: if analyzer didn't run client-side enrichment (tests injecting raw issues)
-    const percentageCompliant = data.compliance?.compliant?.find(c => c.details && typeof c.details.percentageCompliant === 'number')?.details?.percentageCompliant;
-    for (const raw of issues){
-      if(!raw.issueTemplate){
+    const percentageCompliant = data.compliance?.compliant?.find(
+      (c) => c.details && typeof c.details.percentageCompliant === 'number',
+    )?.details?.percentageCompliant;
+    for (const raw of issues) {
+      if (!raw.issueTemplate) {
         try {
           const v = mapAnalyzerIssueToViolation(raw as any);
           if (raw.filePath && !v.filePath) (v as any).filePath = raw.filePath;
           if (raw.snippet && !v.snippet) (v as any).snippet = raw.snippet;
-          raw.issueTemplate = formatViolationAsIssue(v as any, { compliancePercentage: percentageCompliant });
-        } catch { /* swallow individual enrichment errors */ }
+          raw.issueTemplate = formatViolationAsIssue(v as any, {
+            compliancePercentage: percentageCompliant,
+          });
+        } catch {
+          /* swallow individual enrichment errors */
+        }
       }
     }
     // Build child issue descriptors for backend (now supported). Keep client-only creation in legacy shim.
-    const childIssues = issues.map(c => {
+    const childIssues = issues.map((c) => {
       const sev = mapSeverity(c.severity);
       const templated = c.issueTemplate;
       return {
         title: templated?.title || c.message,
-        body: templated?.body ? ensureContextWrapper(issueTitle, c, data, templated.body) : buildChildIssueBody(issueTitle, c, data),
-        labels: ['template-doctor','template-doctor-child-issue', rulesetLabel, `severity:${sev}`]
+        body: templated?.body
+          ? ensureContextWrapper(issueTitle, c, data, templated.body)
+          : buildChildIssueBody(issueTitle, c, data),
+        labels: ['template-doctor', 'template-doctor-child-issue', rulesetLabel, `severity:${sev}`],
       };
     });
-  if(!forkCtx.hasIssues){
-    showWarn('Issues Disabled', 'Issues are disabled in the target repository (fork). Enable issues to allow automated creation.');
-    return;
-  }
-  const main = await ApiClient.createIssue({ owner: targetOwner, repo, title: issueTitle, body, labels: mainLabels, assignCopilot: true, childIssues });
-  try {
-    if (!(main.copilotAssigned)) {
-      showInfo('Copilot Assignment Skipped', 'Issue created but Copilot bot was not assigned (not available for this repository).');
+    if (!forkCtx.hasIssues) {
+      showWarn(
+        'Issues Disabled',
+        'Issues are disabled in the target repository (fork). Enable issues to allow automated creation.',
+      );
+      return;
     }
-  } catch(_){}
-  const childCount = main.childResults ? main.childResults.filter(c=>c.issueNumber).length : 0;
-  const childFailures = main.childResults ? main.childResults.filter(c=>c.error).length : 0;
-  const childFragment = childCount || childFailures ? ` (children: ${childCount} ok${childFailures?`, ${childFailures} failed`:''})` : '';
-  showInfo('Issue Created', `#${main.issueNumber} created${childFragment}`);
-    document.dispatchEvent(new CustomEvent('issue-created',{ detail: { number: main.issueNumber, url: main.htmlUrl }}));
-  } catch(e:any){
-    showError('Issue Creation Failed', e.message||String(e));
-  } finally { restore(); }
+    const main = await ApiClient.createIssue({
+      owner: targetOwner,
+      repo,
+      title: issueTitle,
+      body,
+      labels: mainLabels,
+      assignCopilot: true,
+      childIssues,
+    });
+    try {
+      if (!main.copilotAssigned) {
+        showInfo(
+          'Copilot Assignment Skipped',
+          'Issue created but Copilot bot was not assigned (not available for this repository).',
+        );
+      }
+    } catch (_) {}
+    const childCount = main.childResults
+      ? main.childResults.filter((c) => c.issueNumber).length
+      : 0;
+    const childFailures = main.childResults ? main.childResults.filter((c) => c.error).length : 0;
+    const childFragment =
+      childCount || childFailures
+        ? ` (children: ${childCount} ok${childFailures ? `, ${childFailures} failed` : ''})`
+        : '';
+    showInfo('Issue Created', `#${main.issueNumber} created${childFragment}`);
+    document.dispatchEvent(
+      new CustomEvent('issue-created', { detail: { number: main.issueNumber, url: main.htmlUrl } }),
+    );
+  } catch (e: any) {
+    showError('Issue Creation Failed', e.message || String(e));
+  } finally {
+    restore();
+  }
 }
 
-function prepButtonLoading(btn: HTMLButtonElement, label: string){
-  const original = btn.innerHTML; btn.disabled = true; btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${label}`;
-  return () => { btn.disabled = false; btn.innerHTML = original; };
+function prepButtonLoading(btn: HTMLButtonElement, label: string) {
+  const original = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${label}`;
+  return () => {
+    btn.disabled = false;
+    btn.innerHTML = original;
+  };
 }
 
-export function wireIssueButton(){
+export function wireIssueButton() {
   const btn = document.getElementById('create-github-issue-btn');
-  if(!btn) return;
+  if (!btn) return;
   // Allow repeated attempts; tests may click multiple times
   if (!(btn as any)._tdIssueWired) {
     (btn as any)._tdIssueWired = true;
-    btn.addEventListener('click', ()=>{
+    btn.addEventListener('click', () => {
       // Fallback: if NotificationSystem missing confirm, alias Notifications
-      const w:any = window as any;
+      const w: any = window as any;
       if (!w.NotificationSystem && w.Notifications) w.NotificationSystem = w.Notifications;
-      confirmCreate(()=> createIssues());
+      confirmCreate(() => createIssues());
     });
   }
 }
 
 // Auto-wire when report loads
-if (typeof document !== 'undefined'){
-  document.addEventListener('template-report-rendered', ()=> wireIssueButton());
+if (typeof document !== 'undefined') {
+  document.addEventListener('template-report-rendered', () => wireIssueButton());
 }
 
 // Expose
 (window as any).TemplateDoctorIssueService = { wireIssueButton, createIssues };
 
-document.addEventListener('issue-service-ready', ()=>{});
+document.addEventListener('issue-service-ready', () => {});
 
 // ---------------- Legacy Compatibility Shim for existing tests -----------------
 // Re-implements a subset of legacy logic (labels + body + child issues) in TS.
-async function processIssueCreation(github: any){
+async function processIssueCreation(github: any) {
   console.log('[IssueService] processIssueCreation starting...');
   console.log('[IssueService] Checking for report data...');
   console.log('[IssueService] window.reportData:', !!(window as any).reportData);
   console.log('[IssueService] window.reportDataOriginal:', !!(window as any).reportDataOriginal);
-  
+
   const data = getReportData();
-  if(!data) {
+  if (!data) {
     console.error('[IssueService] No report data available');
-    console.log('[IssueService] Available window properties:', Object.keys(window).filter(k => k.toLowerCase().includes('report')));
+    console.log(
+      '[IssueService] Available window properties:',
+      Object.keys(window).filter((k) => k.toLowerCase().includes('report')),
+    );
     showError('Error', 'No report data available. Please run an analysis first.');
     return;
   }
-  
-  console.log('[IssueService] Report data found:', { 
-    hasRepoUrl: !!data.repoUrl, 
+
+  console.log('[IssueService] Report data found:', {
+    hasRepoUrl: !!data.repoUrl,
     hasCompliance: !!data.compliance,
-    issueCount: data.compliance?.issues?.length || 0
+    issueCount: data.compliance?.issues?.length || 0,
   });
-  
+
   const { owner, repo } = parseOwnerRepo(data.repoUrl);
-  if(!owner || !repo) {
+  if (!owner || !repo) {
     console.error('[IssueService] Cannot parse owner/repo from', data.repoUrl);
     showError('Error', 'Invalid repository URL');
     return;
   }
-  
+
   console.log(`[IssueService] Parsed owner=${owner}, repo=${repo}`);
-  
+
   // Legacy path also needs to ensure fork exists
   console.log('[IssueService] Resolving fork context...');
-  let notification = (window as any).NotificationSystem?.showLoading?.('Creating GitHub Issues', 'Checking repository access...') 
-    || (window as any).Notifications?.loading?.('Creating GitHub Issues', 'Checking repository access...');
-  
+  let notification =
+    (window as any).NotificationSystem?.showLoading?.(
+      'Creating GitHub Issues',
+      'Checking repository access...',
+    ) ||
+    (window as any).Notifications?.loading?.(
+      'Creating GitHub Issues',
+      'Checking repository access...',
+    );
+
   let forkCtx;
   try {
     forkCtx = await resolveForkContext(owner, repo);
     console.log('[IssueService] Fork context resolved:', forkCtx);
-  } catch(e) {
+  } catch (e) {
     console.error('[IssueService] Fork context failed:', e);
-    if(notification?.error) {
+    if (notification?.error) {
       notification.error('Fork Failed', (e as any)?.message || String(e));
-    } else if(notification?.close) {
+    } else if (notification?.close) {
       notification.close();
       showError('Fork Failed', (e as any)?.message || String(e));
     }
     return;
   }
-  
-  if(!forkCtx.hasIssues){
+
+  if (!forkCtx.hasIssues) {
     console.warn('[IssueService] Issues disabled in target fork; aborting legacy issue creation');
-    if(notification?.close) notification.close();
-    showWarn('Issues Disabled', 'Issues are disabled in target fork; enable them in repository settings to create issues.');
+    if (notification?.close) notification.close();
+    showWarn(
+      'Issues Disabled',
+      'Issues are disabled in target fork; enable them in repository settings to create issues.',
+    );
     return;
   }
   const issues = data.compliance?.issues || [];
   console.log(`[IssueService] Found ${issues.length} issues to create`);
-  
+
   // Lazy enrichment for legacy path (mirrors createIssues enrichment)
   try {
-    const percentageCompliant = data.compliance?.compliant?.find(c => c.details && typeof c.details.percentageCompliant === 'number')?.details?.percentageCompliant;
-    for (const raw of issues){
-      if(!raw.issueTemplate){
+    const percentageCompliant = data.compliance?.compliant?.find(
+      (c) => c.details && typeof c.details.percentageCompliant === 'number',
+    )?.details?.percentageCompliant;
+    for (const raw of issues) {
+      if (!raw.issueTemplate) {
         try {
           const v = mapAnalyzerIssueToViolation(raw as any);
           if (raw.filePath && !v.filePath) (v as any).filePath = raw.filePath;
           if (raw.snippet && !v.snippet) (v as any).snippet = raw.snippet;
-          raw.issueTemplate = formatViolationAsIssue(v as any, { compliancePercentage: percentageCompliant });
-        } catch {/* ignore individual mapping errors */}
+          raw.issueTemplate = formatViolationAsIssue(v as any, {
+            compliancePercentage: percentageCompliant,
+          });
+        } catch {
+          /* ignore individual mapping errors */
+        }
       }
     }
-  } catch {/* ignore enrichment wrapper errors */}
-  
+  } catch {
+    /* ignore enrichment wrapper errors */
+  }
+
   const ruleSet = data.ruleSet || 'dod';
   const today = new Date().toISOString().split('T')[0];
   const now = new Date();
@@ -316,40 +418,53 @@ async function processIssueCreation(github: any){
   const summary = data.compliance?.summary || 'Template Doctor Analysis';
   const issueTitle = `Template Doctor Analysis: ${summary} [${timestamp}]`;
   const rulesetLabel = `ruleset:${ruleSet}`;
-  const severityFamily = ['severity:high','severity:medium','severity:low'];
-  const baseLabels = (window as any).GITHUB_LABELS && Array.isArray((window as any).GITHUB_LABELS) ? (window as any).GITHUB_LABELS : ['template-doctor','template-doctor-full-scan'];
+  const severityFamily = ['severity:high', 'severity:medium', 'severity:low'];
+  const baseLabels =
+    (window as any).GITHUB_LABELS && Array.isArray((window as any).GITHUB_LABELS)
+      ? (window as any).GITHUB_LABELS
+      : ['template-doctor', 'template-doctor-full-scan'];
   const mainLabels = Array.from(new Set([...baseLabels, rulesetLabel, ...severityFamily]));
-  
+
   console.log(`[IssueService] Creating main issue with title: ${issueTitle}`);
-  
+
   try {
     // Check for existing top-level issue first
-    if(notification?.update) {
-      notification.update('Checking for existing issues', `Looking for existing Template Doctor issues...`);
+    if (notification?.update) {
+      notification.update(
+        'Checking for existing issues',
+        `Looking for existing Template Doctor issues...`,
+      );
     }
-    
+
     console.log('[IssueService] Checking for existing top-level issues...');
     let existingIssues = [];
     try {
-      if(github.findIssuesByTitle) {
-        existingIssues = await github.findIssuesByTitle(forkCtx.owner, forkCtx.repo, 'Template Doctor Analysis', 'template-doctor');
-        console.log(`[IssueService] Found ${existingIssues.length} existing Template Doctor issues`);
+      if (github.findIssuesByTitle) {
+        existingIssues = await github.findIssuesByTitle(
+          forkCtx.owner,
+          forkCtx.repo,
+          'Template Doctor Analysis',
+          'template-doctor',
+        );
+        console.log(
+          `[IssueService] Found ${existingIssues.length} existing Template Doctor issues`,
+        );
       }
-    } catch(e) {
+    } catch (e) {
       console.warn('[IssueService] Could not check for existing issues:', e);
     }
-    
-    if(existingIssues && existingIssues.length > 0) {
+
+    if (existingIssues && existingIssues.length > 0) {
       const firstIssue = existingIssues[0];
       console.log('[IssueService] Existing issue found:', firstIssue);
-      
+
       // Close the loading notification and ask user
-      if(notification?.close) notification.close();
-      
+      if (notification?.close) notification.close();
+
       // Show confirmation to proceed
       const proceed = await new Promise<boolean>((resolve) => {
         const n = (window as any).NotificationSystem || (window as any).Notifications;
-        if(n?.confirm) {
+        if (n?.confirm) {
           n.confirm(
             'Existing Issue Found',
             `A Template Doctor issue already exists: #${firstIssue.number} - ${firstIssue.title}\n\nDo you want to create a new issue anyway?`,
@@ -357,94 +472,137 @@ async function processIssueCreation(github: any){
               confirmLabel: 'Create New Issue',
               cancelLabel: 'Cancel',
               onConfirm: () => resolve(true),
-              onCancel: () => resolve(false)
-            }
+              onCancel: () => resolve(false),
+            },
           );
-        } else if(window.confirm(`Existing Template Doctor issue found: #${firstIssue.number}\n\nCreate a new issue anyway?`)) {
+        } else if (
+          window.confirm(
+            `Existing Template Doctor issue found: #${firstIssue.number}\n\nCreate a new issue anyway?`,
+          )
+        ) {
           resolve(true);
         } else {
           resolve(false);
         }
       });
-      
-      if(!proceed) {
+
+      if (!proceed) {
         console.log('[IssueService] User cancelled issue creation');
         showInfo('Cancelled', 'Issue creation cancelled');
         return;
       }
-      
+
       // Recreate loading notification
-      notification = (window as any).NotificationSystem?.showLoading?.('Creating GitHub Issues', 'Continuing with issue creation...') 
-        || (window as any).Notifications?.loading?.('Creating GitHub Issues', 'Continuing with issue creation...');
+      notification =
+        (window as any).NotificationSystem?.showLoading?.(
+          'Creating GitHub Issues',
+          'Continuing with issue creation...',
+        ) ||
+        (window as any).Notifications?.loading?.(
+          'Creating GitHub Issues',
+          'Continuing with issue creation...',
+        );
     }
-    
+
     // Ensure label family (legacy test captures this)
-    if(notification?.update) {
-      notification.update('Ensuring labels exist', `Creating labels in ${forkCtx.owner}/${forkCtx.repo}...`);
+    if (notification?.update) {
+      notification.update(
+        'Ensuring labels exist',
+        `Creating labels in ${forkCtx.owner}/${forkCtx.repo}...`,
+      );
     }
-    
-    if(github.ensureLabelsExist){
+
+    if (github.ensureLabelsExist) {
       console.log('[IssueService] Ensuring labels exist:', mainLabels);
       await github.ensureLabelsExist(forkCtx.owner, forkCtx.repo, mainLabels);
       console.log('[IssueService] Labels ensured');
     }
-    
-    if(notification?.update) {
-      notification.update('Creating main issue', 'Creating top-level tracking issue with Copilot assignment...');
+
+    if (notification?.update) {
+      notification.update(
+        'Creating main issue',
+        'Creating top-level tracking issue with Copilot assignment...',
+      );
     }
-    
+
     const mainBody = buildMainIssueBody(data);
     console.log('[IssueService] Creating top-level issue via GraphQL...');
-    const mainIssue = await github.createIssueGraphQL(forkCtx.owner, forkCtx.repo, issueTitle, mainBody, mainLabels);
+    const mainIssue = await github.createIssueGraphQL(
+      forkCtx.owner,
+      forkCtx.repo,
+      issueTitle,
+      mainBody,
+      mainLabels,
+    );
     console.log('[IssueService] Top-level issue created:', mainIssue);
-    
+
     // Create child issues (sub-issues) for each compliance problem
     const childIssues = [];
-    for(let i = 0; i < issues.length; i++){
+    for (let i = 0; i < issues.length; i++) {
       const c = issues[i];
-      
-      if(notification?.update) {
-        notification.update('Creating sub-issues', `Creating sub-issue ${i + 1} of ${issues.length}...`);
+
+      if (notification?.update) {
+        notification.update(
+          'Creating sub-issues',
+          `Creating sub-issue ${i + 1} of ${issues.length}...`,
+        );
       }
-      
+
       console.log(`[IssueService] Creating child issue ${i + 1}/${issues.length} for ${c.id}`);
-      
+
       const sev = mapSeverity(c.severity);
-      const childLabels = ['template-doctor','template-doctor-child-issue', `ruleset:${ruleSet}`, `severity:${sev}`];
+      const childLabels = [
+        'template-doctor',
+        'template-doctor-child-issue',
+        `ruleset:${ruleSet}`,
+        `severity:${sev}`,
+      ];
       const templated = c.issueTemplate;
-      
+
       // Use [TD-BOT] prefix for child issue titles
       const problemTitle = templated?.title || c.message;
       const childTitle = `[TD-BOT] ${problemTitle}`;
-      
+
       // Build child body with reference to parent issue
       let childBody = `**Parent Issue:** #${mainIssue.number}\n\n`;
-      if(templated?.body) {
+      if (templated?.body) {
         childBody += ensureContextWrapper(issueTitle, c, data, templated.body);
       } else {
         childBody += buildChildIssueBody(issueTitle, c, data);
       }
-      
+
       try {
-        if(github.createIssueWithoutCopilot){
-          const childIssue = await github.createIssueWithoutCopilot(forkCtx.owner, forkCtx.repo, childTitle, childBody, childLabels);
+        if (github.createIssueWithoutCopilot) {
+          const childIssue = await github.createIssueWithoutCopilot(
+            forkCtx.owner,
+            forkCtx.repo,
+            childTitle,
+            childBody,
+            childLabels,
+          );
           childIssues.push(childIssue);
           console.log(`[IssueService] Child issue ${i + 1} created:`, childIssue);
-        } else if (github.createIssueGraphQL){
-          const childIssue = await github.createIssueGraphQL(forkCtx.owner, forkCtx.repo, childTitle, childBody, childLabels);
+        } else if (github.createIssueGraphQL) {
+          const childIssue = await github.createIssueGraphQL(
+            forkCtx.owner,
+            forkCtx.repo,
+            childTitle,
+            childBody,
+            childLabels,
+          );
           childIssues.push(childIssue);
           console.log(`[IssueService] Child issue ${i + 1} created:`, childIssue);
         }
-      } catch(childErr) {
+      } catch (childErr) {
         console.error(`[IssueService] Failed to create child issue ${i + 1}:`, childErr);
       }
     }
-    
+
     console.log(`[IssueService] Created ${childIssues.length} child issues`);
-    
+
     // Show success
     const repoIssuesUrl = `https://github.com/${forkCtx.owner}/${forkCtx.repo}/issues`;
-    if(notification?.success) {
+    if (notification?.success) {
       notification.success(
         'Issues Created Successfully',
         `Top-level issue #${mainIssue.number} created with ${childIssues.length} sub-issues.`,
@@ -453,49 +611,52 @@ async function processIssueCreation(github: any){
             {
               label: 'Open Top-Level Issue',
               onClick: () => window.open(mainIssue.url, '_blank'),
-              primary: true
+              primary: true,
             },
             {
               label: 'View All Issues',
-              onClick: () => window.open(repoIssuesUrl, '_blank')
-            }
-          ]
-        }
+              onClick: () => window.open(repoIssuesUrl, '_blank'),
+            },
+          ],
+        },
       );
-    } else if(notification?.close) {
+    } else if (notification?.close) {
       notification.close();
-      showInfo('Issues Created', `Top-level issue #${mainIssue.number} created with ${childIssues.length} sub-issues.`);
+      showInfo(
+        'Issues Created',
+        `Top-level issue #${mainIssue.number} created with ${childIssues.length} sub-issues.`,
+      );
     }
-    
+
     return mainIssue;
-  } catch (e){
+  } catch (e) {
     console.error('[IssueService] processIssueCreation failed', e);
-    if(notification?.error) {
+    if (notification?.error) {
       notification.error('Error Creating Issues', (e as any)?.message || String(e));
-    } else if(notification?.close) {
+    } else if (notification?.close) {
       notification.close();
       showError('Error Creating Issues', (e as any)?.message || String(e));
     }
   }
 }
 
-function createGitHubIssue(){
+function createGitHubIssue() {
   // Wrapper to keep API parity with legacy if still referenced.
   // Shows confirmation dialog before creating issues
   const gh = (window as any).GitHubClient;
-  if(!gh){
+  if (!gh) {
     showError('Error', 'GitHub client not available');
     return;
   }
-  
-  if(!gh.auth || !gh.auth.isAuthenticated()){
+
+  if (!gh.auth || !gh.auth.isAuthenticated()) {
     showWarn('Authentication Required', 'You need to be logged in with GitHub to create issues.');
-    if(gh.auth && typeof gh.auth.login === 'function'){
+    if (gh.auth && typeof gh.auth.login === 'function') {
       gh.auth.login();
     }
     return;
   }
-  
+
   // Show confirmation dialog
   confirmCreate(() => processIssueCreation(gh));
 }
@@ -508,54 +669,81 @@ function createGitHubIssue(){
 // Criteria: a fresh scan emits 'analysis-completed' (emitted by analyzer pipeline) or
 // an inline flag window.__LatestScanFresh = true set by analyzeRepo wrapper.
 // Viewing a historical report (view-report path) should KEEP the button hidden.
-(function manageIssueButtonVisibility(){
-  function hide(btn: HTMLElement){ btn.style.opacity='0'; btn.style.visibility='hidden'; btn.style.pointerEvents='none'; }
-  function show(btn: HTMLElement){ btn.style.opacity='1'; btn.style.visibility='visible'; btn.style.pointerEvents='auto'; }
-  function isFresh(){ return !!(window as any).__LatestScanFresh; }
-  function update(){
-    const w:any = window as any;
+(function manageIssueButtonVisibility() {
+  function hide(btn: HTMLElement) {
+    btn.style.opacity = '0';
+    btn.style.visibility = 'hidden';
+    btn.style.pointerEvents = 'none';
+  }
+  function show(btn: HTMLElement) {
+    btn.style.opacity = '1';
+    btn.style.visibility = 'visible';
+    btn.style.pointerEvents = 'auto';
+  }
+  function isFresh() {
+    return !!(window as any).__LatestScanFresh;
+  }
+  function update() {
+    const w: any = window as any;
     const b = document.getElementById('create-github-issue-btn') as HTMLElement | null;
-    if(!b) return;
+    if (!b) return;
     const staticView = /\/results\//.test(location.pathname) || !!w.__STATIC_REPORT_VIEW;
     const testBypass = !!w.PLAYWRIGHT_TEST || !!w.__FORCE_SHOW_ISSUE_BUTTON;
     if ((isFresh() || testBypass) && !staticView) {
-      b.setAttribute('aria-hidden','false');
+      b.setAttribute('aria-hidden', 'false');
       b.removeAttribute('data-hidden-reason');
       show(b);
     } else {
-      b.setAttribute('aria-hidden','true');
+      b.setAttribute('aria-hidden', 'true');
       b.setAttribute('data-hidden-reason', staticView ? 'static-report' : 'no-fresh-scan');
       hide(b);
     }
   }
-  document.addEventListener('analysis-completed', ()=>{ (window as any).__LatestScanFresh = true; update(); });
-  document.addEventListener('template-report-rendered', ()=>{ // render event from view of saved report; do not mark fresh
+  document.addEventListener('analysis-completed', () => {
+    (window as any).__LatestScanFresh = true;
+    update();
+  });
+  document.addEventListener('template-report-rendered', () => {
+    // render event from view of saved report; do not mark fresh
     update();
   });
   // Wrap analyzeRepo (when available) to mark fresh scans
   let attempts = 0;
-  function tryWrap(){
-    const w:any = window as any;
-    if (w.analyzeRepo && !w.__AnalyzeRepoWrapped){
+  function tryWrap() {
+    const w: any = window as any;
+    if (w.analyzeRepo && !w.__AnalyzeRepoWrapped) {
       const orig = w.analyzeRepo;
-      w.analyzeRepo = function wrappedAnalyzeRepo(repoUrl: string, ruleSet?: string, categories?: any){
+      w.analyzeRepo = function wrappedAnalyzeRepo(
+        repoUrl: string,
+        ruleSet?: string,
+        categories?: any,
+      ) {
         w.__LatestScanFresh = true; // mark intent
-        try { update(); } catch(_) {}
+        try {
+          update();
+        } catch (_) {}
         const res = orig.apply(this, arguments as any);
-        if (res && typeof res.then === 'function'){
-          res.then(()=>{ document.dispatchEvent(new CustomEvent('analysis-completed')); }).catch(()=>{});
+        if (res && typeof res.then === 'function') {
+          res
+            .then(() => {
+              document.dispatchEvent(new CustomEvent('analysis-completed'));
+            })
+            .catch(() => {});
         } else {
           // Fallback: dispatch after short delay
-          setTimeout(()=> document.dispatchEvent(new CustomEvent('analysis-completed')), 2000);
+          setTimeout(() => document.dispatchEvent(new CustomEvent('analysis-completed')), 2000);
         }
         return res;
       };
       w.__AnalyzeRepoWrapped = true;
-    } else if (attempts < 25){
-      attempts++; setTimeout(tryWrap, 200);
+    } else if (attempts < 25) {
+      attempts++;
+      setTimeout(tryWrap, 200);
     }
   }
   tryWrap();
   // Initial attempt after DOM interactive
-  if (document.readyState === 'complete' || document.readyState === 'interactive'){ setTimeout(update, 300); }
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    setTimeout(update, 300);
+  }
 })();

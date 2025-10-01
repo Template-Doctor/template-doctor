@@ -55,11 +55,24 @@ function ensureSection(): HTMLElement | null {
 }
 
 function createCard(t: ScannedTemplateEntry): HTMLElement {
-  const repoName = t.repoUrl.includes('github.com/') ? t.repoUrl.split('github.com/')[1] : t.repoUrl;
-  const templateId = `template-${(t.relativePath || 'unknown').split('/')[0]}`.replace(/[^a-zA-Z0-9-]/g, '-');
-  const lastScanner = t.scannedBy && t.scannedBy.length ? t.scannedBy[t.scannedBy.length - 1] : 'Unknown';
+  const repoName = t.repoUrl.includes('github.com/')
+    ? t.repoUrl.split('github.com/')[1]
+    : t.repoUrl;
+  const templateId = `template-${(t.relativePath || 'unknown').split('/')[0]}`.replace(
+    /[^a-zA-Z0-9-]/g,
+    '-',
+  );
+  const lastScanner =
+    t.scannedBy && t.scannedBy.length ? t.scannedBy[t.scannedBy.length - 1] : 'Unknown';
   const ruleSet = t.ruleSet || 'dod';
-  const ruleSetDisplay = ruleSet === 'dod' ? 'DoD' : ruleSet === 'partner' ? 'Partner' : ruleSet === 'docs' ? 'Docs' : 'Custom';
+  const ruleSetDisplay =
+    ruleSet === 'dod'
+      ? 'DoD'
+      : ruleSet === 'partner'
+        ? 'Partner'
+        : ruleSet === 'docs'
+          ? 'Docs'
+          : 'Custom';
   const gistUrl = ruleSet === 'custom' ? t.customConfig?.gistUrl : '';
   const card = document.createElement('div');
   card.className = 'template-card';
@@ -102,7 +115,9 @@ function createCard(t: ScannedTemplateEntry): HTMLElement {
       document.dispatchEvent(new CustomEvent('template-card-rescan', { detail: { template: t } }));
     } else if (action === 'validate') {
       console.log('[TemplateList] validate requested', t.repoUrl);
-      document.dispatchEvent(new CustomEvent('template-card-validate', { detail: { template: t } }));
+      document.dispatchEvent(
+        new CustomEvent('template-card-validate', { detail: { template: t } }),
+      );
     }
   });
   return card;
@@ -125,14 +140,14 @@ function loadMore(data: ScannedTemplateEntry[], grid: Element, section: HTMLElem
   // Load next PAGE_SIZE templates and return true if more templates were loaded
   const previousCount = loadedCount;
   loadedCount = Math.min(loadedCount + PAGE_SIZE, data.length);
-  
+
   if (loadedCount > previousCount) {
     // Append only the newly loaded cards (more efficient than re-rendering all)
     data.slice(previousCount, loadedCount).forEach((entry) => grid.appendChild(createCard(entry)));
     updateLoadMoreButton(data.length, section);
     return true;
   }
-  
+
   return false;
 }
 
@@ -148,14 +163,14 @@ function renderLoadMoreButton(total: number, section: HTMLElement) {
       </button>
       <div class="load-more-info"></div>`;
     section.appendChild(container);
-    
+
     const btn = container.querySelector('.load-more-btn') as HTMLButtonElement;
     btn.onclick = () => {
       const data = window.templatesData;
       if (!Array.isArray(data)) return;
       const grid = section.querySelector(`#${GRID_ID}`);
       if (!grid) return;
-      
+
       // Show loading state
       btn.disabled = true;
       btn.classList.add('loading');
@@ -163,7 +178,7 @@ function renderLoadMoreButton(total: number, section: HTMLElement) {
       if (icon) {
         icon.className = 'fas fa-spinner fa-spin';
       }
-      
+
       // Simulate slight delay for better UX (feels more deliberate)
       setTimeout(() => {
         loadMore(data, grid, section);
@@ -175,17 +190,17 @@ function renderLoadMoreButton(total: number, section: HTMLElement) {
       }, 150);
     };
   }
-  
+
   updateLoadMoreButton(total, section);
 }
 
 function updateLoadMoreButton(total: number, section: HTMLElement) {
   const container = section.querySelector(`.${LOAD_MORE_CLASS}`) as HTMLElement | null;
   if (!container) return;
-  
+
   const btn = container.querySelector('.load-more-btn') as HTMLButtonElement;
   const info = container.querySelector('.load-more-info') as HTMLElement;
-  
+
   if (loadedCount >= total) {
     // All templates loaded - hide button
     container.style.display = 'none';
@@ -204,7 +219,8 @@ function renderPagination(total: number, section: HTMLElement) {
 function render() {
   try {
     // Allow rendering in test/headless context even if auth not yet established.
-    const testMode = !!(window as any).PLAYWRIGHT_TEST || navigator.userAgent.includes('Playwright');
+    const testMode =
+      !!(window as any).PLAYWRIGHT_TEST || navigator.userAgent.includes('Playwright');
     if (window.GitHubAuth && typeof window.GitHubAuth.isAuthenticated === 'function') {
       if (!window.GitHubAuth.isAuthenticated() && !testMode) {
         console.debug('[TemplateList] render aborted: not authenticated (non-test mode)');
@@ -212,18 +228,27 @@ function render() {
       }
     }
     const data = window.templatesData;
-    if (!Array.isArray(data)) { console.debug('[TemplateList] render aborted: templatesData not an array', data); return; }
-    if (data.length === 0) { console.debug('[TemplateList] render aborted: templatesData empty'); return; }
+    if (!Array.isArray(data)) {
+      console.debug('[TemplateList] render aborted: templatesData not an array', data);
+      return;
+    }
+    if (data.length === 0) {
+      console.debug('[TemplateList] render aborted: templatesData empty');
+      return;
+    }
     console.debug('[TemplateList] rendering', { count: data.length });
     const section = ensureSection();
     const grid = section?.querySelector(`#${GRID_ID}`);
-    if (!grid) { console.debug('[TemplateList] render aborted: grid element missing'); return; }
-    
+    if (!grid) {
+      console.debug('[TemplateList] render aborted: grid element missing');
+      return;
+    }
+
     // Initialize with first PAGE_SIZE templates
     loadedCount = Math.min(PAGE_SIZE, data.length);
     renderLoadedTemplates(data, grid);
     renderLoadMoreButton(data.length, section as HTMLElement);
-    
+
     if (!rendered) {
       rendered = true;
       document.dispatchEvent(
@@ -237,14 +262,17 @@ function render() {
 }
 
 function refresh() {
-  if (!rendered) { console.debug('[TemplateList] refresh: not rendered yet; calling render'); return render(); }
+  if (!rendered) {
+    console.debug('[TemplateList] refresh: not rendered yet; calling render');
+    return render();
+  }
   const section = document.getElementById(SECTION_ID);
   if (!section) return;
   const grid = section.querySelector(`#${GRID_ID}`);
   if (!grid) return;
   if (!Array.isArray(window.templatesData)) return;
   console.debug('[TemplateList] refresh executing');
-  
+
   // Keep current loadedCount but re-render all loaded templates
   renderLoadedTemplates(window.templatesData, grid);
   renderLoadMoreButton(window.templatesData.length, section);
@@ -275,7 +303,8 @@ function init() {
   render();
   document.addEventListener('template-data-loaded', () => {
     console.debug('[TemplateList] template-data-loaded event received');
-    if (!rendered) render(); else refresh();
+    if (!rendered) render();
+    else refresh();
   });
   document.addEventListener('template-data-updated', () => {
     // external event to force refresh after data mutation
@@ -285,11 +314,11 @@ function init() {
   tryRenderSoon();
 }
 
-window.TemplateList = { 
-  init, 
-  render, 
-  isRendered: () => rendered, 
-  refresh, 
+window.TemplateList = {
+  init,
+  render,
+  isRendered: () => rendered,
+  refresh,
   getCount: () => (Array.isArray(window.templatesData) ? window.templatesData.length : 0),
   getLoadedCount: () => loadedCount,
   loadMore: (): boolean => {
@@ -302,20 +331,20 @@ window.TemplateList = {
   loadUntilIndex: async (index: number): Promise<boolean> => {
     const data = window.templatesData;
     if (!Array.isArray(data) || index < 0 || index >= data.length) return false;
-    
+
     const section = document.getElementById(SECTION_ID);
     const grid = section?.querySelector(`#${GRID_ID}`);
     if (!section || !grid) return false;
-    
+
     // Load templates progressively until the target index is visible
     while (loadedCount <= index && loadedCount < data.length) {
       loadMore(data, grid, section as HTMLElement);
       // Small delay for smoother UX and to allow DOM updates
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
-    
+
     return loadedCount > index;
-  }
+  },
 };
 
 // Auto-init after DOM is ready if loaded late in the document lifecycle

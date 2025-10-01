@@ -46,7 +46,17 @@ function log(...args: any[]) {
 function dispatchOnce() {
   if (state.dispatched) return;
   state.dispatched = true;
-  log('Dispatching template-data-loaded event. State snapshot:', JSON.stringify({ attempted: state.attempted, loaded: state.loaded, authenticatedAtLoad: state.authenticatedAtLoad, dataLength: Array.isArray((window as any).templatesData) ? (window as any).templatesData.length : 'n/a' }));
+  log(
+    'Dispatching template-data-loaded event. State snapshot:',
+    JSON.stringify({
+      attempted: state.attempted,
+      loaded: state.loaded,
+      authenticatedAtLoad: state.authenticatedAtLoad,
+      dataLength: Array.isArray((window as any).templatesData)
+        ? (window as any).templatesData.length
+        : 'n/a',
+    }),
+  );
   try {
     document.dispatchEvent(new CustomEvent('template-data-loaded'));
   } catch (e) {
@@ -91,7 +101,9 @@ function injectScript() {
     state.authenticatedAtLoad = true;
   }
   if (!state.authenticatedAtLoad) {
-    log('Not authenticated at load attempt; setting placeholder templatesData (will retry after login)');
+    log(
+      'Not authenticated at load attempt; setting placeholder templatesData (will retry after login)',
+    );
     ensureArray(false); // do NOT mark loaded so we can retry when auth arrives
     dispatchOnce();
     return;

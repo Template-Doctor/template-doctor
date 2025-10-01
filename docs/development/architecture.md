@@ -19,13 +19,13 @@ sequenceDiagram
     FA->>FA: Store in run-id-store (initially with null GitHub info)
     FA->>GHA: Trigger workflow dispatch to validation-template.yml with runId
     FA-->>SWA: Return runId
-    
+
     GH->>GH: Execute validation workflow
     GH->>GH: Parse repo URL and matrix strategy
     GH->>GH: Clone and validate template with microsoft/template-validation-action
     GH-->>FA: POST /api/validation-callback (runId, githubRunId, githubRunUrl)
     FA->>FA: Update run-id-store with GitHub info
-    
+
     loop Until validation complete
         SWA->>LS: Check for stored GitHub run ID
         LS-->>SWA: Return stored run ID (if available)
@@ -36,11 +36,12 @@ sequenceDiagram
         FA-->>SWA: Return status, conclusion, and results (with githubRunId)
         SWA->>LS: Store GitHub run ID for future requests
     end
-    
+
     SWA-->>U: Display validation results
 ```
 
 Notes:
+
 - The in-memory run-id-store maps internal UUIDs to GitHub workflow run IDs and URLs
 - The frontend stores GitHub run IDs in localStorage to maintain mapping across browser sessions
 - When polling for status, the frontend includes the stored GitHub run ID in the request
@@ -63,16 +64,16 @@ sequenceDiagram
 
     EC->>GHD: Trigger template-analysis-completed
     GHD->>SAW: Execute submit-analysis workflow
-    
+
     SAW->>SAW: Checkout repository & setup Node.js
     SAW->>TDA: Process analysis result with action
     Note right of TDA: Uses repository action.yml
     TDA->>TDA: Generate dashboard & data files
     TDA-->>SAW: Return template data (JSON)
-    
+
     SAW->>GH: Create Pull Request with analysis results
     GH-->>SAW: Return PR details
-    
+
     alt If archiveEnabled is true
         SAW->>ARC: POST to archive-collection API
         ARC-->>SAW: Return archive status
@@ -80,6 +81,7 @@ sequenceDiagram
 ```
 
 Notes:
+
 - The submit-analysis workflow is triggered by a repository_dispatch event of type "template-analysis-completed"
 - The workflow uses the Template Doctor action (action.yml in the repository root) to process analysis results
 - The action generates dashboard HTML and data JS files for the analyzed template
@@ -116,14 +118,14 @@ The following diagram illustrates the high-level system architecture of Template
 ```mermaid
 graph TB
     User((User))
-    
+
     subgraph "Frontend (Static Web App)"
         UI[Web UI]
         ResultsViewer[Results Viewer]
         BatchManager[Batch Manager]
         NotificationSystem[Notification System]
     end
-    
+
     subgraph "Azure Functions"
         ValidateTemplate[validate-template]
         ValidationStatus[validation-status]
@@ -131,45 +133,45 @@ graph TB
         GithubOAuth[github-oauth-token]
         ArchiveCollection[archive-collection]
     end
-    
+
     subgraph "GitHub Workflows"
         ValidationWorkflow[validation-template.yml]
         SubmitAnalysis[submit-analysis.yml]
     end
-    
+
     subgraph "Storage"
         localStorage[(localStorage)]
         ResultsRepo[(GitHub Pages Results)]
     end
-    
+
     User --> UI
     UI --> BatchManager
     UI --> NotificationSystem
     UI --> ResultsViewer
-    
+
     BatchManager --> ValidateTemplate
     UI --> ValidateTemplate
     UI --> ValidationStatus
     UI --> GithubOAuth
-    
+
     ValidateTemplate --> ValidationWorkflow
     ValidationWorkflow --> ValidationCallback
     ValidationCallback --> ValidationStatus
-    
+
     ValidationWorkflow --> SubmitAnalysis
     SubmitAnalysis --> ResultsRepo
     SubmitAnalysis --> ArchiveCollection
-    
+
     ValidationStatus --> localStorage
     localStorage --> ValidationStatus
-    
+
     ResultsRepo --> ResultsViewer
-    
+
     GithubOAuth --> GitHub
-    
+
     class UI,BatchManager,ResultsViewer,NotificationSystem highlight
     class ValidateTemplate,ValidationStatus,ValidationCallback,GithubOAuth,ArchiveCollection highlight
     class ValidationWorkflow,SubmitAnalysis highlight
-    
+
     classDef highlight fill:#f9f,stroke:#333,stroke-width:2px
 ```

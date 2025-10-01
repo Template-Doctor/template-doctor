@@ -17,13 +17,13 @@ export interface AnalyzerIssue {
 
 /** Normalized violation used internally in UI */
 export interface Violation {
-  key: string;               // stable identifier
+  key: string; // stable identifier
   title: string;
-  body: string;              // markdown-ish description
+  body: string; // markdown-ish description
   severity: string;
   path?: string;
-  filePath?: string;         // optional original file path (legacy compatibility)
-  snippet?: string;          // optional code/document snippet
+  filePath?: string; // optional original file path (legacy compatibility)
+  snippet?: string; // optional code/document snippet
   docsUrl?: string;
   remediation?: string;
   category?: string;
@@ -50,7 +50,7 @@ export function mapAnalyzerIssueToViolation(issue: AnalyzerIssue): Violation {
     docsUrl: issue.docsUrl,
     remediation: issue.remediation,
     category: issue.category,
-    line: issue.line
+    line: issue.line,
   };
 }
 
@@ -59,7 +59,7 @@ export function mapAnalyzerIssueToViolation(issue: AnalyzerIssue): Violation {
  */
 export function formatViolationAsIssue(
   v: Violation,
-  options?: { compliancePercentage?: number }
+  options?: { compliancePercentage?: number },
 ): { title: string; body: string; labels: string[] } {
   const labels: string[] = [];
   if (v.severity) labels.push('severity:' + v.severity);
@@ -79,11 +79,20 @@ export function formatViolationAsIssue(
 }
 
 function sanitizeLabel(input: string): string {
-  return input.toLowerCase().replace(/[^a-z0-9:_-]+/g, '-').replace(/--+/g, '-').replace(/^-|-$/g, '');
+  return input
+    .toLowerCase()
+    .replace(/[^a-z0-9:_-]+/g, '-')
+    .replace(/--+/g, '-')
+    .replace(/^-|-$/g, '');
 }
 
-function dedupe(arr: string[]): string[] { return Array.from(new Set(arr.filter(Boolean))); }
+function dedupe(arr: string[]): string[] {
+  return Array.from(new Set(arr.filter(Boolean)));
+}
 
 function generateKey(issue: AnalyzerIssue): string {
-  return [issue.ruleId, issue.path, issue.line, issue.title].filter(Boolean).join('|') || 'issue-' + Math.random().toString(36).slice(2, 8);
+  return (
+    [issue.ruleId, issue.path, issue.line, issue.title].filter(Boolean).join('|') ||
+    'issue-' + Math.random().toString(36).slice(2, 8)
+  );
 }

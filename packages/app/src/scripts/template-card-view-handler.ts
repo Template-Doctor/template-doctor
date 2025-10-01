@@ -61,12 +61,14 @@ function ensureAnalysisContainers() {
   (analysisSection as HTMLElement).style.display = 'none';
   (resultsContainer as HTMLElement).style.display = 'block'; // Container visible when section shown
   (reportDiv as HTMLElement).style.display = 'block'; // Report div visible when section shown
-  
+
   // Mark as ready for authenticated users
   const auth: any = (window as any).GitHubAuth;
   const authed = auth && typeof auth.isAuthenticated === 'function' && auth.isAuthenticated();
   if (authed) {
-    try { analysisSection.setAttribute('data-auth-ready','true'); } catch {}
+    try {
+      analysisSection.setAttribute('data-auth-ready', 'true');
+    } catch {}
   }
 }
 
@@ -91,31 +93,33 @@ function handleTemplateCardView(e: Event) {
   const analysisSection = document.getElementById('analysis-section');
   const resultsContainer = document.getElementById('results-container');
   const reportDiv = document.getElementById('report');
-  
+
   // Use UIController to manage section visibility
   document.dispatchEvent(new CustomEvent('show-analysis-section'));
-  
+
   // Smooth scroll to analysis section after a short delay to ensure it's visible
   setTimeout(() => {
     if (analysisSection) {
       analysisSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }, 100);
-  
+
   if (resultsContainer) resultsContainer.style.display = 'block';
   if (reportDiv) {
     reportDiv.innerHTML = '<div class="loading-message">Loading report...</div>';
   } else {
-    console.warn('[template-card-view-handler] Failed to create/find #report after ensureAnalysisContainers');
+    console.warn(
+      '[template-card-view-handler] Failed to create/find #report after ensureAnalysisContainers',
+    );
   }
   if (!window.ReportLoader) {
     console.warn('[template-card-view-handler] ReportLoader not available');
     return;
   }
-  
+
   // Pass the full template object (not just repoUrl) so ReportLoader can access metadata
   console.debug('[template-card-view-handler] Loading report for template:', tmpl);
-  
+
   // Update repo name and URL in header
   const repoNameEl = document.getElementById('repo-name');
   const repoUrlEl = document.getElementById('repo-url');
@@ -138,11 +142,11 @@ function handleTemplateCardView(e: Event) {
       repoUrlEl.textContent = repoUrl;
     }
   }
-  
+
   window.ReportLoader.loadReport(tmpl)
     .then((reportData) => {
       console.debug('[template-card-view-handler] Report loaded successfully:', reportData);
-      
+
       // Render the report using DashboardRenderer if available
       if (reportDiv && (window as any).DashboardRenderer) {
         (window as any).DashboardRenderer.render(reportData, reportDiv);
@@ -158,7 +162,8 @@ function handleTemplateCardView(e: Event) {
     })
     .catch((err) => {
       console.error('[template-card-view-handler] Failed to load report:', err);
-      if (reportDiv) reportDiv.innerHTML = `<div class="error-message">Failed to load report: ${err.message || err}</div>`;
+      if (reportDiv)
+        reportDiv.innerHTML = `<div class="error-message">Failed to load report: ${err.message || err}</div>`;
     });
 }
 
@@ -167,9 +172,17 @@ document.addEventListener('template-card-view', handleTemplateCardView);
 // Proactively ensure base containers once DOM is interactive; avoids race where event is dispatched
 // before handler created #report (especially in tests that click immediately).
 if (document.readyState === 'complete' || document.readyState === 'interactive') {
-  queueMicrotask(() => { try { ensureAnalysisContainers(); } catch(_){} });
+  queueMicrotask(() => {
+    try {
+      ensureAnalysisContainers();
+    } catch (_) {}
+  });
 } else {
-  document.addEventListener('DOMContentLoaded', () => { try { ensureAnalysisContainers(); } catch(_){} });
+  document.addEventListener('DOMContentLoaded', () => {
+    try {
+      ensureAnalysisContainers();
+    } catch (_) {}
+  });
 }
 
 // Expose a manual trigger helper for tests / debugging.
@@ -178,7 +191,7 @@ try {
     const t = { repoUrl };
     document.dispatchEvent(new CustomEvent('template-card-view', { detail: { template: t } }));
   };
-} catch(_) {}
+} catch (_) {}
 
 // Delegated click listener to avoid race where cards are rendered before per-card listeners attached
 // or where tests click before handler readiness is confirmed.
@@ -196,10 +209,12 @@ document.addEventListener('click', (ev) => {
   let template: any = { repoUrl };
   try {
     if (Array.isArray((window as any).templatesData)) {
-      const match = (window as any).templatesData.find((t: any) => (t.repoUrl || '').toLowerCase() === repoUrl.toLowerCase());
+      const match = (window as any).templatesData.find(
+        (t: any) => (t.repoUrl || '').toLowerCase() === repoUrl.toLowerCase(),
+      );
       if (match) template = match;
     }
-  } catch(_) {}
+  } catch (_) {}
   handleTemplateCardView(new CustomEvent('template-card-view', { detail: { template } }) as any);
 });
 

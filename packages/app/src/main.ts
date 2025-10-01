@@ -10,17 +10,21 @@ import './notifications/notifications.ts';
 import './app/ui-controller.ts';
 
 // Early CSP/apiBase normalization (previous inline script)
-(function(){
+(function () {
   try {
     var host = window.location.hostname;
     var githubHosted = /\.github\.io$/i.test(host) || /github\.com$/i.test(host);
     if (githubHosted) {
       (window as any).TemplateDoctorConfig = (window as any).TemplateDoctorConfig || {};
       (window as any).TemplateDoctorConfig.apiBase = window.location.origin;
-      (window as any).getTemplateDoctorApiBase = function(){ return window.location.origin; };
+      (window as any).getTemplateDoctorApiBase = function () {
+        return window.location.origin;
+      };
       (window as any).__TD_CSP_FORCED_SAME_ORIGIN__ = true;
     }
-  } catch(e) { console.warn('CSP init failed', e); }
+  } catch (e) {
+    console.warn('CSP init failed', e);
+  }
 })();
 
 import './scripts/api-routes.ts'; // ensure ApiRoutes global before runtime-config probes
@@ -99,21 +103,17 @@ console.log('[vite] main.ts loaded');
 // (Migration placeholder removed: analyzer TS migrated path already covered by legacy bundle)
 // Ensure core styles (previously missing in production build) are part of bundle
 // Import core legacy CSS assets so they get bundled (fallback if path changes)
-const legacyCss = [
-	'/css/style.css',
-	'/css/templates.css',
-	'/css/dashboard.css'
-];
-legacyCss.forEach(p => {
-	try {
-		// Vite will treat this as a fetch of a public asset if it exists in root public path
-		const link = document.createElement('link');
-		link.rel = 'stylesheet';
-		link.href = p;
-		document.head.appendChild(link);
-	} catch (e){
-		console.warn('[main] unable to append legacy stylesheet', p, e);
-	}
+const legacyCss = ['/css/style.css', '/css/templates.css', '/css/dashboard.css'];
+legacyCss.forEach((p) => {
+  try {
+    // Vite will treat this as a fetch of a public asset if it exists in root public path
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = p;
+    document.head.appendChild(link);
+  } catch (e) {
+    console.warn('[main] unable to append legacy stylesheet', p, e);
+  }
 });
 // (Migration placeholder removed: templates-data-loader TS version)
 // Remaining analytic & rendering modules (analyzer already loaded above)

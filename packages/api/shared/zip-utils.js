@@ -23,39 +23,47 @@ const MAX_FILES_COUNT = 1000; // Maximum number of files to extract
  * @param {number} [options.maxFileCount=1000] - Maximum number of files to extract
  * @returns {Promise<Object>} - Object containing file contents, with filenames as keys
  */
-async function extractFilesFromZip(zipData, context = null, correlationId = null, options = {}) {
+async function extractFilesFromZip(
+    zipData,
+    context = null,
+    correlationId = null,
+    options = {},
+) {
     const requestId = correlationId || `zip-extract-${Date.now()}`;
-    
+
     // Apply extraction limits with defaults
     const extractionLimits = {
         maxZipSizeMB: options.maxZipSizeMB || MAX_ZIP_SIZE_MB,
-        maxSingleFileSizeMB: options.maxSingleFileSizeMB || MAX_SINGLE_FILE_SIZE_MB, 
+        maxSingleFileSizeMB:
+            options.maxSingleFileSizeMB || MAX_SINGLE_FILE_SIZE_MB,
         maxTotalSizeMB: options.maxTotalSizeMB || MAX_TOTAL_EXTRACTED_SIZE_MB,
         maxFileCount: options.maxFileCount || MAX_FILES_COUNT,
-        returnBuffers: options.returnBuffers || false
+        returnBuffers: options.returnBuffers || false,
     };
 
     return new Promise((resolve, reject) => {
         // Convert ArrayBuffer to Buffer for yauzl using optimized method
         const buffer = arrayBufferToBuffer(zipData);
         const files = {};
-        
+
         // Check zip file size limit
         const zipSizeInMB = buffer.length / (1024 * 1024);
         if (zipSizeInMB > extractionLimits.maxZipSizeMB) {
-            const error = new Error(`ZIP file size exceeds maximum allowed: ${zipSizeInMB.toFixed(2)}MB > ${extractionLimits.maxZipSizeMB}MB`);
-            error.code = 'ZIP_TOO_LARGE';
+            const error = new Error(
+                `ZIP file size exceeds maximum allowed: ${zipSizeInMB.toFixed(2)}MB > ${extractionLimits.maxZipSizeMB}MB`,
+            );
+            error.code = "ZIP_TOO_LARGE";
             error.requestId = requestId;
-            
+
             if (context && context.log && context.log.error) {
                 context.log.error(`ZIP file size exceeds maximum allowed`, {
-                    operation: 'extractFilesFromZip',
+                    operation: "extractFilesFromZip",
                     zipSizeMB: zipSizeInMB.toFixed(2),
                     maxAllowedMB: extractionLimits.maxZipSizeMB,
-                    requestId
+                    requestId,
                 });
             }
-            
+
             reject(error);
             return;
         }
@@ -63,20 +71,32 @@ async function extractFilesFromZip(zipData, context = null, correlationId = null
         // Safe logging helper
         const safeLog = (level, message, data) => {
             if (context && context.log) {
-                if (level === 'error' && context.log.error) {
-                    context.log.error(message, { ...data, operation: 'extractFilesFromZip', requestId });
-                } else if (level === 'warn' && context.log.warn) {
-                    context.log.warn(message, { ...data, operation: 'extractFilesFromZip', requestId });
+                if (level === "error" && context.log.error) {
+                    context.log.error(message, {
+                        ...data,
+                        operation: "extractFilesFromZip",
+                        requestId,
+                    });
+                } else if (level === "warn" && context.log.warn) {
+                    context.log.warn(message, {
+                        ...data,
+                        operation: "extractFilesFromZip",
+                        requestId,
+                    });
                 } else {
-                    context.log(message, { ...data, operation: 'extractFilesFromZip', requestId });
+                    context.log(message, {
+                        ...data,
+                        operation: "extractFilesFromZip",
+                        requestId,
+                    });
                 }
             }
         };
 
-        safeLog('info', `Extracting files from ZIP archive`, {
+        safeLog("info", `Extracting files from ZIP archive`, {
             bufferSize: buffer.length,
             zipSizeMB: (buffer.length / (1024 * 1024)).toFixed(2),
-            extractionLimits
+            extractionLimits,
         });
 
         // Tracking variables for ZIP bomb protection
@@ -86,15 +106,17 @@ async function extractFilesFromZip(zipData, context = null, correlationId = null
         // Use yauzl to open the zip file from the buffer
         yauzl.fromBuffer(buffer, { lazyEntries: true }, (err, zipfile) => {
             if (err) {
-                const error = new Error(`Failed to open zip file: ${err.message}`);
+                const error = new Error(
+                    `Failed to open zip file: ${err.message}`,
+                );
                 error.code = err.code;
                 error.requestId = requestId;
                 error.cause = err; // Preserve original error
 
-                safeLog('error', `Failed to open zip file`, {
+                safeLog("error", `Failed to open zip file`, {
                     error: err.message,
                     code: err.code,
-                    stack: err.stack
+                    stack: err.stack,
                 });
 
                 reject(error);
@@ -104,11 +126,15 @@ async function extractFilesFromZip(zipData, context = null, correlationId = null
             zipfile.on("entry", (entry) => {
                 // Check file count limit
                 if (fileCount >= extractionLimits.maxFileCount) {
-                    safeLog('warn', `Maximum file count reached, skipping further extraction`, {
-                        fileName: entry.fileName,
-                        fileCount,
-                        maxFileCount: extractionLimits.maxFileCount
-                    });
+                    safeLog(
+                        "warn",
+                        `Maximum file count reached, skipping further extraction`,
+                        {
+                            fileName: entry.fileName,
+                            fileCount,
+                            maxFileCount: extractionLimits.maxFileCount,
+                        },
+                    );
                     zipfile.readEntry();
                     return;
                 }
@@ -122,45 +148,66 @@ async function extractFilesFromZip(zipData, context = null, correlationId = null
                 // Check single file size limit
                 const fileSizeMB = entry.uncompressedSize / (1024 * 1024);
                 if (fileSizeMB > extractionLimits.maxSingleFileSizeMB) {
-                    safeLog('warn', `File size exceeds maximum allowed for single file, skipping`, {
-                        fileName: entry.fileName,
-                        fileSizeMB: fileSizeMB.toFixed(2),
-                        maxAllowedMB: extractionLimits.maxSingleFileSizeMB
-                    });
+                    safeLog(
+                        "warn",
+                        `File size exceeds maximum allowed for single file, skipping`,
+                        {
+                            fileName: entry.fileName,
+                            fileSizeMB: fileSizeMB.toFixed(2),
+                            maxAllowedMB: extractionLimits.maxSingleFileSizeMB,
+                        },
+                    );
                     zipfile.readEntry();
                     return;
                 }
 
                 // Check if this file would exceed total extraction size limit
-                if ((totalExtractedSize + entry.uncompressedSize) / (1024 * 1024) > extractionLimits.maxTotalSizeMB) {
-                    safeLog('warn', `Total extracted size would exceed maximum allowed, skipping further extraction`, {
-                        fileName: entry.fileName,
-                        currentTotalMB: (totalExtractedSize / (1024 * 1024)).toFixed(2),
-                        fileSizeMB: fileSizeMB.toFixed(2),
-                        maxAllowedMB: extractionLimits.maxTotalSizeMB
-                    });
+                if (
+                    (totalExtractedSize + entry.uncompressedSize) /
+                        (1024 * 1024) >
+                    extractionLimits.maxTotalSizeMB
+                ) {
+                    safeLog(
+                        "warn",
+                        `Total extracted size would exceed maximum allowed, skipping further extraction`,
+                        {
+                            fileName: entry.fileName,
+                            currentTotalMB: (
+                                totalExtractedSize /
+                                (1024 * 1024)
+                            ).toFixed(2),
+                            fileSizeMB: fileSizeMB.toFixed(2),
+                            maxAllowedMB: extractionLimits.maxTotalSizeMB,
+                        },
+                    );
                     zipfile.readEntry();
                     return;
                 }
 
                 // Sanitize the file path to prevent path traversal attacks
                 let sanitizedFileName = entry.fileName;
-                
+
                 // Remove any attempt to navigate up directories
-                sanitizedFileName = sanitizedFileName.replace(/\.\.\//g, '');
-                sanitizedFileName = sanitizedFileName.replace(/\.\.\\/g, '');
-                
+                sanitizedFileName = sanitizedFileName.replace(/\.\.\//g, "");
+                sanitizedFileName = sanitizedFileName.replace(/\.\.\\/g, "");
+
                 // Normalize the path (resolve .. and . segments)
-                sanitizedFileName = path.normalize(sanitizedFileName).replace(/^(\.\.[\/\\])+/, '');
-                
+                sanitizedFileName = path
+                    .normalize(sanitizedFileName)
+                    .replace(/^(\.\.[\/\\])+/, "");
+
                 // Read the entry
                 zipfile.openReadStream(entry, (err, readStream) => {
                     if (err) {
-                        safeLog('warn', `Error opening read stream for file in ZIP`, {
-                            fileName: entry.fileName,
-                            sanitizedFileName,
-                            error: err.message
-                        });
+                        safeLog(
+                            "warn",
+                            `Error opening read stream for file in ZIP`,
+                            {
+                                fileName: entry.fileName,
+                                sanitizedFileName,
+                                error: err.message,
+                            },
+                        );
                         zipfile.readEntry();
                         return;
                     }
@@ -172,35 +219,40 @@ async function extractFilesFromZip(zipData, context = null, correlationId = null
 
                     readStream.on("end", () => {
                         const contentBuffer = Buffer.concat(chunks);
-                        
+
                         // Update tracking variables
                         totalExtractedSize += contentBuffer.length;
                         fileCount++;
-                        
+
                         // Store content as buffer or string based on options
                         if (extractionLimits.returnBuffers) {
                             files[sanitizedFileName] = contentBuffer;
                         } else {
                             // Try to convert to UTF-8 string, fall back to buffer if it fails
                             try {
-                                files[sanitizedFileName] = contentBuffer.toString('utf8');
+                                files[sanitizedFileName] =
+                                    contentBuffer.toString("utf8");
                             } catch (e) {
-                                safeLog('warn', `Failed to convert file to UTF-8, storing as buffer`, {
-                                    fileName: sanitizedFileName,
-                                    error: e.message
-                                });
+                                safeLog(
+                                    "warn",
+                                    `Failed to convert file to UTF-8, storing as buffer`,
+                                    {
+                                        fileName: sanitizedFileName,
+                                        error: e.message,
+                                    },
+                                );
                                 files[sanitizedFileName] = contentBuffer;
                             }
                         }
-                        
+
                         zipfile.readEntry();
                     });
 
                     readStream.on("error", (err) => {
-                        safeLog('error', `Error reading file from ZIP`, {
+                        safeLog("error", `Error reading file from ZIP`, {
                             fileName: entry.fileName,
                             sanitizedFileName,
-                            error: err.message
+                            error: err.message,
                         });
 
                         zipfile.readEntry();
@@ -209,25 +261,30 @@ async function extractFilesFromZip(zipData, context = null, correlationId = null
             });
 
             zipfile.on("end", () => {
-                safeLog('info', `ZIP extraction completed successfully`, {
+                safeLog("info", `ZIP extraction completed successfully`, {
                     fileCount,
-                    totalExtractedSizeMB: (totalExtractedSize / (1024 * 1024)).toFixed(2),
-                    extractedFileCount: Object.keys(files).length
+                    totalExtractedSizeMB: (
+                        totalExtractedSize /
+                        (1024 * 1024)
+                    ).toFixed(2),
+                    extractedFileCount: Object.keys(files).length,
                 });
-                
+
                 resolve(files);
             });
 
             zipfile.on("error", (err) => {
-                const error = new Error(`Error reading zip file: ${err.message}`);
+                const error = new Error(
+                    `Error reading zip file: ${err.message}`,
+                );
                 error.code = err.code;
                 error.requestId = requestId;
                 error.cause = err; // Preserve original error
-                
-                safeLog('error', `Error reading zip file`, {
+
+                safeLog("error", `Error reading zip file`, {
                     error: err.message,
                     code: err.code,
-                    stack: err.stack
+                    stack: err.stack,
                 });
 
                 reject(error);
@@ -249,7 +306,7 @@ function arrayBufferToBuffer(arrayBuffer) {
     if (Buffer.from && Buffer.from !== Uint8Array.from) {
         return Buffer.from(arrayBuffer);
     }
-    
+
     // Fallback for older Node.js versions
     const buffer = Buffer.alloc(arrayBuffer.byteLength);
     const view = new Uint8Array(arrayBuffer);
@@ -266,5 +323,5 @@ module.exports = {
     MAX_ZIP_SIZE_MB,
     MAX_SINGLE_FILE_SIZE_MB,
     MAX_TOTAL_EXTRACTED_SIZE_MB,
-    MAX_FILES_COUNT
+    MAX_FILES_COUNT,
 };

@@ -1,5 +1,9 @@
 import { test, expect } from '@playwright/test';
-import { enableBackendMigration, reaffirmBackendMigration, ensureApiClientReady } from './utils/feature-flags.js';
+import {
+  enableBackendMigration,
+  reaffirmBackendMigration,
+  ensureApiClientReady,
+} from './utils/feature-flags.js';
 
 test.describe('Backend Fork Flow', () => {
   test('forks repository via backend', async ({ page }) => {
@@ -12,19 +16,29 @@ test.describe('Backend Fork Flow', () => {
       repo: 'repo',
       htmlUrl: 'https://github.com/user/repo',
       ready: true,
-      attemptedCreate: true
+      attemptedCreate: true,
     };
-    const handler = route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(successPayload) });
+    const handler = (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(successPayload),
+      });
     await page.route('**/v4/repo-fork', handler);
     await page.route('**/api/v4/repo-fork', handler);
 
-  await page.goto('/');
-  await ensureApiClientReady(page);
-  await reaffirmBackendMigration(page);
+    await page.goto('/');
+    await ensureApiClientReady(page);
+    await reaffirmBackendMigration(page);
 
-    const respPromise = page.waitForResponse(r => r.url().includes('/v4/repo-fork') && r.status() === 200);
+    const respPromise = page.waitForResponse(
+      (r) => r.url().includes('/v4/repo-fork') && r.status() === 200,
+    );
     const res = await page.evaluate(async () => {
-      return await window.TemplateDoctorApiClient.forkRepository({ sourceOwner: 'example', sourceRepo: 'repo' });
+      return await window.TemplateDoctorApiClient.forkRepository({
+        sourceOwner: 'example',
+        sourceRepo: 'repo',
+      });
     });
     await respPromise;
 

@@ -16,64 +16,75 @@ Template Doctor analyzes and validates sample templates, with a focus on Azure D
 ### Prerequisites
 
 - Node.js LTS
-- npm 
+- npm
 - Azure Functions Core Tools (for API development)
 
 ### Installation Steps
 
 1. Clone the repository:
-   ```bash
-   git clone https://github.com/Template-Doctor/template-doctor.git
-   cd template-doctor
-   ```
+
+    ```bash
+    git clone https://github.com/Template-Doctor/template-doctor.git
+    cd template-doctor
+    ```
 
 2. Install dependencies:
-   ```bash
-   npm ci
-   ```
+
+    ```bash
+    npm ci
+    ```
 
 3. Environment setup:
-   ```bash
-   cp .env.example .env
-   ```
-   Edit the `.env` file with appropriate values. **CRITICAL**: You must set `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` in `.env`.
+
+    ```bash
+    cp .env.example .env
+    ```
+
+    Edit the `.env` file with appropriate values. **CRITICAL**: You must set `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` in `.env`.
 
 4. Configure local Azure Functions:
-   ```bash
-   cd packages/api
-   cp local.settings.example.json local.settings.json
-   ```
-   Edit `local.settings.json` and add the same `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` from `.env`.
+
+    ```bash
+    cd packages/api
+    cp local.settings.example.json local.settings.json
+    ```
+
+    Edit `local.settings.json` and add the same `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` from `.env`.
 
 5. Configure frontend:
-   ```bash
-   cd packages/app
-   cp config.json.example config.json
-   ```
-   Edit `config.json` and ensure:
-   - `githubOAuth.clientId` matches your `GITHUB_CLIENT_ID`
-   - `backend.baseUrl` is set to `"http://localhost:7071"` for local dev
+
+    ```bash
+    cd packages/app
+    cp config.json.example config.json
+    ```
+
+    Edit `config.json` and ensure:
+    - `githubOAuth.clientId` matches your `GITHUB_CLIENT_ID`
+    - `backend.baseUrl` is set to `"http://localhost:7071"` for local dev
 
 6. Build both packages:
-   ```bash
-   cd /path/to/template-doctor
-   npm run build -w packages/api
-   npm run build -w packages/app
-   ```
+
+    ```bash
+    cd /path/to/template-doctor
+    npm run build -w packages/api
+    npm run build -w packages/app
+    ```
 
 7. **IMPORTANT**: Start services in SEPARATE terminals (do not use background processes):
-   
-   **Terminal 1 - Azure Functions (backend on port 7071):**
-   ```bash
-   cd packages/api
-   npm start
-   ```
-   
-   **Terminal 2 - Vite dev server (frontend on port 4000):**
-   ```bash
-   cd packages/app
-   npm run dev
-   ```
+
+    **Terminal 1 - Azure Functions (backend on port 7071):**
+
+    ```bash
+    cd packages/api
+    npm start
+    ```
+
+    **Terminal 2 - Vite dev server (frontend on port 4000):**
+
+    ```bash
+    cd packages/app
+    npm run dev
+    ```
 
 8. Access the application at http://localhost:4000
 
@@ -89,19 +100,20 @@ Template Doctor analyzes and validates sample templates, with a focus on Azure D
 The configuration system has three layers that must be properly aligned:
 
 1. **Server-side** (`packages/api/local.settings.json`): Azure Functions configuration
-   - Required: `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GH_WORKFLOW_TOKEN`
-   - Used by OAuth token exchange and API endpoints
+    - Required: `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GH_WORKFLOW_TOKEN`
+    - Used by OAuth token exchange and API endpoints
 
 2. **Client-side** (`packages/app/config.json`): Frontend configuration
-   - Required: `githubOAuth.clientId` (must match server's `GITHUB_CLIENT_ID`)
-   - Required: `backend.baseUrl` set to `"http://localhost:7071"` for local dev
-   - Used by frontend for OAuth flow and API calls
+    - Required: `githubOAuth.clientId` (must match server's `GITHUB_CLIENT_ID`)
+    - Required: `backend.baseUrl` set to `"http://localhost:7071"` for local dev
+    - Used by frontend for OAuth flow and API calls
 
 3. **Environment** (`.env` at repo root): Shared configuration
-   - Used by build tools and CLI scripts
-   - Values must be duplicated into `local.settings.json` for Functions to access them
+    - Used by build tools and CLI scripts
+    - Values must be duplicated into `local.settings.json` for Functions to access them
 
 **Local Development Flow:**
+
 - On localhost, frontend skips the server's `/api/v4/client-settings` endpoint
 - Config is loaded directly from `config.json` (simpler, no server dependency during startup)
 - OAuth calls hardcoded to `http://localhost:7071/api/v4/github-oauth-token`
@@ -115,21 +127,23 @@ The configuration system has three layers that must be properly aligned:
 - The API is Azure Functions
 - Results are stored as JS files under `packages/app/results/`
 - Configuration is split across:
-  - `.env` file (root)
-  - `config.json` files (in packages)
+    - `.env` file (root)
+    - `config.json` files (in packages)
 
 ## OAuth Configuration
 
 For local development:
+
 - GitHub OAuth callback URL must match frontend port: `http://localhost:4000/callback.html`
 - If changing the port, update both:
-  1. The local server command in README.md
-  2. The callback URL in GitHub OAuth app settings
-  3. The examples in docs/development/OAUTH_CONFIGURATION.md
+    1. The local server command in README.md
+    2. The callback URL in GitHub OAuth app settings
+    3. The examples in docs/development/OAUTH_CONFIGURATION.md
 
 ## Testing Guidelines
 
 Run all tests from the project root:
+
 ```bash
 npm test           # Run all tests
 npm run test:ui    # Run tests with UI
@@ -137,6 +151,7 @@ npm run test:debug # Run tests in debug mode
 ```
 
 Run specific tests:
+
 ```bash
 npm run test -- "-g" "should handle search functionality" packages/app/tests/app.spec.js
 ```
@@ -152,6 +167,7 @@ DRY_RUN=1 ./scripts/smoke-api.sh  # print commands only
 ```
 
 The script will:
+
 1. Load variables from `.env` (simple KEY=VALUE lines)
 2. Probe each public endpoint (GET/POST) and basic negative routes
 3. Attempt authenticated operations if `GITHUB_TOKEN` is present (add-template-pr, setup overrides, issue-ai)
@@ -162,6 +178,7 @@ Environment variable precedence: explicitly exported shell vars > `.env`. Overri
 The script exits non‑zero on the first critical failure (missing endpoint / unexpected HTTP code) so it can be wired into CI.
 
 ### Test Conventions
+
 - Frontend tests use Playwright
 - No native browser dialogs (use notifications) to keep tests stable
 - Test files are stored in `packages/app/tests/`
@@ -220,11 +237,13 @@ The Azure Functions (Node) handlers in `packages/api` use a helper `wrapHttp` (s
 - OPTIONS Requests: Auto CORS 204 with standard headers.
 
 If you observe a 200 with an empty body for a new endpoint, double‑check:
+
 1. The function export order `(ctx, req)`.
 2. That you are not accidentally returning a plain object instead of using `wrapHttp`.
 3. The test is not invoking `(req, ctx)` by mistake.
 
 ### Smoke Testing
+
 Use `./scripts/smoke-api.sh` after starting the Functions host to exercise the primary endpoints. It reads `.env`, supports `DRY_RUN=1`, and fails fast on critical issues. The script expects the updated route `/api/v4/client-settings` for runtime configuration.
 
 ## Frontend TypeScript Migration & Legacy File Deletion (Production Policy)
@@ -232,29 +251,36 @@ Use `./scripts/smoke-api.sh` after starting the Functions host to exercise the p
 This repository is executing a phased migration from legacy browser JavaScript under `packages/app/js/` to TypeScript modules under `packages/app/src/` that are built/bundled. Agents MUST follow these production‑grade rules (no stubs/mocks/throwaway placeholders) when participating in migration or cleanup tasks:
 
 ### Authoritative Artifacts
+
 1. Analyzer logic: The authoritative implementation is the TypeScript build output `packages/app/js/analyzer.bundle.js` produced by `packages/app/build-analyzer.js` (esbuild). Do NOT reintroduce logic into `js/analyzer.js`.
 2. Runtime configuration: The authoritative source is `src/scripts/runtime-config.ts`, loaded via module import (`src/main.ts` and `callback.html`). The legacy `js/runtime-config.js` must be removed once all pages import the TS module.
 3. Report / templates / issue template helpers: Their TypeScript counterparts live under `src/report/`, `src/scripts/`, `src/issue/`, or `src/data/` directories. The similarly named legacy JS files are slated for hard deletion.
 
 ### Hard Deletion Requirements
+
 When a legacy JS file has a complete TS replacement with parity:
+
 - Physically delete the legacy file (preferred) OR fully replace its contents with a minimal, deterministic production stub that immediately errors on access—ONLY if technical tooling limitations block physical removal in the current PR. Do **not** leave partial old logic or large commented blobs.
 - Ensure no remaining imports or dynamic script tags reference the legacy filename (grep for `js/<name>.js`).
 - Update any docs (including this section and `docs/development/migration-matrix.md`) marking the file as removed.
 - Run Playwright + unit tests + `smoke-api.sh` to validate no behavioral regression.
 
 ### Analyzer File Specifics
+
 `js/analyzer.js` must NOT accumulate stub logic plus legacy method bodies (that creates parsing risk). The only acceptable end states are:
+
 1. File deleted entirely.
 2. File replaced by a <= ~20 line strict stub that throws on use and references `analyzer.bundle.js`.
 
 If a bulk patch tool cannot delete the large historical file in the same change set, perform a **full overwrite** (truncate + stub) and open a follow‑up issue to physically remove it in a small PR. Do not postpone the overwrite while leaving unreachable method bodies.
 
 ### Environment Variables Clarification
+
 `BASE` (in `.env`) is consumed by `scripts/smoke-api.sh` to know the Azure Functions base URL for local probing (defaults `http://localhost:7071`).
 `TD_BACKEND_BASE_URL` is exposed through the runtime-config endpoint to the browser for API calls when the frontend is pointed at a remote Functions instance. During local dev they usually match, but they have distinct purposes—do not assume one automatically sets the other.
 
 ### Acceptance Checklist Before Marking a Legacy File “Removed”
+
 - [ ] TS replacement merged and imported everywhere needed.
 - [ ] No runtime references (import / dynamic script tag / global eval) to the legacy filename.
 - [ ] File deleted OR fully overwritten with strict stub (temporary only if deletion blocked).
@@ -264,6 +290,7 @@ If a bulk patch tool cannot delete the large historical file in the same change 
 - [ ] Docs updated (`migration-matrix.md`, this section).
 
 ### Prohibited During Migration
+
 - Adding “temporary shim” code that silently forwards calls to both legacy and new implementations.
 - Leaving large commented legacy bodies that cause lint, size, or parse overhead.
 - Introducing new public globals under legacy names (except the minimal throwing stubs when absolutely necessary as described above).
@@ -283,6 +310,7 @@ The following legacy scripts have been physically removed after confirming 1:1 T
 Analyzer Status: `packages/app/js/analyzer.js` no longer contains legacy logic; it is a minimal dynamic loader stub that injects `analyzer.bundle.js`. This stub will be deleted in a subsequent cleanup once a full grep confirms no stale external references (e.g., downstream docs or integrations) still point to `js/analyzer.js`.
 
 Action Items Before Deleting `analyzer.js` Stub:
+
 1. Grep repo (and any dependent deployment templates if applicable) for `analyzer.js` script tags.
 2. Run `npm test` (all suites) and `./scripts/smoke-api.sh`.
 3. Remove file and update both this section and `docs/development/migration-matrix.md` (set status to Removed).

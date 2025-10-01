@@ -26,7 +26,7 @@ function handleTemplateCardRescan(event: CustomEvent) {
       (window as any).NotificationSystem.showError(
         'Rescan Failed',
         'Modal system not ready. Please refresh the page and try again.',
-        5000
+        5000,
       );
     }
   }

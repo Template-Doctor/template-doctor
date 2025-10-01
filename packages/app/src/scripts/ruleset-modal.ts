@@ -135,7 +135,9 @@ function applyPresetToAdvanced(preset: string): void {
   if (!modal) return;
 
   const setCategory = (name: string, checked: boolean) => {
-    const input = modal.querySelector<HTMLInputElement>(`input[name="adv-category"][value="${name}"]`);
+    const input = modal.querySelector<HTMLInputElement>(
+      `input[name="adv-category"][value="${name}"]`,
+    );
     if (input) input.checked = checked;
   };
 
@@ -175,20 +177,20 @@ function getSelectedCategories(): SelectedCategories {
       functionalRequirements: false,
       deployment: false,
       security: false,
-      testing: false
+      testing: false,
     };
   }
 
   const selected = Array.from(
-    modal.querySelectorAll<HTMLInputElement>('input[name="adv-category"]:checked')
-  ).map(input => input.value);
+    modal.querySelectorAll<HTMLInputElement>('input[name="adv-category"]:checked'),
+  ).map((input) => input.value);
 
   return {
     repositoryManagement: selected.includes('repositoryManagement'),
     functionalRequirements: selected.includes('functionalRequirements'),
     deployment: selected.includes('deployment'),
     security: selected.includes('security'),
-    testing: selected.includes('testing')
+    testing: selected.includes('testing'),
   };
 }
 
@@ -330,7 +332,8 @@ function setupModalHandlers(): void {
   // Analyze button - full implementation with all features
   if (analyzeBtn) {
     analyzeBtn.addEventListener('click', async () => {
-      const selectedRuleset = modal.querySelector<HTMLInputElement>('input[name="ruleset"]:checked')?.value || 'dod';
+      const selectedRuleset =
+        modal.querySelector<HTMLInputElement>('input[name="ruleset"]:checked')?.value || 'dod';
 
       let ruleSetToUse = selectedRuleset;
       let gistUrl = '';
@@ -339,21 +342,27 @@ function setupModalHandlers(): void {
       if (selectedRuleset === 'custom') {
         const customJson = customConfigInput.value.trim();
         if (!customJson) {
-          showNotification('error', 'Please provide a custom configuration or select a different ruleset.');
+          showNotification(
+            'error',
+            'Please provide a custom configuration or select a different ruleset.',
+          );
           return;
         }
 
         try {
           const customConfig = JSON.parse(customJson);
           gistUrl = gistUrlInput.value.trim();
-          
+
           // Save custom config to localStorage with gistUrl if provided
           if (gistUrl) {
             customConfig.gistUrl = gistUrl;
           }
           localStorage.setItem('td_custom_ruleset', JSON.stringify(customConfig));
         } catch (e) {
-          showNotification('error', 'Invalid JSON in custom configuration. Please check and try again.');
+          showNotification(
+            'error',
+            'Invalid JSON in custom configuration. Please check and try again.',
+          );
           return;
         }
       }
@@ -365,13 +374,16 @@ function setupModalHandlers(): void {
       const cfg = (window as any).TemplateDoctorConfig || {};
       const aiToggle = modal.querySelector<HTMLInputElement>('#ai-deprecation-toggle');
       const archiveOverride = modal.querySelector<HTMLInputElement>('#archive-override');
-      
+
       if (aiToggle) {
         cfg.aiDeprecationCheckEnabled = aiToggle.checked;
       }
-      
-      if (archiveOverride && archiveOverride.parentElement && 
-          (archiveOverride.parentElement as HTMLElement).style.display !== 'none') {
+
+      if (
+        archiveOverride &&
+        archiveOverride.parentElement &&
+        (archiveOverride.parentElement as HTMLElement).style.display !== 'none'
+      ) {
         cfg.nextAnalysisArchiveEnabledOverride = archiveOverride.checked;
       }
 
@@ -387,7 +399,11 @@ function setupModalHandlers(): void {
         (window.analyzeRepo as any)(currentRepoUrl, ruleSetToUse, selectedCategories);
       } else if ((window as any).TemplateAnalyzer?.analyzeTemplate) {
         // Fallback for legacy compatibility
-        await (window as any).TemplateAnalyzer.analyzeTemplate(currentRepoUrl, ruleSetToUse, selectedCategories);
+        await (window as any).TemplateAnalyzer.analyzeTemplate(
+          currentRepoUrl,
+          ruleSetToUse,
+          selectedCategories,
+        );
       } else {
         console.error('[RulesetModal] No analysis function available');
         showNotification('error', 'Analysis function not available');
@@ -399,7 +415,7 @@ function setupModalHandlers(): void {
 export function showRulesetModal(repoUrl: string): void {
   currentRepoUrl = repoUrl;
   const modal = document.getElementById('ruleset-modal');
-  
+
   if (!modal) {
     console.warn('[RulesetModal] Modal not initialized, initializing now');
     initRulesetModal();
@@ -412,7 +428,7 @@ export function showRulesetModal(repoUrl: string): void {
     const cfg = (window as any).TemplateDoctorConfig || {};
     const container = modal.querySelector('#archive-override-container') as HTMLElement;
     const checkbox = modal.querySelector<HTMLInputElement>('#archive-override');
-    
+
     if (cfg.archiveEnabled === true) {
       if (container) container.style.display = 'none';
     } else {
@@ -424,7 +440,8 @@ export function showRulesetModal(repoUrl: string): void {
   }
 
   // Apply preset for currently selected ruleset
-  const selectedRuleset = modal.querySelector<HTMLInputElement>('input[name="ruleset"]:checked')?.value || 'dod';
+  const selectedRuleset =
+    modal.querySelector<HTMLInputElement>('input[name="ruleset"]:checked')?.value || 'dod';
   applyPresetToAdvanced(selectedRuleset);
 
   console.log('[RulesetModal] Showing modal for:', repoUrl);
@@ -455,7 +472,10 @@ window.showRulesetModal = showRulesetModal;
       section.className = 'analysis-section';
       document.querySelector('main')?.appendChild(section);
     } else {
-      console.log('[AnalyzeRepoIntegr] Found EXISTING #analysis-section, display:', section.style.display);
+      console.log(
+        '[AnalyzeRepoIntegr] Found EXISTING #analysis-section, display:',
+        section.style.display,
+      );
     }
 
     let header = section.querySelector('.analysis-header') as HTMLElement;
@@ -521,10 +541,17 @@ window.showRulesetModal = showRulesetModal;
   document.addEventListener('analysis-saml-blocked', ((evt: CustomEvent) => {
     console.warn('[AnalyzeRepoIntegr] SAML blocked', evt.detail);
     const containers = ensureAnalysisSection(evt.detail.repoUrl);
-    showError(containers, `<strong>Authentication Required</strong><br>SAML/SSO required. <a href="#" onclick="window.analyzeRepo('${evt.detail.repoUrl}', 'dod'); return false;">Retry</a>.`);
+    showError(
+      containers,
+      `<strong>Authentication Required</strong><br>SAML/SSO required. <a href="#" onclick="window.analyzeRepo('${evt.detail.repoUrl}', 'dod'); return false;">Retry</a>.`,
+    );
   }) as EventListener);
 
-  window.analyzeRepo = async function(repoUrl: string, ruleSet: string = 'dod', selectedCategories: any = null) {
+  window.analyzeRepo = async function (
+    repoUrl: string,
+    ruleSet: string = 'dod',
+    selectedCategories: any = null,
+  ) {
     console.log('═══════════════════════════════════════════════════════');
     console.log('[AnalyzeRepoIntegr] ▶ START at', new Date().toISOString());
     console.log('[AnalyzeRepoIntegr] Params:', { repoUrl, ruleSet, selectedCategories });
@@ -553,14 +580,20 @@ window.showRulesetModal = showRulesetModal;
 
     try {
       console.log('[AnalyzeRepoIntegr] Step 5: Calling analyzeTemplateServerSide...');
-      const result = await (window as any).TemplateAnalyzer.analyzeTemplateServerSide(repoUrl, ruleSet);
+      const result = await (window as any).TemplateAnalyzer.analyzeTemplateServerSide(
+        repoUrl,
+        ruleSet,
+      );
       console.log('[AnalyzeRepoIntegr] ✓ Analysis complete');
 
       console.log('[AnalyzeRepoIntegr] Step 6: Showing results...');
       showResults(containers);
 
       console.log('[AnalyzeRepoIntegr] Step 7: Rendering...');
-      if ((window as any).DashboardRenderer && typeof (window as any).DashboardRenderer.render === 'function') {
+      if (
+        (window as any).DashboardRenderer &&
+        typeof (window as any).DashboardRenderer.render === 'function'
+      ) {
         (window as any).DashboardRenderer.render(result, containers.reportDiv);
         console.log('[AnalyzeRepoIntegr] ✓ Rendered');
       } else {
@@ -569,7 +602,9 @@ window.showRulesetModal = showRulesetModal;
       }
 
       showNotification('success', 'Analysis complete!');
-      document.dispatchEvent(new CustomEvent('analysis-completed', { detail: { repoUrl, result } }));
+      document.dispatchEvent(
+        new CustomEvent('analysis-completed', { detail: { repoUrl, result } }),
+      );
       console.log('[AnalyzeRepoIntegr] ✓ COMPLETE');
       console.log('═══════════════════════════════════════════════════════');
       return result;

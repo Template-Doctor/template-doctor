@@ -91,7 +91,10 @@ function normalizeTemplateRef(ref: string): string {
   return ref;
 }
 
-function buildApiRoute(name: 'validation-template' | 'validation-status' | 'validation-cancel', query?: Record<string, string | undefined>): string {
+function buildApiRoute(
+  name: 'validation-template' | 'validation-status' | 'validation-cancel',
+  query?: Record<string, string | undefined>,
+): string {
   const w: any = window as any;
   if (w.ApiRoutes && typeof w.ApiRoutes.build === 'function') {
     return w.ApiRoutes.build(name, { query });
@@ -109,16 +112,30 @@ function buildApiRoute(name: 'validation-template' | 'validation-status' | 'vali
   return `${base}${path}`;
 }
 
-function notify(type: 'success'|'error'|'warning'|'info', title: string, message: string, duration?: number) {
+function notify(
+  type: 'success' | 'error' | 'warning' | 'info',
+  title: string,
+  message: string,
+  duration?: number,
+) {
   const ns: any = (window as any).NotificationSystem;
   if (!ns) return;
-  const map: Record<string,string> = { success:'showSuccess', error:'showError', warning:'showWarning', info:'showInfo' };
+  const map: Record<string, string> = {
+    success: 'showSuccess',
+    error: 'showError',
+    warning: 'showWarning',
+    info: 'showInfo',
+  };
   const fn = ns[map[type]];
   if (typeof fn === 'function') fn(title, message, duration);
 }
 
 // -------------------------------------- UI Construction --------------------------------------
-function buildUI(container: HTMLElement, mode: ValidationMode, features: { cancellation: boolean; jobLogs: boolean }) {
+function buildUI(
+  container: HTMLElement,
+  mode: ValidationMode,
+  features: { cancellation: boolean; jobLogs: boolean },
+) {
   // Clear prior instance
   container.innerHTML = '';
   const root = document.createElement('div');
@@ -160,7 +177,9 @@ function buildUI(container: HTMLElement, mode: ValidationMode, features: { cance
 }
 
 // Styles have been externalized to css/validation.css (imported via main bundle)
-function injectBaseStylesOnce() { /* no-op retained for backward safety */ }
+function injectBaseStylesOnce() {
+  /* no-op retained for backward safety */
+}
 
 // -------------------------------------- Core Implementation --------------------------------------
 export function initValidation(options: ValidationInitOptions): UnifiedValidationAPI {
@@ -185,10 +204,14 @@ export function initValidation(options: ValidationInitOptions): UnifiedValidatio
   try {
     const overrides: any = (window as any).__ValidationTestOverrides;
     if (overrides?.polling) {
-      if (typeof overrides.polling.intervalMs === 'number') polling.intervalMs = overrides.polling.intervalMs;
-      if (typeof overrides.polling.maxAttempts === 'number') polling.maxAttempts = overrides.polling.maxAttempts;
+      if (typeof overrides.polling.intervalMs === 'number')
+        polling.intervalMs = overrides.polling.intervalMs;
+      if (typeof overrides.polling.maxAttempts === 'number')
+        polling.maxAttempts = overrides.polling.maxAttempts;
     }
-  } catch {/* ignore */}
+  } catch {
+    /* ignore */
+  }
   const ctx: InternalContext = {
     opts: { ...merged, mode, features, polling } as any,
     containerEl: resolveContainer(merged.container),
@@ -200,19 +223,26 @@ export function initValidation(options: ValidationInitOptions): UnifiedValidatio
   ctx.ui = buildUI(ctx.containerEl, mode, features);
   // Accessibility refinements
   if (ctx.ui?.summary) {
-    ctx.ui.summary.setAttribute('role','region');
-    ctx.ui.summary.setAttribute('aria-live','polite');
-    ctx.ui.summary.setAttribute('aria-label','Validation summary');
+    ctx.ui.summary.setAttribute('role', 'region');
+    ctx.ui.summary.setAttribute('aria-live', 'polite');
+    ctx.ui.summary.setAttribute('aria-label', 'Validation summary');
   }
 
   // Bind start/cancel buttons
   ctx.ui.startBtn?.addEventListener('click', () => {
-    if (ctx.state === 'idle' || ctx.state === 'completed-success' || ctx.state === 'completed-failure' || ctx.state === 'error' || ctx.state === 'timeout') {
+    if (
+      ctx.state === 'idle' ||
+      ctx.state === 'completed-success' ||
+      ctx.state === 'completed-failure' ||
+      ctx.state === 'error' ||
+      ctx.state === 'timeout'
+    ) {
       startValidation(ctx).catch((e) => console.error('[validation] start error', e));
     }
   });
   ctx.ui.cancelBtn?.addEventListener('click', () => {
-    if (features.cancellation) cancelValidation(ctx).catch((e) => console.error('[validation] cancel error', e));
+    if (features.cancellation)
+      cancelValidation(ctx).catch((e) => console.error('[validation] cancel error', e));
   });
 
   // Resume last run if available and appears incomplete (fresh within 2h) and no new run initiated yet
@@ -220,16 +250,20 @@ export function initValidation(options: ValidationInitOptions): UnifiedValidatio
     const stored = localStorage.getItem('lastValidationRunInfo');
     if (stored) {
       const info = JSON.parse(stored);
-      if (info?.runId && info.ts && Date.now() - info.ts < 2 * 60 * 60 * 1000) { // 2 hours freshness window
+      if (info?.runId && info.ts && Date.now() - info.ts < 2 * 60 * 60 * 1000) {
+        // 2 hours freshness window
         ctx.runId = info.runId;
         ctx.githubRunId = info.githubRunId;
         ctx.state = 'triggered';
         transition(ctx, 'running', 'Resuming previous validation run…');
-        if (ctx.ui?.logsWrap) ctx.ui.logsWrap.style.display = mode === 'workflow' ? 'block' : 'none';
+        if (ctx.ui?.logsWrap)
+          ctx.ui.logsWrap.style.display = mode === 'workflow' ? 'block' : 'none';
         schedulePoll(ctx, 0);
       }
     }
-  } catch {/* ignore */}
+  } catch {
+    /* ignore */
+  }
 
   return {
     start: () => startValidation(ctx),
@@ -240,12 +274,18 @@ export function initValidation(options: ValidationInitOptions): UnifiedValidatio
       ctx.containerEl.innerHTML = '';
       ctx.state = 'idle';
     },
-    resumeLastRun: () => manualResume(ctx)
+    resumeLastRun: () => manualResume(ctx),
   };
 }
 
 async function startValidation(ctx: InternalContext) {
-  if (ctx.state !== 'idle' && !ctx.state.startsWith('completed') && ctx.state !== 'error' && ctx.state !== 'timeout') return;
+  if (
+    ctx.state !== 'idle' &&
+    !ctx.state.startsWith('completed') &&
+    ctx.state !== 'error' &&
+    ctx.state !== 'timeout'
+  )
+    return;
   transition(ctx, 'starting', 'Starting validation…');
   ctx.cancelled = false;
   ctx.pollAttempts = 0;
@@ -259,7 +299,8 @@ async function startValidation(ctx: InternalContext) {
   ui.progressBar!.style.display = 'block';
   setProgress(ui, 5);
   ui.startBtn!.disabled = true;
-  if (ui.cancelBtn) ui.cancelBtn.style.display = ctx.opts.features.cancellation ? 'inline-block' : 'none';
+  if (ui.cancelBtn)
+    ui.cancelBtn.style.display = ctx.opts.features.cancellation ? 'inline-block' : 'none';
 
   try {
     // Build trigger request body supporting both templateName and templateUrl
@@ -271,7 +312,11 @@ async function startValidation(ctx: InternalContext) {
     const resp = await fetch(triggerUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ templateName: templateNormalized, templateUrl: ctx.opts.templateRef, targetRepoUrl: ctx.opts.templateRef }),
+      body: JSON.stringify({
+        templateName: templateNormalized,
+        templateUrl: ctx.opts.templateRef,
+        targetRepoUrl: ctx.opts.templateRef,
+      }),
       signal: abort.signal,
     });
     if (!resp.ok) {
@@ -321,7 +366,10 @@ async function cancelValidation(ctx: InternalContext) {
 
 function schedulePoll(ctx: InternalContext, delay: number) {
   if (ctx.pollTimer) window.clearTimeout(ctx.pollTimer);
-  ctx.pollTimer = window.setTimeout(() => pollStatus(ctx).catch(e => console.error(e)), delay) as unknown as number;
+  ctx.pollTimer = window.setTimeout(
+    () => pollStatus(ctx).catch((e) => console.error(e)),
+    delay,
+  ) as unknown as number;
 }
 
 async function pollStatus(ctx: InternalContext) {
@@ -342,7 +390,7 @@ async function pollStatus(ctx: InternalContext) {
   }
   log(ctx, `Polling attempt ${ctx.pollAttempts}`);
   try {
-    const qs: Record<string,string> = { runId: ctx.runId };
+    const qs: Record<string, string> = { runId: ctx.runId };
     if (ctx.githubRunId) qs.githubRunId = ctx.githubRunId;
     if (features.jobLogs) qs.includeJobLogs = '1';
     qs.includeLogsUrl = '1';
@@ -366,11 +414,11 @@ async function pollStatus(ctx: InternalContext) {
       return;
     }
     // continue polling
-  schedulePoll(ctx, polling.intervalMs ?? 10000);
+    schedulePoll(ctx, polling.intervalMs ?? 10000);
   } catch (err: any) {
     log(ctx, `Poll error: ${err?.message}`);
     // mild backoff on errors
-  schedulePoll(ctx, Math.min((polling.intervalMs ?? 10000) * 1.5, 60000));
+    schedulePoll(ctx, Math.min((polling.intervalMs ?? 10000) * 1.5, 60000));
   }
 }
 
@@ -382,7 +430,12 @@ function renderStatus(ctx: InternalContext, data: any) {
     ui.logsPre.scrollTop = ui.logsPre.scrollHeight;
   }
   if (ctx.opts.features.jobLogs && data.jobLogs && ui.jobLogs) {
-    const items = data.jobLogs.map((j: any) => `<li><strong>${escapeHtml(j.name)}</strong> <em>(${escapeHtml(j.conclusion || j.status || 'unknown')})</em>${j.logsUrl ? ` - <a href="${j.logsUrl}" target="_blank">logs</a>` : ''}</li>`).join('');
+    const items = data.jobLogs
+      .map(
+        (j: any) =>
+          `<li><strong>${escapeHtml(j.name)}</strong> <em>(${escapeHtml(j.conclusion || j.status || 'unknown')})</em>${j.logsUrl ? ` - <a href="${j.logsUrl}" target="_blank">logs</a>` : ''}</li>`,
+      )
+      .join('');
     ui.jobLogs.style.display = 'block';
     ui.jobLogs.innerHTML = `<h4 style="margin:0 0 6px 0;">Job Logs</h4><ul style="margin:0; padding-left:18px;">${items}</ul>`;
   }
@@ -415,27 +468,41 @@ function finalize(ctx: InternalContext, state: ValidationState, data?: any) {
     ui.summary.innerHTML += `<p><button id="${btnId}" class="btn btn-primary" style="margin-top:8px;">Continue Checking Status</button></p>`;
     setTimeout(() => {
       const b = document.getElementById(btnId);
-      if (b) b.addEventListener('click', () => {
-        if (!ctx.runId) return;
-        ctx.state = 'running';
-        transition(ctx, 'running', 'Continuing to poll…');
-        schedulePoll(ctx, 0);
-      });
+      if (b)
+        b.addEventListener('click', () => {
+          if (!ctx.runId) return;
+          ctx.state = 'running';
+          transition(ctx, 'running', 'Continuing to poll…');
+          schedulePoll(ctx, 0);
+        });
     }, 0);
   }
   // Notifications
   switch (state) {
-    case 'completed-success': notify('success', 'Validation Success', `Run ${ctx.runId}`, 5000); break;
-    case 'completed-failure': notify('error', 'Validation Failed', `Run ${ctx.runId}`, 8000); break;
-    case 'cancelled': notify('warning', 'Validation Cancelled', `Run ${ctx.runId}`, 5000); break;
-    case 'timeout': notify('warning', 'Validation Timeout', `Run ${ctx.runId}`, 8000); break;
+    case 'completed-success':
+      notify('success', 'Validation Success', `Run ${ctx.runId}`, 5000);
+      break;
+    case 'completed-failure':
+      notify('error', 'Validation Failed', `Run ${ctx.runId}`, 8000);
+      break;
+    case 'cancelled':
+      notify('warning', 'Validation Cancelled', `Run ${ctx.runId}`, 5000);
+      break;
+    case 'timeout':
+      notify('warning', 'Validation Timeout', `Run ${ctx.runId}`, 8000);
+      break;
   }
 }
 
 function transition(ctx: InternalContext, state: ValidationState, msg?: string) {
   ctx.state = state;
   if (ctx.ui?.statusEl) ctx.ui.statusEl.textContent = msg || state;
-  ctx.opts.onStatusChange?.({ state, runId: ctx.runId, githubRunId: ctx.githubRunId, message: msg });
+  ctx.opts.onStatusChange?.({
+    state,
+    runId: ctx.runId,
+    githubRunId: ctx.githubRunId,
+    message: msg,
+  });
 }
 
 function setProgress(ui: ReturnType<typeof buildUI>, pct: number) {
@@ -444,57 +511,78 @@ function setProgress(ui: ReturnType<typeof buildUI>, pct: number) {
 
 function stateMessage(state: ValidationState): string {
   switch (state) {
-    case 'completed-success': return 'Validation completed successfully';
-    case 'completed-failure': return 'Validation completed with issues';
-    case 'cancelled': return 'Validation cancelled';
-    case 'timeout': return 'Validation timed out';
-    default: return state;
+    case 'completed-success':
+      return 'Validation completed successfully';
+    case 'completed-failure':
+      return 'Validation completed with issues';
+    case 'cancelled':
+      return 'Validation cancelled';
+    case 'timeout':
+      return 'Validation timed out';
+    default:
+      return state;
   }
 }
 
 function detailsTemplate(details: any[]): string {
-  const failed = details.filter(d => d.status === 'fail');
-  const warn = details.filter(d => d.status === 'warn');
-  const pass = details.filter(d => d.status === 'pass');
-  const section = (title: string, icon: string, arr: any[], color: string) => arr.length ? `
+  const failed = details.filter((d) => d.status === 'fail');
+  const warn = details.filter((d) => d.status === 'warn');
+  const pass = details.filter((d) => d.status === 'pass');
+  const section = (title: string, icon: string, arr: any[], color: string) =>
+    arr.length
+      ? `
     <details open style="margin:0 0 12px 0; border:1px solid ${color}; border-radius:6px;">
       <summary style="cursor:pointer; padding:8px 12px; font-weight:600; background:rgba(0,0,0,0.03);">${icon} ${title} (${arr.length})</summary>
       <div style="padding:10px 14px; font-size:13px; line-height:1.45;">
-        ${arr.map(d => `
+        ${arr
+          .map(
+            (d) => `
           <div style="margin:0 0 12px 0;">
             <div style="font-weight:600;">${escapeHtml(d.category)}</div>
             <div style="margin:4px 0 6px 0;">${escapeHtml(d.message)}</div>
-            ${d.issues?.length ? `<ul style=\"margin:4px 0 0 16px; padding:0; list-style:disc;\">${d.issues.map((i:any)=>`<li style=\"margin:2px 0;\">${escapeHtml(i)}</li>`).join('')}</ul>`:''}
+            ${d.issues?.length ? `<ul style=\"margin:4px 0 0 16px; padding:0; list-style:disc;\">${d.issues.map((i: any) => `<li style=\"margin:2px 0;\">${escapeHtml(i)}</li>`).join('')}</ul>` : ''}
           </div>
-        `).join('')}
+        `,
+          )
+          .join('')}
       </div>
-    </details>` : '';
+    </details>`
+      : '';
   return [
-    section('Failed Checks','❌',failed,'#f9d0d0'),
-    section('Warnings','⚠️',warn,'#f1e05a'),
-    section('Passed Checks','✅',pass,'#34d058')
+    section('Failed Checks', '❌', failed, '#f9d0d0'),
+    section('Warnings', '⚠️', warn, '#f1e05a'),
+    section('Passed Checks', '✅', pass, '#34d058'),
   ].join('');
 }
 
 function summaryTemplate(ctx: InternalContext, state: ValidationState, data: any): string {
-  const runLink = data?.runUrl ? `<p><a href="${data.runUrl}" target="_blank" rel="noopener noreferrer">View workflow on GitHub</a></p>` : '';
+  const runLink = data?.runUrl
+    ? `<p><a href="${data.runUrl}" target="_blank" rel="noopener noreferrer">View workflow on GitHub</a></p>`
+    : '';
   // Derive check counts if available
   let counts = '';
   try {
     const details = data?.results?.details;
     if (Array.isArray(details) && details.length) {
-      const fail = details.filter((d:any)=>d.status==='fail').length;
-      const warn = details.filter((d:any)=>d.status==='warn').length;
-      const pass = details.filter((d:any)=>d.status==='pass').length;
+      const fail = details.filter((d: any) => d.status === 'fail').length;
+      const warn = details.filter((d: any) => d.status === 'warn').length;
+      const pass = details.filter((d: any) => d.status === 'pass').length;
       counts = `<div style="margin-top:8px; font-size:12px; line-height:1.4;">Checks: <strong>${pass}</strong> pass • <strong>${warn}</strong> warn • <strong>${fail}</strong> fail</div>`;
     }
-  } catch {/* ignore */}
+  } catch {
+    /* ignore */
+  }
   switch (state) {
-    case 'completed-success': return `<strong>Success!</strong> Template passed all checks.${counts}${runLink}`;
-    case 'completed-failure': return `<strong>Validation Failed.</strong> Issues detected.${counts}${runLink}`;
-    case 'cancelled': return `<strong>Cancelled.</strong> Workflow cancellation requested.${runLink}`;
-    case 'timeout': return `<strong>Timeout.</strong> Still running in background? ${runLink}`;
-    default: return `<strong>${state}</strong> ${runLink}`;
+    case 'completed-success':
+      return `<strong>Success!</strong> Template passed all checks.${counts}${runLink}`;
+    case 'completed-failure':
+      return `<strong>Validation Failed.</strong> Issues detected.${counts}${runLink}`;
+    case 'cancelled':
+      return `<strong>Cancelled.</strong> Workflow cancellation requested.${runLink}`;
+    case 'timeout':
+      return `<strong>Timeout.</strong> Still running in background? ${runLink}`;
+    default:
+      return `<strong>${state}</strong> ${runLink}`;
   }
 }
 
@@ -504,7 +592,9 @@ function persistRunMeta(ctx: InternalContext) {
     const meta = { runId: ctx.runId, githubRunId: ctx.githubRunId, ts: Date.now() };
     localStorage.setItem(`validation_${ctx.runId}`, JSON.stringify(meta));
     localStorage.setItem('lastValidationRunInfo', JSON.stringify(meta));
-  } catch {/* ignore */}
+  } catch {
+    /* ignore */
+  }
 }
 
 function manualResume(ctx: InternalContext): boolean {
@@ -526,16 +616,27 @@ function manualResume(ctx: InternalContext): boolean {
 }
 
 async function safeResponseText(resp: Response) {
-  try { return await resp.text(); } catch { return ''; }
+  try {
+    return await resp.text();
+  } catch {
+    return '';
+  }
 }
 
 function escapeHtml(str: string) {
-  return String(str).replace(/[&<>"]/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[s] as string));
+  return String(str).replace(
+    /[&<>"]/g,
+    (s) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[s] as string,
+  );
 }
 
 // Lightweight logging helper: records to console and (for workflow mode) the live log panel
 function log(ctx: InternalContext, message: string) {
-  try { console.debug('[validation]', message); } catch { /* ignore */ }
+  try {
+    console.debug('[validation]', message);
+  } catch {
+    /* ignore */
+  }
   if (ctx.opts.mode === 'workflow' && ctx.ui?.logsPre) {
     ctx.ui.logsPre.textContent += `[${new Date().toISOString()}] ${message}\n`;
     ctx.ui.logsPre.scrollTop = ctx.ui.logsPre.scrollHeight;
@@ -548,15 +649,37 @@ function legacyInitTemplateValidation(containerId: string, templateName: string,
   return initValidation({ container: containerId, templateRef: templateName, mode: 'simple' });
 }
 function legacyRunTemplateValidation(templateName: string, apiBase?: string) {
-  const inst = initValidation({ container: 'validation-root', templateRef: templateName, mode: 'simple' });
+  const inst = initValidation({
+    container: 'validation-root',
+    templateRef: templateName,
+    mode: 'simple',
+  });
   inst.start();
   return inst;
 }
-function legacyInitGithubWorkflowValidation(containerId: string, templateUrl: string, onStatusChange?: (e: any) => void) {
-  return initValidation({ container: containerId, templateRef: templateUrl, mode: 'workflow', onStatusChange });
+function legacyInitGithubWorkflowValidation(
+  containerId: string,
+  templateUrl: string,
+  onStatusChange?: (e: any) => void,
+) {
+  return initValidation({
+    container: containerId,
+    templateRef: templateUrl,
+    mode: 'workflow',
+    onStatusChange,
+  });
 }
-function legacyRunGithubWorkflowValidation(templateUrl: string, apiBase?: string, onStatusChange?: (e:any)=>void) {
-  const inst = initValidation({ container: 'githubValidationContainer', templateRef: templateUrl, mode: 'workflow', onStatusChange });
+function legacyRunGithubWorkflowValidation(
+  templateUrl: string,
+  apiBase?: string,
+  onStatusChange?: (e: any) => void,
+) {
+  const inst = initValidation({
+    container: 'githubValidationContainer',
+    templateRef: templateUrl,
+    mode: 'workflow',
+    onStatusChange,
+  });
   inst.start();
   return inst;
 }

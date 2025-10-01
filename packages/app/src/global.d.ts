@@ -19,7 +19,7 @@ interface ScannedTemplateEntry {
   compliance: { percentage: number; issues: number; passed: number };
   timestamp: string;
   scannedBy?: string[];
-  ruleSet?: string; 
+  ruleSet?: string;
   customConfig?: { gistUrl?: string; [key: string]: any };
   description?: string;
   languages?: string[];
@@ -36,8 +36,8 @@ declare interface Window {
   TemplateDoctorConfig?: any;
   TemplateDoctorRuntime?: any;
   GitHubAuth?: GitHubAuthLike; // unified global auth handle
-  GitHubClient?: any;          // legacy compatibility surface (now TS instance)
-  GitHubClientTS?: any;        // direct reference to TS client for debugging/tests
+  GitHubClient?: any; // legacy compatibility surface (now TS instance)
+  GitHubClientTS?: any; // direct reference to TS client for debugging/tests
   showRulesetModal?: (repoUrl: string) => void; // ruleset modal launcher
   TemplateValidation?: any; // backward compat
   GitHubWorkflowValidation?: any; // backward compat

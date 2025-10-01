@@ -17,16 +17,16 @@ interface ApiRoutesGlobal {
   currentVersion: () => string | null;
 }
 
-(function initApiRoutes(){
+(function initApiRoutes() {
   function normalizeBase(rawBase: unknown): string {
-    if(!rawBase) return '';
-    return String(rawBase).replace(/\/$/,'');
+    if (!rawBase) return '';
+    return String(rawBase).replace(/\/$/, '');
   }
 
   function getApiBase(): string {
     const cfg: TemplateDoctorConfigShape = (window as any).TemplateDoctorConfig || {};
     if (cfg.apiBase) return normalizeBase(cfg.apiBase);
-    const isLocal = ['localhost','127.0.0.1'].includes(window.location.hostname);
+    const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
     if (isLocal) {
       if (window.location.port === '7071') return 'http://localhost:7071';
       return normalizeBase(window.location.origin);
@@ -35,8 +35,8 @@ interface ApiRoutesGlobal {
   }
 
   function getVersionPrefix(path: string, version: string | undefined): string {
-    if(!version) return '/api';
-    const trimmed = path.replace(/^\//,'');
+    if (!version) return '/api';
+    const trimmed = path.replace(/^\//, '');
     if (trimmed.startsWith(`api/${version}/`) || trimmed === `api/${version}`) {
       return '/api';
     }
@@ -45,16 +45,17 @@ interface ApiRoutesGlobal {
 
   function build(path: string, options?: ApiRouteBuildOptions): string {
     const cfg: TemplateDoctorConfigShape = (window as any).TemplateDoctorConfig || {};
-    const version: string | undefined = (options && options.versionOverride) || cfg.apiVersion || cfg.backend?.apiVersion || '';
-    const trimmed = String(path || '').replace(/^\//,'');
+    const version: string | undefined =
+      (options && options.versionOverride) || cfg.apiVersion || cfg.backend?.apiVersion || '';
+    const trimmed = String(path || '').replace(/^\//, '');
     const prefix = getVersionPrefix(trimmed, version);
     const base = getApiBase();
     let url = `${base}${prefix}/${trimmed}`.replace(/([^:])\/+/, '$1/');
     const query = options && options.query;
     if (query && typeof query === 'object') {
       const qp = Object.entries(query)
-        .filter(([,v]) => v !== undefined && v !== null && v !== '')
-        .map(([k,v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+        .filter(([, v]) => v !== undefined && v !== null && v !== '')
+        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
         .join('&');
       if (qp) url += (url.includes('?') ? '&' : '?') + qp;
     }
@@ -62,7 +63,7 @@ interface ApiRoutesGlobal {
   }
 
   function currentVersion(): string | null {
-    if(!(window as any).TemplateDoctorConfig) return null;
+    if (!(window as any).TemplateDoctorConfig) return null;
     const cfg: TemplateDoctorConfigShape = (window as any).TemplateDoctorConfig;
     return cfg.apiVersion || cfg.backend?.apiVersion || null;
   }
@@ -73,7 +74,7 @@ interface ApiRoutesGlobal {
 
   const endpointMap: Record<string, string> = {
     // Legacy name -> canonical function route
-    runtimeConfig: 'client-settings',      // old frontend expected /runtime-config; now served at /client-settings
+    runtimeConfig: 'client-settings', // old frontend expected /runtime-config; now served at /client-settings
     clientSettings: 'client-settings',
     analyzeTemplate: 'analyze-template',
     validationTemplate: 'validation-template',
@@ -83,14 +84,14 @@ interface ApiRoutesGlobal {
     validationDockerImage: 'validation-docker-image',
     issueCreate: 'issue-create',
     githubOAuthToken: 'github-oauth-token',
-    setup: 'setup'
+    setup: 'setup',
   };
 
   for (const [prop, path] of Object.entries(endpointMap)) {
     Object.defineProperty(routes, prop, {
       get: () => build(path),
       enumerable: true,
-      configurable: false
+      configurable: false,
     });
   }
 

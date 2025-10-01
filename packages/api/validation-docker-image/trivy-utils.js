@@ -1,10 +1,10 @@
 /**
  * Trivy scanner utility functions for processing scan results and calculating security scores
  */
-const { extractFilesFromZip } = require('../shared/zip-utils');
+const { extractFilesFromZip } = require("../shared/zip-utils");
 
 /**
- * Processes Trivy scan results to extract detailed information about vulnerabilities, 
+ * Processes Trivy scan results to extract detailed information about vulnerabilities,
  * misconfigurations, secrets, and license issues
  * @param {Object} trivyResults - Parsed Trivy results from extractTrivyResults
  * @returns {Object} - Detailed analysis of the scan results
@@ -40,17 +40,17 @@ function processTrivyResultsDetails(trivyResults, includeAllDetails = false) {
         // Initialize per-artifact counters and metadata
         const artifactInfo = {
             filename,
-            artifactName: result.ArtifactName || 'unknown',
-            artifactType: result.ArtifactType || 'unknown',
-            imageId: '',
-            repository: '',
-            tag: '',
-            digest: '',
+            artifactName: result.ArtifactName || "unknown",
+            artifactType: result.ArtifactType || "unknown",
+            imageId: "",
+            repository: "",
+            tag: "",
+            digest: "",
             metadata: {},
             os: {
-                family: '',
-                name: '',
-                version: ''
+                family: "",
+                name: "",
+                version: "",
             },
             vulnerabilities: {
                 total: 0,
@@ -58,7 +58,7 @@ function processTrivyResultsDetails(trivyResults, includeAllDetails = false) {
                 high: 0,
                 medium: 0,
                 low: 0,
-                details: []
+                details: [],
             },
             misconfigurations: {
                 total: 0,
@@ -66,16 +66,16 @@ function processTrivyResultsDetails(trivyResults, includeAllDetails = false) {
                 high: 0,
                 medium: 0,
                 low: 0,
-                details: []
+                details: [],
             },
             secrets: {
                 count: 0,
-                details: []
+                details: [],
             },
             licenses: {
                 count: 0,
-                details: []
-            }
+                details: [],
+            },
         };
 
         // Extract image metadata if available
@@ -89,52 +89,64 @@ function processTrivyResultsDetails(trivyResults, includeAllDetails = false) {
 
             // OS info
             if (result.Metadata.OS) {
-                artifactInfo.os.family = result.Metadata.OS.Family || '';
-                artifactInfo.os.name = result.Metadata.OS.Name || '';
-                artifactInfo.os.version = result.Metadata.OS.Version || '';
+                artifactInfo.os.family = result.Metadata.OS.Family || "";
+                artifactInfo.os.name = result.Metadata.OS.Name || "";
+                artifactInfo.os.version = result.Metadata.OS.Version || "";
             }
 
             // Image repository/tag info (from name or repo fields)
             if (result.Metadata.ImageID) {
                 artifactInfo.imageId = result.Metadata.ImageID;
             }
-            if (result.Metadata.RepoDigests && result.Metadata.RepoDigests.length > 0) {
-                const digestParts = result.Metadata.RepoDigests[0].split('@');
+            if (
+                result.Metadata.RepoDigests &&
+                result.Metadata.RepoDigests.length > 0
+            ) {
+                const digestParts = result.Metadata.RepoDigests[0].split("@");
                 if (digestParts.length > 0) {
-                    artifactInfo.repository = digestParts[0].split(':')[0];
-                    artifactInfo.digest = digestParts.length > 1 ? digestParts[1] : '';
+                    artifactInfo.repository = digestParts[0].split(":")[0];
+                    artifactInfo.digest =
+                        digestParts.length > 1 ? digestParts[1] : "";
                 }
             }
-            if (result.Metadata.RepoTags && result.Metadata.RepoTags.length > 0) {
-                const tagParts = result.Metadata.RepoTags[0].split(':');
-                artifactInfo.repository = artifactInfo.repository || tagParts[0];
-                artifactInfo.tag = tagParts.length > 1 ? tagParts[1] : 'latest';
+            if (
+                result.Metadata.RepoTags &&
+                result.Metadata.RepoTags.length > 0
+            ) {
+                const tagParts = result.Metadata.RepoTags[0].split(":");
+                artifactInfo.repository =
+                    artifactInfo.repository || tagParts[0];
+                artifactInfo.tag = tagParts.length > 1 ? tagParts[1] : "latest";
             }
         }
 
         if (result.Results) {
-
             for (const scanResult of result.Results) {
                 // Process misconfigurations
                 if (scanResult.MisconfSummary) {
                     if (scanResult.MisconfSummary.Failures) {
-                        totalMisconfigurations += scanResult.MisconfSummary.Failures;
-                        artifactInfo.misconfigurations.total += scanResult.MisconfSummary.Failures;
+                        totalMisconfigurations +=
+                            scanResult.MisconfSummary.Failures;
+                        artifactInfo.misconfigurations.total +=
+                            scanResult.MisconfSummary.Failures;
                     }
                 }
 
-                if (scanResult.Misconfigurations && Array.isArray(scanResult.Misconfigurations)) {
+                if (
+                    scanResult.Misconfigurations &&
+                    Array.isArray(scanResult.Misconfigurations)
+                ) {
                     for (const misconfig of scanResult.Misconfigurations) {
-                        if (misconfig.Severity === 'CRITICAL') {
+                        if (misconfig.Severity === "CRITICAL") {
                             criticalMisconfigurations++;
                             artifactInfo.misconfigurations.critical++;
-                        } else if (misconfig.Severity === 'HIGH') {
+                        } else if (misconfig.Severity === "HIGH") {
                             highMisconfigurations++;
                             artifactInfo.misconfigurations.high++;
-                        } else if (misconfig.Severity === 'MEDIUM') {
+                        } else if (misconfig.Severity === "MEDIUM") {
                             mediumMisconfigurations++;
                             artifactInfo.misconfigurations.medium++;
-                        } else if (misconfig.Severity === 'LOW') {
+                        } else if (misconfig.Severity === "LOW") {
                             lowMisconfigurations++;
                             artifactInfo.misconfigurations.low++;
                         }
@@ -144,36 +156,47 @@ function processTrivyResultsDetails(trivyResults, includeAllDetails = false) {
                             id: misconfig.ID,
                             title: misconfig.Title,
                             severity: misconfig.Severity,
-                            target: scanResult.Target || misconfig.FilePath || 'unknown',
-                            type: scanResult.Type || misconfig.Type || 'unknown',
-                            message: misconfig.Message || 'No message provided',
-                            resolution: misconfig.Resolution || 'No resolution provided'
+                            target:
+                                scanResult.Target ||
+                                misconfig.FilePath ||
+                                "unknown",
+                            type:
+                                scanResult.Type || misconfig.Type || "unknown",
+                            message: misconfig.Message || "No message provided",
+                            resolution:
+                                misconfig.Resolution ||
+                                "No resolution provided",
                         };
 
                         // Add to global and per-artifact lists
-                        if(includeAllDetails){
+                        if (includeAllDetails) {
                             misconfigurationDetails.push(misconfigDetail);
-                            artifactInfo.misconfigurations.details.push(misconfigDetail);
+                            artifactInfo.misconfigurations.details.push(
+                                misconfigDetail,
+                            );
                         }
                     }
                 }
 
                 // Process vulnerabilities
-                if (scanResult.Vulnerabilities && Array.isArray(scanResult.Vulnerabilities)) {
+                if (
+                    scanResult.Vulnerabilities &&
+                    Array.isArray(scanResult.Vulnerabilities)
+                ) {
                     for (const vuln of scanResult.Vulnerabilities) {
                         totalVulnerabilities++;
                         artifactInfo.vulnerabilities.total++;
 
-                        if (vuln.Severity === 'CRITICAL') {
+                        if (vuln.Severity === "CRITICAL") {
                             criticalVulns++;
                             artifactInfo.vulnerabilities.critical++;
-                        } else if (vuln.Severity === 'HIGH') {
+                        } else if (vuln.Severity === "HIGH") {
                             highVulns++;
                             artifactInfo.vulnerabilities.high++;
-                        } else if (vuln.Severity === 'MEDIUM') {
+                        } else if (vuln.Severity === "MEDIUM") {
                             mediumVulns++;
                             artifactInfo.vulnerabilities.medium++;
-                        } else if (vuln.Severity === 'LOW') {
+                        } else if (vuln.Severity === "LOW") {
                             lowVulns++;
                             artifactInfo.vulnerabilities.low++;
                         }
@@ -183,23 +206,28 @@ function processTrivyResultsDetails(trivyResults, includeAllDetails = false) {
                             id: vuln.VulnerabilityID,
                             package: vuln.PkgName,
                             installedVersion: vuln.InstalledVersion,
-                            fixedVersion: vuln.FixedVersion || 'Not available',
+                            fixedVersion: vuln.FixedVersion || "Not available",
                             severity: vuln.Severity,
-                            title: vuln.Title || 'N/A',
-                            description: vuln.Description || 'N/A',
-                            target: scanResult.Target || 'unknown'
+                            title: vuln.Title || "N/A",
+                            description: vuln.Description || "N/A",
+                            target: scanResult.Target || "unknown",
                         };
 
                         // Add critical and high vulnerabilities to global details
-                        if (vuln.Severity === 'CRITICAL' || vuln.Severity === 'HIGH') {
-                            if(includeAllDetails){
+                        if (
+                            vuln.Severity === "CRITICAL" ||
+                            vuln.Severity === "HIGH"
+                        ) {
+                            if (includeAllDetails) {
                                 vulnerabilityDetails.push(vulnDetail);
                             }
                         }
 
                         // Add all vulnerabilities to per-artifact details
-                        if(includeAllDetails){
-                            artifactInfo.vulnerabilities.details.push(vulnDetail);
+                        if (includeAllDetails) {
+                            artifactInfo.vulnerabilities.details.push(
+                                vulnDetail,
+                            );
                         }
                     }
                 }
@@ -211,13 +239,18 @@ function processTrivyResultsDetails(trivyResults, includeAllDetails = false) {
 
                     for (const secret of scanResult.Secrets) {
                         const secretDetail = {
-                            category: secret.Category || 'Unknown',
-                            title: secret.Title || 'Secret found',
-                            target: scanResult.Target || secret.FilePath || 'unknown',
-                            match: secret.Match ? secret.Match.substring(0, 10) + '...' : 'Hidden'
+                            category: secret.Category || "Unknown",
+                            title: secret.Title || "Secret found",
+                            target:
+                                scanResult.Target ||
+                                secret.FilePath ||
+                                "unknown",
+                            match: secret.Match
+                                ? secret.Match.substring(0, 10) + "..."
+                                : "Hidden",
                         };
 
-                        if(includeAllDetails){
+                        if (includeAllDetails) {
                             secretDetails.push(secretDetail);
                             artifactInfo.secrets.details.push(secretDetail);
                         }
@@ -232,15 +265,17 @@ function processTrivyResultsDetails(trivyResults, includeAllDetails = false) {
                             artifactInfo.licenses.count++;
 
                             const licenseDetail = {
-                                pkgName: license.PkgName || 'Unknown',
-                                license: license.Name || 'Unknown license',
-                                severity: license.Severity || 'UNKNOWN',
-                                target: scanResult.Target || 'unknown'
+                                pkgName: license.PkgName || "Unknown",
+                                license: license.Name || "Unknown license",
+                                severity: license.Severity || "UNKNOWN",
+                                target: scanResult.Target || "unknown",
                             };
 
-                            if(includeAllDetails){
+                            if (includeAllDetails) {
                                 licenseDetails.push(licenseDetail);
-                                artifactInfo.licenses.details.push(licenseDetail);
+                                artifactInfo.licenses.details.push(
+                                    licenseDetail,
+                                );
                             }
                         }
                     }
@@ -260,25 +295,30 @@ function processTrivyResultsDetails(trivyResults, includeAllDetails = false) {
         if (artifactKeys.length === 0) {
             return null;
         }
-        
+
         // Priority order for artifact types
-        const priorityTypes = ['container', 'image', 'filesystem', 'repository'];
-        
+        const priorityTypes = [
+            "container",
+            "image",
+            "filesystem",
+            "repository",
+        ];
+
         // First, try to find artifacts by priority type
         for (const artifactType of priorityTypes) {
-            const matchingKey = artifactKeys.find(key => 
-                artifacts[key].artifactType === artifactType
+            const matchingKey = artifactKeys.find(
+                (key) => artifacts[key].artifactType === artifactType,
             );
-            
+
             if (matchingKey) {
                 return artifacts[matchingKey];
             }
         }
-        
+
         // If no priority matches found, return the first artifact
         return artifacts[artifactKeys[0]];
     };
-    
+
     const primaryArtifact = selectPrimaryArtifact(artifactResults);
 
     // Return the processed results
@@ -305,13 +345,15 @@ function processTrivyResultsDetails(trivyResults, includeAllDetails = false) {
         artifacts: artifactResults,
 
         // Primary artifact information (if available)
-        artifactName: primaryArtifact ? primaryArtifact.artifactName : '',
-        artifactType: primaryArtifact ? primaryArtifact.artifactType : '',
-        imageId: primaryArtifact ? primaryArtifact.imageId : '',
-        repository: primaryArtifact ? primaryArtifact.repository : '',
-        tag: primaryArtifact ? primaryArtifact.tag : '',
-        digest: primaryArtifact ? primaryArtifact.digest : '',
-        os: primaryArtifact ? primaryArtifact.os : { family: '', name: '', version: '' }
+        artifactName: primaryArtifact ? primaryArtifact.artifactName : "",
+        artifactType: primaryArtifact ? primaryArtifact.artifactType : "",
+        imageId: primaryArtifact ? primaryArtifact.imageId : "",
+        repository: primaryArtifact ? primaryArtifact.repository : "",
+        tag: primaryArtifact ? primaryArtifact.tag : "",
+        digest: primaryArtifact ? primaryArtifact.digest : "",
+        os: primaryArtifact
+            ? primaryArtifact.os
+            : { family: "", name: "", version: "" },
     };
 }
 
@@ -325,119 +367,145 @@ function processTrivyResultsDetails(trivyResults, includeAllDetails = false) {
  * @param {number} [options.maxFileSize=10485760] - Maximum file size to process (in bytes, default 10MB)
  * @returns {Promise<Object>} - Parsed Trivy results
  */
-async function extractTrivyResults(context, zipData, correlationId = null, options = {}) {
+async function extractTrivyResults(
+    context,
+    zipData,
+    correlationId = null,
+    options = {},
+) {
     const requestId = correlationId || `trivy-extract-${Date.now()}`;
     const chunkSize = options.chunkSize || 50; // Process 50 files at a time by default
     const maxFileSize = options.maxFileSize || 10 * 1024 * 1024; // 10MB default size limit
-    
+
     // Safe logging helper for consistent logging structure
     const safeLog = (level, message, data = {}) => {
         const logData = {
             ...data,
-            operation: 'extractTrivyResults',
-            requestId
+            operation: "extractTrivyResults",
+            requestId,
         };
 
-        if (level === 'error' && context?.log?.error) {
+        if (level === "error" && context?.log?.error) {
             context.log.error(message, logData);
-        } else if (level === 'warn' && context?.log?.warn) {
+        } else if (level === "warn" && context?.log?.warn) {
             context.log.warn(message, logData);
         } else if (context?.log) {
             context.log(message, logData);
         }
     };
-    
+
     try {
         // Validate input
         if (!zipData || !(zipData instanceof ArrayBuffer)) {
-            throw new Error('Invalid zip data provided: must be an ArrayBuffer');
+            throw new Error(
+                "Invalid zip data provided: must be an ArrayBuffer",
+            );
         }
-        
-        const files = await extractFilesFromZip(zipData, context, correlationId);
+
+        const files = await extractFilesFromZip(
+            zipData,
+            context,
+            correlationId,
+        );
         const fileEntries = Object.entries(files);
         const fileCount = fileEntries.length;
-        
-        safeLog('info', `Extracted ${fileCount} files from ZIP archive`, { fileCount });
+
+        safeLog("info", `Extracted ${fileCount} files from ZIP archive`, {
+            fileCount,
+        });
 
         // Look for Trivy results files in the extracted files
         const trivyResults = {};
-        const jsonFiles = fileEntries.filter(([filename]) => filename.endsWith('.json'));
-        
+        const jsonFiles = fileEntries.filter(([filename]) =>
+            filename.endsWith(".json"),
+        );
+
         // Process files in chunks to avoid memory issues with large datasets
         for (let i = 0; i < jsonFiles.length; i += chunkSize) {
             const startTime = Date.now();
             const chunk = jsonFiles.slice(i, i + chunkSize);
             const chunkNumber = Math.floor(i / chunkSize) + 1;
             const totalChunks = Math.ceil(jsonFiles.length / chunkSize);
-            
-            safeLog('info', `Processing JSON files chunk ${chunkNumber}/${totalChunks}`, {
-                chunkNumber,
-                totalChunks,
-                chunkSize: chunk.length,
-                startIndex: i,
-                endIndex: Math.min(i + chunkSize - 1, jsonFiles.length - 1)
-            });
-            
+
+            safeLog(
+                "info",
+                `Processing JSON files chunk ${chunkNumber}/${totalChunks}`,
+                {
+                    chunkNumber,
+                    totalChunks,
+                    chunkSize: chunk.length,
+                    startIndex: i,
+                    endIndex: Math.min(i + chunkSize - 1, jsonFiles.length - 1),
+                },
+            );
+
             // Process each file in the chunk
             for (const [filename, content] of chunk) {
                 // Skip oversized files
-                if (typeof content === 'string' && content.length > maxFileSize) {
-                    safeLog('warn', `Skipping oversized JSON file`, {
+                if (
+                    typeof content === "string" &&
+                    content.length > maxFileSize
+                ) {
+                    safeLog("warn", `Skipping oversized JSON file`, {
                         filename,
                         size: content.length,
-                        maxSize: maxFileSize
+                        maxSize: maxFileSize,
                     });
                     continue;
                 }
-                
+
                 // Handle both string and Buffer content types
                 try {
                     let parsed;
-                    if (typeof content === 'string') {
+                    if (typeof content === "string") {
                         parsed = JSON.parse(content);
                     } else if (Buffer.isBuffer(content)) {
-                        parsed = JSON.parse(content.toString('utf8'));
+                        parsed = JSON.parse(content.toString("utf8"));
                     } else {
-                        throw new Error(`Unexpected content type: ${typeof content}`);
+                        throw new Error(
+                            `Unexpected content type: ${typeof content}`,
+                        );
                     }
-                    
+
                     trivyResults[filename] = parsed;
                 } catch (parseErr) {
-                    safeLog('warn', `Failed to parse JSON from ${filename}`, {
+                    safeLog("warn", `Failed to parse JSON from ${filename}`, {
                         error: parseErr.message,
-                        filename
+                        filename,
                     });
                 }
             }
-            
+
             const chunkDuration = Date.now() - startTime;
-            safeLog('info', `Completed chunk ${chunkNumber}/${totalChunks}`, {
+            safeLog("info", `Completed chunk ${chunkNumber}/${totalChunks}`, {
                 chunkNumber,
                 durationMs: chunkDuration,
-                filesProcessed: chunk.length
+                filesProcessed: chunk.length,
             });
         }
 
         const validCount = Object.keys(trivyResults).length;
-        safeLog('info', `Found ${validCount} valid Trivy result files`, { validCount });
-        
+        safeLog("info", `Found ${validCount} valid Trivy result files`, {
+            validCount,
+        });
+
         return trivyResults;
     } catch (err) {
-        safeLog('error', `Error extracting Trivy results`, {
+        safeLog("error", `Error extracting Trivy results`, {
             error: err.message,
-            errorType: err.constructor.name
+            errorType: err.constructor.name,
         });
-        
+
         // Avoid exposing full stack traces in production
-        if (process.env.NODE_ENV === 'development') {
-            safeLog('error', 'Error stack trace', { stack: err.stack });
+        if (process.env.NODE_ENV === "development") {
+            safeLog("error", "Error stack trace", { stack: err.stack });
         }
-        
+
         throw new Error(`Failed to extract Trivy results: ${err.message}`);
     }
 }
 
 module.exports = {
     extractTrivyResults,
-    processTrivyResultsDetails
+    processTrivyResultsDetails,
 };

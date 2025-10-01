@@ -6,15 +6,15 @@ export default defineConfig({
   root: '.',
   server: {
     port: 4000,
-    strictPort: true
+    strictPort: true,
   },
   preview: {
     port: 4000,
-    strictPort: true
+    strictPort: true,
   },
   define: {
     // Inject BASE from environment so runtime-config.ts can access it
-    'window.BASE': JSON.stringify(process.env.BASE || '')
+    'window.BASE': JSON.stringify(process.env.BASE || ''),
   },
   build: {
     outDir: 'dist',
@@ -29,9 +29,9 @@ export default defineConfig({
             return 'css/[name][extname]';
           }
           return 'assets/[name]-[hash][extname]';
-        }
-      }
+        },
+      },
     },
-    assetsInlineLimit: 0
-  }
+    assetsInlineLimit: 0,
+  },
 });

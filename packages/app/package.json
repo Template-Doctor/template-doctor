@@ -8,12 +8,12 @@
     "test:ui": "playwright test --ui",
     "test:debug": "playwright test --debug",
     "browsers:install": "playwright install chromium",
-  "dev": "vite",
-  "preview": "vite preview",
+    "dev": "vite",
+    "preview": "vite preview",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-  "build": "vite build",
-  "typecheck": "tsc -p tsconfig.json --noEmit"
+    "build": "vite build",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
     "prettier": "^3.6.2",

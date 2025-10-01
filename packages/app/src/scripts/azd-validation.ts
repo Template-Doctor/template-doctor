@@ -9,7 +9,9 @@ let logElement: HTMLPreElement | null = null;
 let stopButton: HTMLButtonElement | null = null;
 let isValidationRunning = false;
 
-function notify() { return (window as any).NotificationSystem || (window as any).Notifications; }
+function notify() {
+  return (window as any).NotificationSystem || (window as any).Notifications;
+}
 
 function showInfo(title: string, message: string) {
   const n = notify();
@@ -39,7 +41,7 @@ function showLoading(title: string, message: string) {
 function appendLog(logEl: HTMLPreElement | Console, message: string) {
   const timestamp = new Date().toISOString().substring(11, 19);
   const line = `[${timestamp}] ${message}\n`;
-  
+
   if (logEl instanceof HTMLPreElement) {
     logEl.textContent += line;
     logEl.scrollTop = logEl.scrollHeight;
@@ -52,13 +54,13 @@ function createLogContainer(): HTMLPreElement {
   // Remove existing log container if present
   const existing = document.getElementById('azd-provision-logs');
   if (existing) existing.remove();
-  
+
   const existingControls = document.getElementById('azd-provision-controls');
   if (existingControls) existingControls.remove();
-  
+
   // Create or get validation section container
   let validationSection = document.getElementById('validation-section') as HTMLElement | null;
-  
+
   if (!validationSection) {
     validationSection = document.createElement('section');
     validationSection.id = 'validation-section';
@@ -72,12 +74,12 @@ function createLogContainer(): HTMLPreElement {
       border-radius: 8px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     `;
-    
+
     // Find best insertion point
     const searchSection = document.getElementById('search-section');
     const analysisSection = document.getElementById('analysis-section');
     const main = document.querySelector('main') || document.body;
-    
+
     if (searchSection && searchSection.style.display !== 'none') {
       // Insert after search section
       searchSection.parentNode?.insertBefore(validationSection, searchSection.nextSibling);
@@ -88,17 +90,17 @@ function createLogContainer(): HTMLPreElement {
       // Insert at beginning of main
       main.insertBefore(validationSection, main.firstChild);
     }
-    
+
     // Add section header
     const header = document.createElement('h2');
     header.style.cssText = 'margin: 0 0 15px 0; color: #0078d4; font-size: 1.5rem;';
     header.innerHTML = '<i class="fas fa-rocket"></i> AZD Validation';
     validationSection.appendChild(header);
   }
-  
+
   // Make sure validation section is visible
   validationSection.style.display = 'block';
-  
+
   // Create log container
   const logEl = document.createElement('pre');
   logEl.id = 'azd-provision-logs';
@@ -113,15 +115,15 @@ function createLogContainer(): HTMLPreElement {
     margin: 10px 0 20px 0;
     font-family: 'Courier New', monospace;
   `;
-  
+
   // Append to validation section
   validationSection.appendChild(logEl);
-  
+
   // Create controls row with cancel button
   const controls = document.createElement('div');
   controls.id = 'azd-provision-controls';
   controls.style.cssText = 'margin: 0 0 10px 0; display: flex; gap: 8px; align-items: center;';
-  
+
   const stopBtn = document.createElement('button');
   stopBtn.id = 'azd-stop-btn';
   stopBtn.textContent = 'Cancel Validation';
@@ -137,17 +139,17 @@ function createLogContainer(): HTMLPreElement {
     font-weight: 500;
   `;
   stopBtn.disabled = true;
-  
+
   controls.appendChild(stopBtn);
   validationSection.insertBefore(controls, logEl);
-  
+
   stopButton = stopBtn;
-  
+
   // Scroll to validation section
   setTimeout(() => {
     validationSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, 100);
-  
+
   return logEl;
 }
 
@@ -157,22 +159,22 @@ export async function testAzdProvision(repoUrl?: string) {
     console.log('[azd-validation] Validation already running, ignoring duplicate request');
     return;
   }
-  
+
   // Get report data from window or use provided repoUrl
   const reportData = (window as any).reportData;
-  
+
   if (!repoUrl && !reportData) {
     showError('Error', 'No report data available to test AZD provision');
     return;
   }
-  
+
   const templateUrl = repoUrl || reportData?.repoUrl;
-  
+
   if (!templateUrl) {
     showError('Error', 'No repository URL found');
     return;
   }
-  
+
   // Show confirmation dialog
   const n = notify();
   if (n?.confirm) {
@@ -183,11 +185,15 @@ export async function testAzdProvision(repoUrl?: string) {
         confirmLabel: 'Start Validation',
         cancelLabel: 'Cancel',
         onConfirm: () => runValidation(templateUrl),
-        onCancel: () => console.log('Validation cancelled by user')
-      }
+        onCancel: () => console.log('Validation cancelled by user'),
+      },
     );
   } else {
-    if (confirm('This will trigger the template validation GitHub workflow for this repository. Proceed?')) {
+    if (
+      confirm(
+        'This will trigger the template validation GitHub workflow for this repository. Proceed?',
+      )
+    ) {
       runValidation(templateUrl);
     }
   }
@@ -196,42 +202,42 @@ export async function testAzdProvision(repoUrl?: string) {
 async function runValidation(templateUrl: string) {
   // Set running flag
   isValidationRunning = true;
-  
+
   // Create log container
   logElement = createLogContainer();
-  
+
   appendLog(logElement, 'Starting AZD validation...');
   appendLog(logElement, `Target repository: ${templateUrl}`);
-  
+
   // Get API base
   const cfg: any = (window as any).TemplateDoctorConfig || {};
   const apiBase = cfg.apiBase || window.location.origin;
-  
+
   appendLog(logElement, `API base: ${apiBase}`);
-  
+
   // Show button loading state
-  const testProvisionButton = 
+  const testProvisionButton =
     document.getElementById('testProvisionButton') ||
     document.getElementById('testProvisionButton-direct') ||
     document.getElementById('testProvisionButton-fallback');
-  
+
   let originalText = '';
   if (testProvisionButton) {
     originalText = testProvisionButton.innerHTML;
     testProvisionButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting…';
     (testProvisionButton as HTMLButtonElement).disabled = true;
   }
-  
+
   const loadingNotification = showLoading(
     'Starting AZD Provision',
-    'Triggering validation workflow...'
+    'Triggering validation workflow...',
   );
-  
+
   try {
     // Call validation-template endpoint
     const endpoint = `${apiBase}/api/v4/validation-template`;
     appendLog(logElement, `Calling: POST ${endpoint}`);
-    
+
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
@@ -239,92 +245,100 @@ async function runValidation(templateUrl: string) {
       },
       body: JSON.stringify({
         targetRepoUrl: templateUrl,
-        callbackUrl: window.location.href
-      })
+        callbackUrl: window.location.href,
+      }),
     });
-    
+
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Validation start failed: ${response.status} ${response.statusText} - ${errorText}`);
+      throw new Error(
+        `Validation start failed: ${response.status} ${response.statusText} - ${errorText}`,
+      );
     }
-    
+
     const data = await response.json();
     currentRunId = data.runId || null;
     currentGithubRunId = data.githubRunId || null;
     currentGithubRunUrl = data.githubRunUrl || null;
-    
+
     appendLog(logElement, `✓ Validation started`);
     appendLog(logElement, `Run ID: ${currentRunId}`);
-    
+
     if (currentGithubRunId) {
       appendLog(logElement, `GitHub Run ID: ${currentGithubRunId}`);
     }
-    
+
     if (currentGithubRunUrl) {
       appendLog(logElement, `GitHub Run URL: ${currentGithubRunUrl}`);
       appendLog(logElement, 'Opening GitHub Actions run in new tab...');
-      
+
       // Add clickable link to logs
       const linkLine = document.createElement('div');
-      linkLine.style.cssText = 'margin: 10px 0; padding: 8px; background: #1a1b1c; border-left: 3px solid #0078d4;';
+      linkLine.style.cssText =
+        'margin: 10px 0; padding: 8px; background: #1a1b1c; border-left: 3px solid #0078d4;';
       linkLine.innerHTML = `<a href="${currentGithubRunUrl}" target="_blank" style="color: #4fc3f7; text-decoration: none;">🔗 View GitHub Actions Run</a>`;
       logElement.appendChild(linkLine);
-      
+
       try {
         window.open(currentGithubRunUrl, '_blank');
       } catch (e) {
         appendLog(logElement, 'Failed to open GitHub Actions - please click the link above');
       }
     }
-    
+
     // Store in localStorage for correlation
     if (currentRunId) {
       try {
-        localStorage.setItem(`validation_${currentRunId}`, JSON.stringify({
-          githubRunId: currentGithubRunId,
-          githubRunUrl: currentGithubRunUrl,
-          templateUrl
-        }));
-        localStorage.setItem('lastValidationRunInfo', JSON.stringify({
-          runId: currentRunId,
-          githubRunId: currentGithubRunId,
-          githubRunUrl: currentGithubRunUrl,
-          templateUrl
-        }));
+        localStorage.setItem(
+          `validation_${currentRunId}`,
+          JSON.stringify({
+            githubRunId: currentGithubRunId,
+            githubRunUrl: currentGithubRunUrl,
+            templateUrl,
+          }),
+        );
+        localStorage.setItem(
+          'lastValidationRunInfo',
+          JSON.stringify({
+            runId: currentRunId,
+            githubRunId: currentGithubRunId,
+            githubRunUrl: currentGithubRunUrl,
+            templateUrl,
+          }),
+        );
       } catch (e) {
         console.warn('Failed to save validation info to localStorage:', e);
       }
     }
-    
+
     if (loadingNotification?.success) {
       loadingNotification.success(
         'Validation Started',
-        currentGithubRunUrl 
+        currentGithubRunUrl
           ? 'Workflow started. Opening GitHub run in a new tab.'
-          : 'Workflow started. Monitor status below.'
+          : 'Workflow started. Monitor status below.',
       );
     } else {
       showSuccess('Validation Started', 'Workflow triggered successfully');
     }
-    
+
     // Enable cancel button
     if (stopButton && currentRunId) {
       stopButton.disabled = false;
       stopButton.onclick = () => cancelValidation();
     }
-    
+
     // Start polling for status
     if (currentRunId) {
       startStatusPolling(apiBase, currentRunId);
     }
-    
   } catch (error: any) {
     appendLog(logElement, `✗ Error: ${error.message}`);
     showError('Validation Failed', error.message || 'Failed to start validation');
-    
+
     // Clear running flag on error
     isValidationRunning = false;
-    
+
     if (loadingNotification?.error) {
       loadingNotification.error('Validation Failed', error.message);
     }
@@ -342,39 +356,41 @@ async function runValidation(templateUrl: string) {
 
 async function cancelValidation() {
   if (!currentRunId || !logElement || !stopButton) return;
-  
+
   stopButton.disabled = true;
   const prevText = stopButton.textContent;
   stopButton.textContent = 'Cancelling…';
-  
+
   appendLog(logElement, 'Requesting cancellation...');
-  
+
   try {
     const cfg: any = (window as any).TemplateDoctorConfig || {};
     const apiBase = cfg.apiBase || window.location.origin;
     const endpoint = `${apiBase}/api/v4/validation-cancel`;
-    
+
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         runId: currentRunId,
         githubRunId: currentGithubRunId,
-        githubRunUrl: currentGithubRunUrl
-      })
+        githubRunUrl: currentGithubRunUrl,
+      }),
     });
-    
+
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(`Cancel failed: ${response.status} - ${errorText}`);
     }
-    
+
     const data = await response.json();
-    appendLog(logElement, `✓ Cancellation requested for GitHub run ${data.githubRunId || currentGithubRunId}`);
+    appendLog(
+      logElement,
+      `✓ Cancellation requested for GitHub run ${data.githubRunId || currentGithubRunId}`,
+    );
     appendLog(logElement, 'Waiting for status to reflect "cancelled"...');
-    
+
     showInfo('Cancellation Requested', 'Workflow will stop shortly');
-    
   } catch (error: any) {
     appendLog(logElement, `✗ Cancel error: ${error.message}`);
     showError('Cancel Failed', error.message);
@@ -387,13 +403,13 @@ function startStatusPolling(apiBase: string, runId: string) {
   if (pollingInterval) {
     clearInterval(pollingInterval);
   }
-  
+
   let attempts = 0;
   const MAX_ATTEMPTS = 60; // ~30 minutes at 30s intervals
-  
+
   const poll = async () => {
     attempts++;
-    
+
     if (!logElement || attempts > MAX_ATTEMPTS) {
       stopPolling();
       if (logElement) {
@@ -401,7 +417,7 @@ function startStatusPolling(apiBase: string, runId: string) {
       }
       return;
     }
-    
+
     try {
       const url = new URL(`${apiBase}/api/v4/validation-status`);
       url.searchParams.set('runId', runId);
@@ -409,40 +425,41 @@ function startStatusPolling(apiBase: string, runId: string) {
       if (currentGithubRunId) {
         url.searchParams.set('githubRunId', currentGithubRunId);
       }
-      
+
       const response = await fetch(url.toString(), {
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
       });
-      
+
       if (!response.ok) {
         throw new Error(`${response.status} ${response.statusText}`);
       }
-      
+
       const status = await response.json();
-      
+
       if (status.status) {
-        const statusMsg = status.conclusion 
+        const statusMsg = status.conclusion
           ? `${status.status} (${status.conclusion})`
           : status.status;
         appendLog(logElement!, `[status] ${statusMsg}`);
       }
-      
+
       // Check for logs archive URL
       if (status.logsArchiveUrl && !document.getElementById('gh-logs-archive-link')) {
         const linkDiv = document.createElement('div');
         linkDiv.id = 'gh-logs-archive-link';
-        linkDiv.style.cssText = 'margin: 10px 0; padding: 8px; background: #1a1b1c; border-left: 3px solid #28a745;';
+        linkDiv.style.cssText =
+          'margin: 10px 0; padding: 8px; background: #1a1b1c; border-left: 3px solid #28a745;';
         linkDiv.innerHTML = `<a href="${status.logsArchiveUrl}" target="_blank" style="color: #4fc3f7; text-decoration: none;">📥 Download Logs Archive</a>`;
         logElement!.appendChild(linkDiv);
       }
-      
+
       // Check if workflow is complete
       if (status.status === 'completed' || status.conclusion) {
         stopPolling();
-        
+
         // Clear running flag
         isValidationRunning = false;
-        
+
         if (status.conclusion === 'success') {
           appendLog(logElement!, '✓ Validation completed successfully!');
           showSuccess('Validation Complete', 'Template validation passed!');
@@ -455,20 +472,19 @@ function startStatusPolling(apiBase: string, runId: string) {
         } else {
           appendLog(logElement!, `⚠ Validation ended: ${status.conclusion || 'unknown'}`);
         }
-        
+
         // Disable cancel button
         if (stopButton) {
           stopButton.disabled = true;
           stopButton.textContent = 'Validation Complete';
         }
       }
-      
     } catch (error: any) {
       console.error('Status polling error:', error);
       appendLog(logElement!, `⚠ Status check failed: ${error.message}`);
     }
   };
-  
+
   // Poll immediately, then every 30 seconds
   poll();
   pollingInterval = window.setInterval(poll, 30000);
@@ -497,11 +513,11 @@ document.addEventListener('template-card-validate', (e: any) => {
 // Listen for dashboard button clicks (when reportData is available)
 document.addEventListener('DOMContentLoaded', () => {
   // Wire up test provision button if it exists
-  const testProvisionButton = 
+  const testProvisionButton =
     document.getElementById('testProvisionButton') ||
     document.getElementById('testProvisionButton-direct') ||
     document.getElementById('testProvisionButton-fallback');
-  
+
   if (testProvisionButton) {
     testProvisionButton.addEventListener('click', () => {
       testAzdProvision();

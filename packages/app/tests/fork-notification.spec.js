@@ -4,36 +4,34 @@ import { test, expect } from '@playwright/test';
 test.describe('Fork notification before analysis', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
-    
+
     // Mock authentication
     await page.evaluate(() => {
       window.GitHubClient = window.GitHubClient || {};
       window.GitHubClient.auth = {
         isAuthenticated: () => true,
-        getAccessToken: () => 'mock-token'
+        getAccessToken: () => 'mock-token',
       };
       window.GitHubClient.getCurrentUsername = () => 'testuser';
     });
 
     // Ensure NotificationSystem is available
-    await page.waitForFunction(() => !!(window.NotificationSystem));
+    await page.waitForFunction(() => !!window.NotificationSystem);
   });
 
   test('shows fork notification when analyzing repo owned by another user', async ({ page }) => {
     // Set up mock for analyzing external repo
     await page.evaluate(() => {
       window.GitHubClient.getDefaultBranch = async () => 'main';
-      window.GitHubClient.listFiles = async () => [
-        { path: 'README.md', type: 'file' }
-      ];
+      window.GitHubClient.listFiles = async () => [{ path: 'README.md', type: 'file' }];
       window.GitHubClient.getFileContent = async () => '# Test';
     });
 
     // Spy on NotificationSystem.showInfo
     const notificationPromise = page.evaluate(() => {
-      return new Promise(resolve => {
+      return new Promise((resolve) => {
         const originalShowInfo = window.NotificationSystem.showInfo;
-        window.NotificationSystem.showInfo = function(title, message, duration) {
+        window.NotificationSystem.showInfo = function (title, message, duration) {
           resolve({ title, message, duration });
           return originalShowInfo.call(this, title, message, duration);
         };
@@ -51,7 +49,7 @@ test.describe('Fork notification before analysis', () => {
 
     // Wait for notification
     const notification = await notificationPromise;
-    
+
     expect(notification.title).toBe('Fork-First Analysis');
     expect(notification.message).toContain('fork');
     expect(notification.message).toContain('testuser');
@@ -63,7 +61,7 @@ test.describe('Fork notification before analysis', () => {
     await page.evaluate(() => {
       window.__notificationCalled = false;
       const originalShowInfo = window.NotificationSystem.showInfo;
-      window.NotificationSystem.showInfo = function(title, message, duration) {
+      window.NotificationSystem.showInfo = function (title, message, duration) {
         if (title === 'Fork-First Analysis') {
           window.__notificationCalled = true;
         }
@@ -74,9 +72,7 @@ test.describe('Fork notification before analysis', () => {
     // Set up mock for analyzing own repo
     await page.evaluate(() => {
       window.GitHubClient.getDefaultBranch = async () => 'main';
-      window.GitHubClient.listFiles = async () => [
-        { path: 'README.md', type: 'file' }
-      ];
+      window.GitHubClient.listFiles = async () => [{ path: 'README.md', type: 'file' }];
       window.GitHubClient.getFileContent = async () => '# Test';
     });
 
@@ -91,7 +87,7 @@ test.describe('Fork notification before analysis', () => {
 
     // Wait a bit and verify notification was not called
     await page.waitForTimeout(500);
-    
+
     const notificationCalled = await page.evaluate(() => window.__notificationCalled);
     expect(notificationCalled).toBe(false);
   });
@@ -101,11 +97,11 @@ test.describe('Fork notification before analysis', () => {
     await page.evaluate(() => {
       window.GitHubClient.auth = {
         isAuthenticated: () => false,
-        getAccessToken: () => null
+        getAccessToken: () => null,
       };
       window.__notificationCalled = false;
       const originalShowInfo = window.NotificationSystem.showInfo;
-      window.NotificationSystem.showInfo = function(title, message, duration) {
+      window.NotificationSystem.showInfo = function (title, message, duration) {
         if (title === 'Fork-First Analysis') {
           window.__notificationCalled = true;
         }
@@ -123,7 +119,7 @@ test.describe('Fork notification before analysis', () => {
     });
 
     await page.waitForTimeout(500);
-    
+
     const notificationCalled = await page.evaluate(() => window.__notificationCalled);
     expect(notificationCalled).toBe(false);
   });
@@ -132,9 +128,7 @@ test.describe('Fork notification before analysis', () => {
     // Set up mock
     await page.evaluate(() => {
       window.GitHubClient.getDefaultBranch = async () => 'main';
-      window.GitHubClient.listFiles = async () => [
-        { path: 'README.md', type: 'file' }
-      ];
+      window.GitHubClient.listFiles = async () => [{ path: 'README.md', type: 'file' }];
       window.GitHubClient.getFileContent = async () => '# Test';
     });
 
@@ -148,9 +142,11 @@ test.describe('Fork notification before analysis', () => {
     });
 
     // Wait for notification to appear in DOM
-    const notification = page.locator('.notification.info').filter({ hasText: 'Fork-First Analysis' });
+    const notification = page
+      .locator('.notification.info')
+      .filter({ hasText: 'Fork-First Analysis' });
     await expect(notification).toBeVisible({ timeout: 2000 });
-    
+
     // Verify content
     await expect(notification).toContainText('Fork-First Analysis');
     await expect(notification).toContainText('fork');
@@ -160,9 +156,7 @@ test.describe('Fork notification before analysis', () => {
     // Set up mock
     await page.evaluate(() => {
       window.GitHubClient.getDefaultBranch = async () => 'main';
-      window.GitHubClient.listFiles = async () => [
-        { path: 'README.md', type: 'file' }
-      ];
+      window.GitHubClient.listFiles = async () => [{ path: 'README.md', type: 'file' }];
       window.GitHubClient.getFileContent = async () => '# Test';
     });
 
@@ -176,9 +170,11 @@ test.describe('Fork notification before analysis', () => {
     });
 
     // Wait for notification to appear
-    const notification = page.locator('.notification.info').filter({ hasText: 'Fork-First Analysis' });
+    const notification = page
+      .locator('.notification.info')
+      .filter({ hasText: 'Fork-First Analysis' });
     await expect(notification).toBeVisible({ timeout: 2000 });
-    
+
     // Wait for it to auto-dismiss (6 seconds + buffer)
     await expect(notification).not.toBeVisible({ timeout: 7000 });
   });
@@ -189,7 +185,7 @@ test.describe('Fork notification before analysis', () => {
       window.GitHubClient.getCurrentUsername = () => 'TestUser';
       window.__notificationCalled = false;
       const originalShowInfo = window.NotificationSystem.showInfo;
-      window.NotificationSystem.showInfo = function(title, message, duration) {
+      window.NotificationSystem.showInfo = function (title, message, duration) {
         if (title === 'Fork-First Analysis') {
           window.__notificationCalled = true;
         }
@@ -200,9 +196,7 @@ test.describe('Fork notification before analysis', () => {
     // Set up mock
     await page.evaluate(() => {
       window.GitHubClient.getDefaultBranch = async () => 'main';
-      window.GitHubClient.listFiles = async () => [
-        { path: 'README.md', type: 'file' }
-      ];
+      window.GitHubClient.listFiles = async () => [{ path: 'README.md', type: 'file' }];
       window.GitHubClient.getFileContent = async () => '# Test';
     });
 
@@ -216,7 +210,7 @@ test.describe('Fork notification before analysis', () => {
     });
 
     await page.waitForTimeout(500);
-    
+
     const notificationCalled = await page.evaluate(() => window.__notificationCalled);
     expect(notificationCalled).toBe(false);
   });

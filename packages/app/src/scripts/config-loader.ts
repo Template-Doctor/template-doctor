@@ -46,17 +46,19 @@ interface ConsolidatedConfig extends ConfigJsonShape {
 async function loadEnvironmentVariables(): Promise<EnvironmentVariablesShape> {
   try {
     const isLocalhost = window.location.hostname === 'localhost';
-    
+
     // Simplified for local dev: skip server endpoint, rely on config.json
     if (isLocalhost) {
-      console.log('[config-loader] localhost - skipping client-settings endpoint, using config.json only');
+      console.log(
+        '[config-loader] localhost - skipping client-settings endpoint, using config.json only',
+      );
       return {} as EnvironmentVariablesShape;
     }
-    
+
     // Detect if the caller explicitly requested a Functions port (query param or global var).
     // We keep a separate flag so the mere DEFAULT value (7071) does not bias ordering when running
     // inside the unified container (e.g., :4000) where we should try same-origin first.
-  let localPort: number | string = 7071;
+    let localPort: number | string = 7071;
     let explicitFuncPort = false;
     if ((window as any).LOCAL_FUNCTIONS_PORT) {
       localPort = (window as any).LOCAL_FUNCTIONS_PORT;
@@ -79,8 +81,8 @@ async function loadEnvironmentVariables(): Promise<EnvironmentVariablesShape> {
     // Paths
     const devPath = '/api/v4/client-settings'; // Functions or dev proxy
     const containerPath = '/v4/client-settings'; // Unified container mount
-  const tried: string[] = [];
-  let response: Response | null = null;
+    const tried: string[] = [];
+    let response: Response | null = null;
     // Strategy:
     // 1. If localhost & current port looks like Functions (7071) OR explicit funcPort provided -> try devPath absolute.
     // 2. Otherwise (likely unified container via localhost:4000) first try containerPath relative.
@@ -112,7 +114,7 @@ async function loadEnvironmentVariables(): Promise<EnvironmentVariablesShape> {
         candidates.unshift(containerPath);
       }
     } catch {}
-  let data: EnvironmentVariablesShape = {};
+    let data: EnvironmentVariablesShape = {};
     for (const url of candidates) {
       if (tried.includes(url)) continue;
       tried.push(url);
@@ -121,7 +123,12 @@ async function loadEnvironmentVariables(): Promise<EnvironmentVariablesShape> {
         response = await fetch(url, { cache: 'no-store' });
         if (response.ok) {
           data = await response.json();
-          console.log('[config-loader] loaded client-settings from', url, 'keys:', Object.keys(data));
+          console.log(
+            '[config-loader] loaded client-settings from',
+            url,
+            'keys:',
+            Object.keys(data),
+          );
           break;
         } else {
           console.warn('[config-loader] non-OK response', response.status, 'for', url);
@@ -147,21 +154,29 @@ async function loadConfigJson(): Promise<ConfigJsonShape> {
     '/config.json', // absolute root (dist places at /index.html ; our deploy copies config.json alongside index if we add it)
     './config.json', // relative
     'config.json',
-    '/app/config.json' // fallback in container if mounted differently
+    '/app/config.json', // fallback in container if mounted differently
   ];
   for (const url of candidates) {
     if (tried.includes(url)) continue;
     tried.push(url);
     try {
       const resp = await fetch(url, { cache: 'no-store' });
-      if (!resp.ok) { console.debug('[config-loader] config.json candidate not ok', url, resp.status); continue; }
+      if (!resp.ok) {
+        console.debug('[config-loader] config.json candidate not ok', url, resp.status);
+        continue;
+      }
       const txt = await resp.text();
       try {
         const data = JSON.parse(txt);
         console.log('[config-loader] Loaded config.json via', url, 'keys:', Object.keys(data));
-  return data as ConfigJsonShape;
+        return data as ConfigJsonShape;
       } catch (e) {
-        console.warn('[config-loader] JSON parse failed for', url, 'first 100 chars:', txt.slice(0,100));
+        console.warn(
+          '[config-loader] JSON parse failed for',
+          url,
+          'first 100 chars:',
+          txt.slice(0, 100),
+        );
       }
     } catch (err) {
       console.debug('[config-loader] fetch error for candidate', url, err?.message || err);
@@ -178,13 +193,22 @@ async function loadConfig(): Promise<ConsolidatedConfig> {
   if (envVars && typeof envVars === 'object') {
     if (envVars.backend && typeof envVars.backend === 'object') {
       const mergedBackend: BackendEnvShape = { ...(config.backend || {}) };
-      if (typeof envVars.backend.baseUrl === 'string' && envVars.backend.baseUrl.trim().length > 0) {
+      if (
+        typeof envVars.backend.baseUrl === 'string' &&
+        envVars.backend.baseUrl.trim().length > 0
+      ) {
         mergedBackend.baseUrl = envVars.backend.baseUrl;
       }
-      if (typeof envVars.backend.functionKey === 'string' && envVars.backend.functionKey.trim().length > 0) {
+      if (
+        typeof envVars.backend.functionKey === 'string' &&
+        envVars.backend.functionKey.trim().length > 0
+      ) {
         mergedBackend.functionKey = envVars.backend.functionKey;
       }
-      if (typeof envVars.backend.apiVersion === 'string' && envVars.backend.apiVersion.trim().length > 0) {
+      if (
+        typeof envVars.backend.apiVersion === 'string' &&
+        envVars.backend.apiVersion.trim().length > 0
+      ) {
         mergedBackend.apiVersion = envVars.backend.apiVersion.trim();
       }
       config.backend = mergedBackend;
@@ -197,22 +221,37 @@ async function loadConfig(): Promise<ConsolidatedConfig> {
         redirectUri: (config.githubOAuth && config.githubOAuth.redirectUri) || '',
       };
     }
-    if (typeof envVars.DEFAULT_RULE_SET === 'string' && envVars.DEFAULT_RULE_SET.trim().length > 0) {
+    if (
+      typeof envVars.DEFAULT_RULE_SET === 'string' &&
+      envVars.DEFAULT_RULE_SET.trim().length > 0
+    ) {
       config.DEFAULT_RULE_SET = envVars.DEFAULT_RULE_SET;
     }
-    if (typeof envVars.REQUIRE_AUTH_FOR_RESULTS === 'string' && envVars.REQUIRE_AUTH_FOR_RESULTS.trim().length > 0) {
+    if (
+      typeof envVars.REQUIRE_AUTH_FOR_RESULTS === 'string' &&
+      envVars.REQUIRE_AUTH_FOR_RESULTS.trim().length > 0
+    ) {
       config.REQUIRE_AUTH_FOR_RESULTS = envVars.REQUIRE_AUTH_FOR_RESULTS;
     }
-    if (typeof envVars.AUTO_SAVE_RESULTS === 'string' && envVars.AUTO_SAVE_RESULTS.trim().length > 0) {
+    if (
+      typeof envVars.AUTO_SAVE_RESULTS === 'string' &&
+      envVars.AUTO_SAVE_RESULTS.trim().length > 0
+    ) {
       config.AUTO_SAVE_RESULTS = envVars.AUTO_SAVE_RESULTS;
     }
     if (typeof envVars.ARCHIVE_ENABLED === 'string' && envVars.ARCHIVE_ENABLED.trim().length > 0) {
       config.ARCHIVE_ENABLED = envVars.ARCHIVE_ENABLED;
     }
-    if (typeof envVars.ARCHIVE_COLLECTION === 'string' && envVars.ARCHIVE_COLLECTION.trim().length > 0) {
+    if (
+      typeof envVars.ARCHIVE_COLLECTION === 'string' &&
+      envVars.ARCHIVE_COLLECTION.trim().length > 0
+    ) {
       config.ARCHIVE_COLLECTION = envVars.ARCHIVE_COLLECTION;
     }
-    if (typeof envVars.DISPATCH_TARGET_REPO === 'string' && envVars.DISPATCH_TARGET_REPO.trim().length > 0) {
+    if (
+      typeof envVars.DISPATCH_TARGET_REPO === 'string' &&
+      envVars.DISPATCH_TARGET_REPO.trim().length > 0
+    ) {
       config.DISPATCH_TARGET_REPO = envVars.DISPATCH_TARGET_REPO;
     }
   }
@@ -220,5 +259,5 @@ async function loadConfig(): Promise<ConsolidatedConfig> {
   return config;
 }
 
-;(window as any).ConfigLoader = { loadConfig };
+(window as any).ConfigLoader = { loadConfig };
 export {};

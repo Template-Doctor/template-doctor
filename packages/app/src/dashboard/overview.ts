@@ -4,15 +4,27 @@
 
 import { renderCategoryBreakdown } from './category-breakdown';
 
-interface MetaDetails { percentageCompliant?:number; ruleSet?:string; totalChecks?:number; }
-interface AdaptedData { repoUrl:string; ruleSet:string; compliance:{ issues:any[]; compliant:any[]; categories?:any; }; totalIssues:number; totalPassed:number; __analysisMode?:string; customConfig?:any; }
+interface MetaDetails {
+  percentageCompliant?: number;
+  ruleSet?: string;
+  totalChecks?: number;
+}
+interface AdaptedData {
+  repoUrl: string;
+  ruleSet: string;
+  compliance: { issues: any[]; compliant: any[]; categories?: any };
+  totalIssues: number;
+  totalPassed: number;
+  __analysisMode?: string;
+  customConfig?: any;
+}
 
-function findMetaDetails(data:AdaptedData):MetaDetails {
-  const meta = data.compliance.compliant.find(i => i.category === 'meta');
+function findMetaDetails(data: AdaptedData): MetaDetails {
+  const meta = data.compliance.compliant.find((i) => i.category === 'meta');
   return meta?.details || {};
 }
 
-function computeMode(data:AdaptedData):{ label:string; color:string; title:string } {
+function computeMode(data: AdaptedData): { label: string; color: string; title: string } {
   let mode = data.__analysisMode || 'upstream';
   if (!data.__analysisMode) {
     try {
@@ -25,27 +37,40 @@ function computeMode(data:AdaptedData):{ label:string; color:string; title:strin
           mode = 'fork-fresh';
         } else {
           const currentUser = (window as any).GitHubClient?.getCurrentUsername?.();
-            if (currentUser && parts[0].toLowerCase() === currentUser.toLowerCase()) {
-              mode = 'fork';
-            }
+          if (currentUser && parts[0].toLowerCase() === currentUser.toLowerCase()) {
+            mode = 'fork';
+          }
         }
       }
-    } catch(_) {}
+    } catch (_) {}
   }
-  const cfg: Record<string,{ label:string;color:string;title:string }> = {
-    'fork-fresh': { label: 'Fork (New)', color: '#ff9800', title: 'New fork in this session; no historical data yet.' },
+  const cfg: Record<string, { label: string; color: string; title: string }> = {
+    'fork-fresh': {
+      label: 'Fork (New)',
+      color: '#ff9800',
+      title: 'New fork in this session; no historical data yet.',
+    },
     fork: { label: 'Fork', color: '#0078d4', title: 'Analyzing your existing fork.' },
-    upstream: { label: 'Upstream', color: '#6c757d', title: 'Analyzing upstream repository.' }
+    upstream: { label: 'Upstream', color: '#6c757d', title: 'Analyzing upstream repository.' },
   };
   return cfg[mode] || cfg.upstream;
 }
 
-export function renderOverview(data:AdaptedData): DocumentFragment {
+export function renderOverview(data: AdaptedData): DocumentFragment {
   const frag = document.createDocumentFragment();
   const meta = findMetaDetails(data);
   const compliancePercentage = meta.percentageCompliant || 0;
   const ruleSet = data.ruleSet || meta.ruleSet || 'dod';
-  const ruleSetDisplay = ruleSet === 'dod' ? 'DoD' : ruleSet === 'partner' ? 'Partner' : ruleSet === 'docs' ? 'Docs' : (ruleSet === 'custom' ? 'Custom' : ruleSet);
+  const ruleSetDisplay =
+    ruleSet === 'dod'
+      ? 'DoD'
+      : ruleSet === 'partner'
+        ? 'Partner'
+        : ruleSet === 'docs'
+          ? 'Docs'
+          : ruleSet === 'custom'
+            ? 'Custom'
+            : ruleSet;
   const gistUrl = data.customConfig?.gistUrl;
   const mc = computeMode(data);
 
@@ -61,9 +86,11 @@ export function renderOverview(data:AdaptedData): DocumentFragment {
       <div class="ruleset-info">
         <span class="analysis-mode-badge" style="display:inline-block; background:${mc.color}; color:#fff; padding:2px 8px; border-radius:12px; font-size:0.65rem; letter-spacing:.5px; margin-right:6px; vertical-align:middle;" title="${mc.title}">${mc.label}</span>
         <span class="ruleset-label">Configuration:</span>
-        ${ ruleSet === 'custom' && gistUrl
-          ? `<a href="${gistUrl}" target="_blank" class="ruleset-value ${ruleSet}-badge" title="View custom ruleset on GitHub">${ruleSetDisplay} <i class="fas fa-external-link-alt fa-xs"></i></a>`
-          : `<span class="ruleset-value ${ruleSet}-badge">${ruleSetDisplay}</span>` }
+        ${
+          ruleSet === 'custom' && gistUrl
+            ? `<a href="${gistUrl}" target="_blank" class="ruleset-value ${ruleSet}-badge" title="View custom ruleset on GitHub">${ruleSetDisplay} <i class="fas fa-external-link-alt fa-xs"></i></a>`
+            : `<span class="ruleset-value ${ruleSet}-badge">${ruleSetDisplay}</span>`
+        }
         <button id="change-ruleset-btn" class="btn btn-small" title="Change configuration"><i class="fas fa-sync-alt"></i></button>
       </div>
     </div>
@@ -94,17 +121,20 @@ export function renderOverview(data:AdaptedData): DocumentFragment {
     if (data.compliance && data.compliance.categories) {
       section.appendChild(renderCategoryBreakdown(data.compliance.categories));
     }
-  } catch(e){ console.warn('[overview] category breakdown failed', e); }
+  } catch (e) {
+    console.warn('[overview] category breakdown failed', e);
+  }
 
   frag.appendChild(section);
 
   // Defer binding for change ruleset button (parity with legacy timing)
-  setTimeout(()=>{
+  setTimeout(() => {
     const changeRulesetBtn = section.querySelector('#change-ruleset-btn');
-    if(changeRulesetBtn){
-      changeRulesetBtn.addEventListener('click', ()=>{
+    if (changeRulesetBtn) {
+      changeRulesetBtn.addEventListener('click', () => {
         const repoUrl = data.repoUrl;
-        if(repoUrl && typeof (window as any).analyzeRepo === 'function') (window as any).analyzeRepo(repoUrl, 'show-modal');
+        if (repoUrl && typeof (window as any).analyzeRepo === 'function')
+          (window as any).analyzeRepo(repoUrl, 'show-modal');
       });
     }
   }, 100);
@@ -112,4 +142,6 @@ export function renderOverview(data:AdaptedData): DocumentFragment {
   return frag;
 }
 
-if(!(window as any).__TD_renderOverview){ (window as any).__TD_renderOverview = renderOverview; }
+if (!(window as any).__TD_renderOverview) {
+  (window as any).__TD_renderOverview = renderOverview;
+}

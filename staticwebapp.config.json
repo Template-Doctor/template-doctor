@@ -1,14 +1,10 @@
 {
-  "$schema": "https://json.schemastore.org/staticwebapp.config.json",
-  "navigationFallback": {
-    "rewrite": "/index.html",
-    "exclude": [
-      "*.{css,js,png,jpg,svg,gif,ico}",
-      "assets/*",
-      "results/*"
-    ]
-  },
-  "platform": {
-    "apiRuntime": "node:18"
-  }
+    "$schema": "https://json.schemastore.org/staticwebapp.config.json",
+    "navigationFallback": {
+        "rewrite": "/index.html",
+        "exclude": ["*.{css,js,png,jpg,svg,gif,ico}", "assets/*", "results/*"]
+    },
+    "platform": {
+        "apiRuntime": "node:18"
+    }
 }

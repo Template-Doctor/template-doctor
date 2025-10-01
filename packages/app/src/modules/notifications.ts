@@ -1,7 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Migrated from js/notifications.js with light typing.
 
-export interface ActionButton { label: string; onClick?: () => void; primary?: boolean; }
+export interface ActionButton {
+  label: string;
+  onClick?: () => void;
+  primary?: boolean;
+}
 export type RichType = 'info' | 'success' | 'warning' | 'error';
 
 interface ShowOptions {
@@ -33,20 +37,28 @@ class RichNotificationSystem {
 
   private getIconForType(type: RichType): string {
     switch (type) {
-      case 'success': return '<i class="fas fa-check-circle"></i>';
-      case 'warning': return '<i class="fas fa-exclamation-triangle"></i>';
-      case 'error': return '<i class="fas fa-times-circle"></i>';
+      case 'success':
+        return '<i class="fas fa-check-circle"></i>';
+      case 'warning':
+        return '<i class="fas fa-exclamation-triangle"></i>';
+      case 'error':
+        return '<i class="fas fa-times-circle"></i>';
       case 'info':
-      default: return '<i class="fas fa-info-circle"></i>';
+      default:
+        return '<i class="fas fa-info-circle"></i>';
     }
   }
   private getTitleForType(type: RichType): string {
     switch (type) {
-      case 'success': return 'Success';
-      case 'warning': return 'Warning';
-      case 'error': return 'Error';
+      case 'success':
+        return 'Success';
+      case 'warning':
+        return 'Warning';
+      case 'error':
+        return 'Error';
       case 'info':
-      default: return 'Information';
+      default:
+        return 'Information';
     }
   }
 
@@ -79,30 +91,46 @@ class RichNotificationSystem {
     try {
       const container = document.querySelector(`.${this.containerSelector}`);
       if (!container) {
-        (window as any).__notifDiag = (window as any).__notifDiag || { missingContainer: 0, attempts: 0, errors: [] };
+        (window as any).__notifDiag = (window as any).__notifDiag || {
+          missingContainer: 0,
+          attempts: 0,
+          errors: [],
+        };
         (window as any).__notifDiag.missingContainer++;
         // Attempt to rebuild container immediately
         this.initContainer();
         const retry = document.querySelector(`.${this.containerSelector}`);
-        if (retry) retry.appendChild(el); else throw new Error('Container still missing after initContainer');
+        if (retry) retry.appendChild(el);
+        else throw new Error('Container still missing after initContainer');
       } else {
         container.appendChild(el);
       }
-    } catch (e:any) {
-      (window as any).__notifDiag = (window as any).__notifDiag || { missingContainer: 0, attempts: 0, errors: [] };
-      (window as any).__notifDiag.errors.push('append-failed:' + (e?.message||e));
+    } catch (e: any) {
+      (window as any).__notifDiag = (window as any).__notifDiag || {
+        missingContainer: 0,
+        attempts: 0,
+        errors: [],
+      };
+      (window as any).__notifDiag.errors.push('append-failed:' + (e?.message || e));
     } finally {
-      (window as any).__notifDiag = (window as any).__notifDiag || { missingContainer: 0, attempts: 0, errors: [] };
+      (window as any).__notifDiag = (window as any).__notifDiag || {
+        missingContainer: 0,
+        attempts: 0,
+        errors: [],
+      };
       (window as any).__notifDiag.attempts++;
     }
 
     if (actions.length) {
       const actionsContainer = el.querySelector('.notification-actions')!;
-      actions.forEach(a => {
+      actions.forEach((a) => {
         const btn = document.createElement('button');
         btn.className = `notification-action ${a.primary ? 'primary' : 'secondary'}`;
         btn.textContent = a.label;
-        btn.addEventListener('click', e => { e.preventDefault(); a.onClick?.(); });
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          a.onClick?.();
+        });
         actionsContainer.appendChild(btn);
       });
     }
@@ -134,10 +162,13 @@ class RichNotificationSystem {
     if (!n) return;
     const { title, message, type, resetTimer, actions } = opts;
     if (type) {
-      const classes = n.className.split(' ').filter(c => !['info','success','warning','error'].includes(c));
+      const classes = n.className
+        .split(' ')
+        .filter((c) => !['info', 'success', 'warning', 'error'].includes(c));
       n.className = [...classes, type].join(' ');
       const titleEl = n.querySelector('.notification-title');
-      if (titleEl) titleEl.innerHTML = `${this.getIconForType(type)} ${title || this.getTitleForType(type)}`;
+      if (titleEl)
+        titleEl.innerHTML = `${this.getIconForType(type)} ${title || this.getTitleForType(type)}`;
     }
     if (title && !type) {
       const titleEl = n.querySelector('.notification-title');
@@ -155,7 +186,8 @@ class RichNotificationSystem {
         header?.insertAdjacentElement('afterend', content);
       }
       if (content) {
-        if (message) content.innerHTML = message; else content.remove();
+        if (message) content.innerHTML = message;
+        else content.remove();
       }
     }
     if (resetTimer) {
@@ -163,7 +195,10 @@ class RichNotificationSystem {
       if (bar) {
         bar.style.transition = 'none';
         bar.style.width = '0%';
-        setTimeout(() => { bar.style.transition = 'width 6s linear'; bar.style.width = '100%'; }, 10);
+        setTimeout(() => {
+          bar.style.transition = 'width 6s linear';
+          bar.style.width = '100%';
+        }, 10);
         setTimeout(() => this.close(id), this.defaultDuration);
       }
     }
@@ -177,76 +212,158 @@ class RichNotificationSystem {
       }
       if (actionsContainer) {
         actionsContainer.innerHTML = '';
-        actions.forEach(a => {
+        actions.forEach((a) => {
           const btn = document.createElement('button');
-            btn.className = `notification-action ${a.primary ? 'primary' : 'secondary'}`;
-            btn.textContent = a.label;
-            btn.addEventListener('click', e => { e.preventDefault(); a.onClick?.(); });
-            actionsContainer.appendChild(btn);
+          btn.className = `notification-action ${a.primary ? 'primary' : 'secondary'}`;
+          btn.textContent = a.label;
+          btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            a.onClick?.();
+          });
+          actionsContainer.appendChild(btn);
         });
       }
     }
   }
 
-  info(t: string, m: string, d?: number) { return this.show({ title: t, message: m, type: 'info', duration: d }); }
-  success(t: string, m: string, d?: number) { return this.show({ title: t, message: m, type: 'success', duration: d }); }
-  warning(t: string, m: string, d?: number) { return this.show({ title: t, message: m, type: 'warning', duration: d }); }
-  error(t: string, m: string, d?: number) { return this.show({ title: t, message: m, type: 'error', duration: d }); }
+  info(t: string, m: string, d?: number) {
+    return this.show({ title: t, message: m, type: 'info', duration: d });
+  }
+  success(t: string, m: string, d?: number) {
+    return this.show({ title: t, message: m, type: 'success', duration: d });
+  }
+  warning(t: string, m: string, d?: number) {
+    return this.show({ title: t, message: m, type: 'warning', duration: d });
+  }
+  error(t: string, m: string, d?: number) {
+    return this.show({ title: t, message: m, type: 'error', duration: d });
+  }
 
   showInfo = this.info.bind(this);
   showSuccess = this.success.bind(this);
   showWarning = this.warning.bind(this);
   showError = this.error.bind(this);
   showLoading(t = 'Loading...', m = '') {
-    const id = this.show({ title: `<span class="notification-spinner"></span> ${t}`, message: m, type: 'info', duration: 0 });
+    const id = this.show({
+      title: `<span class="notification-spinner"></span> ${t}`,
+      message: m,
+      type: 'info',
+      duration: 0,
+    });
     return {
       id,
-      update: (nt?: string, nm?: string) => this.update(id, { title: `<span class=\"notification-spinner\"></span> ${nt || t}`, message: nm ?? m }),
-      success: (st?: string, sm?: string) => this.update(id, { title: st || 'Success', message: sm ?? m, type: 'success', resetTimer: true }),
-      error: (et?: string, em?: string) => this.update(id, { title: et || 'Error', message: em ?? m, type: 'error', resetTimer: true }),
+      update: (nt?: string, nm?: string) =>
+        this.update(id, {
+          title: `<span class=\"notification-spinner\"></span> ${nt || t}`,
+          message: nm ?? m,
+        }),
+      success: (st?: string, sm?: string) =>
+        this.update(id, {
+          title: st || 'Success',
+          message: sm ?? m,
+          type: 'success',
+          resetTimer: true,
+        }),
+      error: (et?: string, em?: string) =>
+        this.update(id, {
+          title: et || 'Error',
+          message: em ?? m,
+          type: 'error',
+          resetTimer: true,
+        }),
       close: () => this.close(id),
     };
   }
   // Back-compat alias expected by some legacy tests
-  loading(t?: string, m?: string){ return this.showLoading(t, m); }
-  confirm(title: string, message: string, opts: { confirmLabel?: string; cancelLabel?: string; onConfirm?: ()=>void; onCancel?: ()=>void } = {}) {
-    const { confirmLabel = 'Confirm', cancelLabel = 'Cancel', onConfirm = () => {}, onCancel = () => {} } = opts;
-    const id = this.show({ title, message, type: 'warning', duration: 0, actions: [
-      { label: cancelLabel, onClick: () => { onCancel(); this.close(id); } },
-      { label: confirmLabel, onClick: () => { onConfirm(); this.close(id); }, primary: true },
-    ]});
+  loading(t?: string, m?: string) {
+    return this.showLoading(t, m);
+  }
+  confirm(
+    title: string,
+    message: string,
+    opts: {
+      confirmLabel?: string;
+      cancelLabel?: string;
+      onConfirm?: () => void;
+      onCancel?: () => void;
+    } = {},
+  ) {
+    const {
+      confirmLabel = 'Confirm',
+      cancelLabel = 'Cancel',
+      onConfirm = () => {},
+      onCancel = () => {},
+    } = opts;
+    const id = this.show({
+      title,
+      message,
+      type: 'warning',
+      duration: 0,
+      actions: [
+        {
+          label: cancelLabel,
+          onClick: () => {
+            onCancel();
+            this.close(id);
+          },
+        },
+        {
+          label: confirmLabel,
+          onClick: () => {
+            onConfirm();
+            this.close(id);
+          },
+          primary: true,
+        },
+      ],
+    });
     return id;
   }
-  showConfirmation(title: string, message: string, confirmLabel = 'Confirm', cancelLabel = 'Cancel', cb: (confirmed: boolean)=>void = () => {}) {
-    return this.confirm(title, message, { confirmLabel, cancelLabel, onConfirm: () => cb(true), onCancel: () => cb(false) });
+  showConfirmation(
+    title: string,
+    message: string,
+    confirmLabel = 'Confirm',
+    cancelLabel = 'Cancel',
+    cb: (confirmed: boolean) => void = () => {},
+  ) {
+    return this.confirm(title, message, {
+      confirmLabel,
+      cancelLabel,
+      onConfirm: () => cb(true),
+      onCancel: () => cb(false),
+    });
   }
 }
 
 // Removed obsolete './notifications-ready.js' import; event will be dispatched after initialization.
 
-function initializeIfNeeded(){
-  const w: any = (window as any);
+function initializeIfNeeded() {
+  const w: any = window as any;
   // Keep references to pre-existing globals (guard stub or legacy objects)
   const existingNotificationSystem = w.NotificationSystem;
   const existingNotifications = w.Notifications;
 
-  const isGuardStub = (obj: any) => !!obj && (!obj.show || !!obj.__queue || typeof obj.show !== 'function');
+  const isGuardStub = (obj: any) =>
+    !!obj && (!obj.show || !!obj.__queue || typeof obj.show !== 'function');
   // Decide if we must create the rich system (always if not present OR present but guard stub)
   if (!existingNotifications || isGuardStub(existingNotifications)) {
     try {
       w.Notifications = new RichNotificationSystem();
       // Provide legacy alias expected by older code/tests
       if (!w.NotificationSystem) w.NotificationSystem = w.Notifications;
-    } catch (e){
+    } catch (e) {
       console.error('[notifications] Failed to construct rich system', e);
       return; // Without a system we cannot proceed
     }
   }
 
   // Determine which object holds a queue to flush (prefer guard with __queue)
-  const guardWithQueue = existingNotificationSystem && Array.isArray(existingNotificationSystem.__queue)
-    ? existingNotificationSystem
-    : (existingNotifications && Array.isArray(existingNotifications.__queue) ? existingNotifications : null);
+  const guardWithQueue =
+    existingNotificationSystem && Array.isArray(existingNotificationSystem.__queue)
+      ? existingNotificationSystem
+      : existingNotifications && Array.isArray(existingNotifications.__queue)
+        ? existingNotifications
+        : null;
 
   if (guardWithQueue && guardWithQueue.__queue.length) {
     const queued = guardWithQueue.__queue.slice();
@@ -254,13 +371,21 @@ function initializeIfNeeded(){
     setTimeout(() => {
       queued.forEach((n: any) => {
         try {
-          switch(n.type){
-            case 'success': w.Notifications.showSuccess(n.title, n.message, n.duration); break;
-            case 'error': w.Notifications.showError(n.title, n.message, n.duration); break;
-            case 'warning': w.Notifications.showWarning(n.title, n.message, n.duration); break;
-            default: w.Notifications.showInfo(n.title, n.message, n.duration); break;
+          switch (n.type) {
+            case 'success':
+              w.Notifications.showSuccess(n.title, n.message, n.duration);
+              break;
+            case 'error':
+              w.Notifications.showError(n.title, n.message, n.duration);
+              break;
+            case 'warning':
+              w.Notifications.showWarning(n.title, n.message, n.duration);
+              break;
+            default:
+              w.Notifications.showInfo(n.title, n.message, n.duration);
+              break;
           }
-        } catch(e){
+        } catch (e) {
           // eslint-disable-next-line no-console
           console.warn('[notifications] Failed to flush queued guard notification', e);
         }
@@ -271,7 +396,9 @@ function initializeIfNeeded(){
   if (!w.NotificationSystem && w.Notifications) {
     w.NotificationSystem = w.Notifications;
   }
-  try { document.dispatchEvent(new CustomEvent('notifications-ready')); } catch {}
+  try {
+    document.dispatchEvent(new CustomEvent('notifications-ready'));
+  } catch {}
 }
 
 // Initialize immediately if DOM already parsed; otherwise wait.
@@ -279,15 +406,21 @@ if (typeof document !== 'undefined') {
   // If body not yet available, poll briefly instead of waiting full DOMContentLoaded (speeds up tests)
   const fastInit = () => {
     try {
-      if (document.body) { initializeIfNeeded(); return true; }
+      if (document.body) {
+        initializeIfNeeded();
+        return true;
+      }
       return false;
-    } catch { return false; }
+    } catch {
+      return false;
+    }
   };
   if (!fastInit()) {
     let attempts = 0;
     const int = setInterval(() => {
       attempts++;
-      if (fastInit() || attempts > 20) { // up to ~2s worst case
+      if (fastInit() || attempts > 20) {
+        // up to ~2s worst case
         clearInterval(int);
       }
     }, 100);

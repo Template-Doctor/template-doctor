@@ -9,8 +9,12 @@
 // - Batch scanning -> batch/facade.ts
 
 // Expose any globals expected by tests (pass-through to window variables set by TS modules)
-export const analyzeRepo: ((repoUrl: string, ruleSet?: string) => Promise<any>) | undefined = (window as any).analyzeRepo;
+export const analyzeRepo: ((repoUrl: string, ruleSet?: string) => Promise<any>) | undefined = (
+  window as any
+).analyzeRepo;
 
 declare global {
-	interface Window { analyzeRepo?: (repoUrl: string, ruleSet?: string) => Promise<any>; }
+  interface Window {
+    analyzeRepo?: (repoUrl: string, ruleSet?: string) => Promise<any>;
+  }
 }

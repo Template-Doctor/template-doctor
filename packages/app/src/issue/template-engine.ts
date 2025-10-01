@@ -2,8 +2,16 @@
 // Provides structured issue title/body generation with optional AI enrichment.
 // Typings added; still intentionally flexible for rule-specific overrides.
 
-export interface IssueItem { id: string; message: string; error?: string; severity?: string; }
-export interface IssueDraft { title: string; body: string; }
+export interface IssueItem {
+  id: string;
+  message: string;
+  error?: string;
+  severity?: string;
+}
+export interface IssueDraft {
+  title: string;
+  body: string;
+}
 export interface IssueContext {
   ruleSet: string;
   ruleSetDisplay: string;
@@ -12,7 +20,14 @@ export interface IssueContext {
   severityDisplay?: string; // injected later
   [k: string]: any; // allow extension for future fields
 }
-export interface RuleTemplateFn { (issue: IssueItem, ctx: IssueContext & { buildStandardBody: (i:IssueItem, c:IssueContext, o?: Partial<RuleOverrides>) => string }): IssueDraft; }
+export interface RuleTemplateFn {
+  (
+    issue: IssueItem,
+    ctx: IssueContext & {
+      buildStandardBody: (i: IssueItem, c: IssueContext, o?: Partial<RuleOverrides>) => string;
+    },
+  ): IssueDraft;
+}
 
 export interface RuleOverrides {
   summary?: string;
@@ -22,62 +37,103 @@ export interface RuleOverrides {
   acceptance?: string[];
 }
 
-const DEFAULT_SEVERITY_LABELS: Record<string,string> = { error: 'High', warning: 'Medium', info: 'Low', low: 'Low' };
+const DEFAULT_SEVERITY_LABELS: Record<string, string> = {
+  error: 'High',
+  warning: 'Medium',
+  info: 'Low',
+  low: 'Low',
+};
 
 // Placeholder for future rule-specific templates
 const RULE_TEMPLATES: Record<string, RuleTemplateFn> = {};
 
-function serializeMeta(meta: any){
-  try { return JSON.stringify(meta, null, 2).replace(/</g, '\\u003c'); } catch { return '{}'; }
+function serializeMeta(meta: any) {
+  try {
+    return JSON.stringify(meta, null, 2).replace(/</g, '\\u003c');
+  } catch {
+    return '{}';
+  }
 }
 
-type IssueAIProvider = (base: IssueDraft, meta: any, ctx: IssueContext) => Promise<IssueDraft | void>;
+type IssueAIProvider = (
+  base: IssueDraft,
+  meta: any,
+  ctx: IssueContext,
+) => Promise<IssueDraft | void>;
 
-async function maybeGenerateWithModel(base:IssueDraft, meta:any, ctx:IssueContext):Promise<IssueDraft>{
-  if(!(window as any).ENABLE_ISSUE_AI) return base;
+async function maybeGenerateWithModel(
+  base: IssueDraft,
+  meta: any,
+  ctx: IssueContext,
+): Promise<IssueDraft> {
+  if (!(window as any).ENABLE_ISSUE_AI) return base;
   const provider: IssueAIProvider | undefined = (window as any).CustomIssueAIProvider;
-  if(typeof provider === 'function'){
+  if (typeof provider === 'function') {
     try {
       const enriched = await provider(base, meta, ctx);
-      if(enriched && typeof enriched.body === 'string') return enriched;
-    } catch(e){ console.warn('[IssueTemplateEngine] AI provider failed, falling back', e); }
+      if (enriched && typeof enriched.body === 'string') return enriched;
+    } catch (e) {
+      console.warn('[IssueTemplateEngine] AI provider failed, falling back', e);
+    }
   }
   return base;
 }
 
-function inferGenericFix(issue:IssueItem): string{
+function inferGenericFix(issue: IssueItem): string {
   const id = issue.id || '';
-  if(id.includes('missing-file')) return 'Add the required file with appropriate content.';
-  if(id.includes('missing-folder')) return 'Create the required folder structure including necessary files.';
-  if(id.includes('missing-workflow')) return 'Add the missing GitHub Actions workflow under `.github/workflows/`.';
-  if(id.includes('readme')) return 'Update or create `README.md` with required sections (Overview, Prereqs, Getting Started, Resources).';
-  if(id.includes('bicep')) return 'Add or update the Bicep resources so required infrastructure components are declared.';
-  if(id.includes('azure-yaml')) return 'Update `azure.yaml` to include environment, services, and infra definitions per guidelines.';
+  if (id.includes('missing-file')) return 'Add the required file with appropriate content.';
+  if (id.includes('missing-folder'))
+    return 'Create the required folder structure including necessary files.';
+  if (id.includes('missing-workflow'))
+    return 'Add the missing GitHub Actions workflow under `.github/workflows/`.';
+  if (id.includes('readme'))
+    return 'Update or create `README.md` with required sections (Overview, Prereqs, Getting Started, Resources).';
+  if (id.includes('bicep'))
+    return 'Add or update the Bicep resources so required infrastructure components are declared.';
+  if (id.includes('azure-yaml'))
+    return 'Update `azure.yaml` to include environment, services, and infra definitions per guidelines.';
   return 'Review the rule documentation and implement the required changes.';
 }
 
-function buildStandardBody(issue:IssueItem, ctx:IssueContext, overrides: Partial<RuleOverrides> = {}):string{
+function buildStandardBody(
+  issue: IssueItem,
+  ctx: IssueContext,
+  overrides: Partial<RuleOverrides> = {},
+): string {
   const severityDisplay = ctx.severityDisplay || 'Medium';
-  const lines:string[] = [];
-  lines.push(`# ${issue.message}`,'');
-  if(overrides.summary){
-    lines.push('## Summary','', overrides.summary.trim(), '');
-  } else if(issue.error){
-    lines.push('## Details','', issue.error.trim(), '');
+  const lines: string[] = [];
+  lines.push(`# ${issue.message}`, '');
+  if (overrides.summary) {
+    lines.push('## Summary', '', overrides.summary.trim(), '');
+  } else if (issue.error) {
+    lines.push('## Details', '', issue.error.trim(), '');
   }
-  lines.push('## Problem','', overrides.problem || 'This repository does not meet one of the required template rules.','');
-  lines.push('## Impact','', overrides.impact || 'Leaving this unresolved can reduce template reliability, developer experience, or automation effectiveness.','');
-  lines.push('## Recommended Fix','', overrides.fix || inferGenericFix(issue), '');
-  if(Array.isArray(overrides.acceptance) && overrides.acceptance.length){
-    lines.push('## Acceptance Criteria','');
-    overrides.acceptance.forEach((c:string)=> lines.push(`- [ ] ${c}`));
+  lines.push(
+    '## Problem',
+    '',
+    overrides.problem || 'This repository does not meet one of the required template rules.',
+    '',
+  );
+  lines.push(
+    '## Impact',
+    '',
+    overrides.impact ||
+      'Leaving this unresolved can reduce template reliability, developer experience, or automation effectiveness.',
+    '',
+  );
+  lines.push('## Recommended Fix', '', overrides.fix || inferGenericFix(issue), '');
+  if (Array.isArray(overrides.acceptance) && overrides.acceptance.length) {
+    lines.push('## Acceptance Criteria', '');
+    overrides.acceptance.forEach((c: string) => lines.push(`- [ ] ${c}`));
     lines.push('');
   }
-  lines.push('## Context','');
+  lines.push('## Context', '');
   lines.push(`- Rule ID: ${issue.id}`);
   lines.push(`- Severity: ${severityDisplay}`);
-  lines.push(`- Rule Set: ${ctx.ruleSetDisplay}${ctx.customGistUrl ? ` (custom from ${ctx.customGistUrl})` : ''}`);
-  if(ctx.mainIssue) lines.push(`- Parent Issue: #${ctx.mainIssue.number}`);
+  lines.push(
+    `- Rule Set: ${ctx.ruleSetDisplay}${ctx.customGistUrl ? ` (custom from ${ctx.customGistUrl})` : ''}`,
+  );
+  if (ctx.mainIssue) lines.push(`- Parent Issue: #${ctx.mainIssue.number}`);
   lines.push('');
   const meta = serializeMeta({
     ruleId: issue.id,
@@ -86,48 +142,66 @@ function buildStandardBody(issue:IssueItem, ctx:IssueContext, overrides: Partial
     ruleSet: ctx.ruleSet,
     parentIssueNumber: ctx.mainIssue ? ctx.mainIssue.number : null,
     analyzerVersion: (window as any).TemplateDoctorVersion || 'unknown',
-    timestamp: Date.now()
+    timestamp: Date.now(),
   });
-  lines.push('<!-- template-doctor:metadata', meta, '-->','');
-  lines.push('*Generated by Template Doctor issue template engine. Adjust the acceptance criteria if you implement an alternative compliant approach.*');
+  lines.push('<!-- template-doctor:metadata', meta, '-->', '');
+  lines.push(
+    '*Generated by Template Doctor issue template engine. Adjust the acceptance criteria if you implement an alternative compliant approach.*',
+  );
   return lines.join('\n');
 }
 
-function resolveRuleTemplate(issue:IssueItem): RuleTemplateFn | null {
-  if(RULE_TEMPLATES[issue.id]) return RULE_TEMPLATES[issue.id];
-  for(const key of Object.keys(RULE_TEMPLATES)){
-    if(key.endsWith('*')){
-      const prefix = key.slice(0,-1);
-      if(issue.id.startsWith(prefix)) return RULE_TEMPLATES[key];
+function resolveRuleTemplate(issue: IssueItem): RuleTemplateFn | null {
+  if (RULE_TEMPLATES[issue.id]) return RULE_TEMPLATES[issue.id];
+  for (const key of Object.keys(RULE_TEMPLATES)) {
+    if (key.endsWith('*')) {
+      const prefix = key.slice(0, -1);
+      if (issue.id.startsWith(prefix)) return RULE_TEMPLATES[key];
     }
   }
   return null;
 }
 
-async function generateChildIssue(issue:IssueItem, ctx:IssueContext):Promise<IssueDraft>{
+async function generateChildIssue(issue: IssueItem, ctx: IssueContext): Promise<IssueDraft> {
   const severityRaw = (issue.severity || 'warning').toLowerCase();
   const severityDisplay = DEFAULT_SEVERITY_LABELS[severityRaw] || 'Medium';
   const extendedCtx: IssueContext = { ...ctx, severityDisplay };
   const ruleTemplate = resolveRuleTemplate(issue);
-  let draft:IssueDraft | undefined;
-  if(typeof ruleTemplate === 'function'){
-    draft = ruleTemplate(issue, { ...extendedCtx, buildStandardBody: (iss:IssueItem,c:IssueContext,o?:Partial<RuleOverrides>)=> buildStandardBody(iss,c,o) });
+  let draft: IssueDraft | undefined;
+  if (typeof ruleTemplate === 'function') {
+    draft = ruleTemplate(issue, {
+      ...extendedCtx,
+      buildStandardBody: (iss: IssueItem, c: IssueContext, o?: Partial<RuleOverrides>) =>
+        buildStandardBody(iss, c, o),
+    });
   }
-  if(!draft){
-    draft = { title: `${issue.message} [${issue.id}]`, body: buildStandardBody(issue, extendedCtx) };
+  if (!draft) {
+    draft = {
+      title: `${issue.message} [${issue.id}]`,
+      body: buildStandardBody(issue, extendedCtx),
+    };
   }
-  draft = await maybeGenerateWithModel(draft, { ruleId: issue.id, severity: severityRaw }, extendedCtx);
+  draft = await maybeGenerateWithModel(
+    draft,
+    { ruleId: issue.id, severity: severityRaw },
+    extendedCtx,
+  );
   return draft;
 }
 
 // Export global (maintain backward compatibility)
 declare global {
-  interface Window { IssueTemplateEngine?: any; ENABLE_ISSUE_AI?: boolean; CustomIssueAIProvider?: IssueAIProvider; TemplateDoctorVersion?: string; }
+  interface Window {
+    IssueTemplateEngine?: any;
+    ENABLE_ISSUE_AI?: boolean;
+    CustomIssueAIProvider?: IssueAIProvider;
+    TemplateDoctorVersion?: string;
+  }
 }
 
 (window as any).IssueTemplateEngine = {
   generateChildIssue,
   _inferGenericFix: inferGenericFix,
   _buildStandardBody: buildStandardBody,
-  _ruleTemplates: RULE_TEMPLATES
+  _ruleTemplates: RULE_TEMPLATES,
 };

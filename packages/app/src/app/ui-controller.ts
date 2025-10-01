@@ -16,7 +16,7 @@ class UIController {
       welcome: document.getElementById('welcome-section'),
       search: document.getElementById('search-section'),
       analysis: document.getElementById('analysis-section'),
-      error: document.getElementById('error-section')
+      error: document.getElementById('error-section'),
     };
 
     this.initializeUI();
@@ -30,9 +30,9 @@ class UIController {
     if (this.sections.search) this.sections.search.style.display = 'block';
     if (this.sections.analysis) this.sections.analysis.style.display = 'none';
     if (this.sections.error) this.sections.error.style.display = 'none';
-    
+
     console.debug('[UIController] Initialized: welcome+search visible, analysis+error hidden');
-    
+
     // DEBUG: Add MutationObserver to catch who's changing analysis section display
     if (this.sections.analysis) {
       const observer = new MutationObserver((mutations) => {
@@ -59,7 +59,7 @@ class UIController {
       });
     }
 
-    // Back button from error section  
+    // Back button from error section
     const errorBackButton = document.getElementById('error-back-button');
     if (errorBackButton) {
       errorBackButton.addEventListener('click', () => {
@@ -161,11 +161,14 @@ if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
     const controller = new UIController();
     (window as any).UIController = controller;
-    
+
     // FORCE hide analysis section after a delay to override any other code
     setTimeout(() => {
       const analysisSection = document.getElementById('analysis-section');
-      if (analysisSection && !analysisSection.querySelector('.results-container')?.hasChildNodes()) {
+      if (
+        analysisSection &&
+        !analysisSection.querySelector('.results-container')?.hasChildNodes()
+      ) {
         analysisSection.style.display = 'none';
         console.debug('[UIController] Force-hiding empty analysis section');
       }
@@ -174,7 +177,7 @@ if (document.readyState === 'loading') {
 } else {
   const controller = new UIController();
   (window as any).UIController = controller;
-  
+
   // FORCE hide analysis section after a delay to override any other code
   setTimeout(() => {
     const analysisSection = document.getElementById('analysis-section');

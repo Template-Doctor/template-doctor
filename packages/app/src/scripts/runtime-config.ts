@@ -90,14 +90,18 @@ function assignMapped(input: Record<string, any>): void {
         console.log('[runtime-config.ts] Promoted backend.baseUrl to apiBase:', mapped.apiBase);
       }
     }
-  } catch { /* non-browser safety */ }
+  } catch {
+    /* non-browser safety */
+  }
   if (input.backend?.functionKey) mapped.functionKey = input.backend.functionKey;
   if (input.API_BASE_URL) mapped.apiBase = input.API_BASE_URL;
   if (input.FUNCTION_KEY) mapped.functionKey = input.FUNCTION_KEY;
   if (input.DISPATCH_TARGET_REPO) mapped.dispatchTargetRepo = input.DISPATCH_TARGET_REPO;
 
   // Feature flags / mappings
-  const azureCli = coerceBoolean(input.azureDeveloperCliEnabled ?? input.AZURE_DEVELOPER_CLI_ENABLED);
+  const azureCli = coerceBoolean(
+    input.azureDeveloperCliEnabled ?? input.AZURE_DEVELOPER_CLI_ENABLED,
+  );
   if (typeof azureCli === 'boolean') mapped.azureDeveloperCliEnabled = azureCli;
   const issueAI = coerceBoolean(input.issueAIEnabled ?? input.ISSUE_AI_ENABLED);
   if (typeof issueAI === 'boolean') mapped.issueAIEnabled = issueAI;
@@ -109,7 +113,8 @@ function assignMapped(input: Record<string, any>): void {
     mapped.defaultRuleSet = String(input.defaultRuleSet || input.DEFAULT_RULE_SET).toLowerCase();
   }
   if (typeof input.archiveEnabled === 'boolean') mapped.archiveEnabled = input.archiveEnabled;
-  if (typeof input.archiveCollection === 'string') mapped.archiveCollection = input.archiveCollection;
+  if (typeof input.archiveCollection === 'string')
+    mapped.archiveCollection = input.archiveCollection;
 
   sanitizeAndAssign(mapped as RuntimeConfig);
 }
@@ -131,12 +136,21 @@ function resolveApiBase(candidate?: string): string {
         params.get('forceExternalApi') || params.get('allowExternalApi') || '',
       );
       let resolvedHost: string | null = null;
-      try { resolvedHost = new URL(resolved).host; } catch {}
+      try {
+        resolvedHost = new URL(resolved).host;
+      } catch {}
       const githubHosted = /\.github\.io$/i.test(host) || /github\.com$/i.test(host);
       if (githubHosted && resolvedHost && resolvedHost !== host && !externalOptIn && !isLocal) {
-        console.warn('[runtime-config.ts] External apiBase blocked on GitHub-hosted page; falling back to same-origin', { attempted: resolved, host });
+        console.warn(
+          '[runtime-config.ts] External apiBase blocked on GitHub-hosted page; falling back to same-origin',
+          { attempted: resolved, host },
+        );
         resolved = window.location.origin;
-        document.dispatchEvent(new CustomEvent('templatedoctor-apibase-external-blocked', { detail: { attempted: candidate, fallback: resolved } }));
+        document.dispatchEvent(
+          new CustomEvent('templatedoctor-apibase-external-blocked', {
+            detail: { attempted: candidate, fallback: resolved },
+          }),
+        );
       }
     } catch (guardErr) {
       console.debug('[runtime-config.ts] github-hosted guard skipped', guardErr);
@@ -171,26 +185,45 @@ function sanitizeAndAssign(partial: Partial<RuntimeConfig>): void {
   W.TemplateDoctorConfig = clone;
 
   // Probe for CSP/network blockage to fallback if necessary (disabled in local dev to prevent false-positive fallback)
-  const isLocal = ['localhost','127.0.0.1'].includes(window.location.hostname);
+  const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
   if (isLocal) {
-    console.log('[runtime-config.ts] Skipping probe in local dev; apiBase preserved:', clone.apiBase);
+    console.log(
+      '[runtime-config.ts] Skipping probe in local dev; apiBase preserved:',
+      clone.apiBase,
+    );
     return; // skip probe on localhost
   }
   setTimeout(() => {
     try {
-  const base = W.getTemplateDoctorApiBase();
+      const base = W.getTemplateDoctorApiBase();
       if (!base || base === window.location.origin) return;
-      const sameHost = (() => { try { return new URL(base).host === window.location.host; } catch { return false; } })();
+      const sameHost = (() => {
+        try {
+          return new URL(base).host === window.location.host;
+        } catch {
+          return false;
+        }
+      })();
       if (sameHost) return;
       const probeBase = base.replace(/\/$/, '');
-  // Prefer new client-settings endpoint; retain legacy runtimeConfig alias via ApiRoutes for back-compat
-  const versioned = probeBase + (window.ApiRoutes?.clientSettings || window.ApiRoutes?.runtimeConfig || '/api/v4/client-settings');
+      // Prefer new client-settings endpoint; retain legacy runtimeConfig alias via ApiRoutes for back-compat
+      const versioned =
+        probeBase +
+        (window.ApiRoutes?.clientSettings ||
+          window.ApiRoutes?.runtimeConfig ||
+          '/api/v4/client-settings');
       const probeUrl = versioned + '?csp_probe=' + Date.now();
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 3500);
       fetch(probeUrl, { method: 'GET', cache: 'no-store', signal: controller.signal })
-        .then(r => { clearTimeout(timeout); if (!r.ok) forceSameOriginFallback(); })
-        .catch(() => { clearTimeout(timeout); forceSameOriginFallback(); });
+        .then((r) => {
+          clearTimeout(timeout);
+          if (!r.ok) forceSameOriginFallback();
+        })
+        .catch(() => {
+          clearTimeout(timeout);
+          forceSameOriginFallback();
+        });
     } catch (e) {
       console.warn('[runtime-config.ts] probe setup failed', e);
     }
@@ -200,10 +233,12 @@ function sanitizeAndAssign(partial: Partial<RuntimeConfig>): void {
 function forceSameOriginFallback(): void {
   try {
     const origin = window.location.origin;
-  W.TemplateDoctorConfig.apiBase = origin;
-  W.getTemplateDoctorApiBase = () => origin;
+    W.TemplateDoctorConfig.apiBase = origin;
+    W.getTemplateDoctorApiBase = () => origin;
     console.log('[runtime-config.ts] apiBase fallback ->', origin);
-    document.dispatchEvent(new CustomEvent('templatedoctor-apibase-fallback', { detail: { apiBase: origin } }));
+    document.dispatchEvent(
+      new CustomEvent('templatedoctor-apibase-fallback', { detail: { apiBase: origin } }),
+    );
   } catch {}
 }
 

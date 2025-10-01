@@ -1,19 +1,19 @@
 {
-  "bindings": [
-    {
-      "authLevel": "anonymous",
-      "type": "httpTrigger",
-      "direction": "in",
-      "name": "req",
-      "methods": ["post", "options"],
-      "route": "v4/issue-ai"
-    },
-    {
-      "type": "http",
-      "direction": "out",
-      "name": "res"
-    }
-  ],
-  "scriptFile": "../dist/functions/issue-ai-proxy.js",
-  "entryPoint": "handler"
+    "bindings": [
+        {
+            "authLevel": "anonymous",
+            "type": "httpTrigger",
+            "direction": "in",
+            "name": "req",
+            "methods": ["post", "options"],
+            "route": "v4/issue-ai"
+        },
+        {
+            "type": "http",
+            "direction": "out",
+            "name": "res"
+        }
+    ],
+    "scriptFile": "../dist/functions/issue-ai-proxy.js",
+    "entryPoint": "handler"
 }
