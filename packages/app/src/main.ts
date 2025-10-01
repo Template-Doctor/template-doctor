@@ -27,6 +27,7 @@ import './app/ui-controller.ts';
   }
 })();
 
+import './scripts/config-loader.ts'; // MUST load before runtime-config to expose ConfigLoader global
 import './scripts/api-routes.ts'; // ensure ApiRoutes global before runtime-config probes
 import './scripts/runtime-config.ts'; // (replaces legacy ../js/runtime-config.js)
 // Authentication (TypeScript migration of legacy auth.js)
