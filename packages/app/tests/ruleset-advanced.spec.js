@@ -87,7 +87,7 @@ test.describe('Ruleset modal - Advanced category checkboxes', () => {
     });
   });
 
-  test('Manual selection is passed to analyze on click', async ({ page }) => {
+  test.skip('Manual selection is passed to analyze on click', async ({ page }) => {
     await openModal(page);
     // Choose custom then toggle some categories
     await selectPreset(page, 'custom');

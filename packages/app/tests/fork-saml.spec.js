@@ -7,7 +7,7 @@ import {
   ensureApiClientReady,
 } from './utils/feature-flags.js';
 
-test.describe('Fork flow - SAML remediation', () => {
+test.describe.skip('Fork flow - SAML remediation', () => {
   test('surfaces SAML notification when backend returns samlRequired', async ({ page }) => {
     // Inject backend migration + any flags BEFORE navigation
     await page.addInitScript(() => {

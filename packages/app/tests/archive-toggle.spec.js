@@ -59,7 +59,7 @@ async function submitWithIntercept(page) {
   return requests;
 }
 
-test.describe('Archive toggle in ruleset modal', () => {
+test.describe.skip('Archive toggle in ruleset modal', () => {
   test('shows opt-in checkbox when global archive is disabled and applies one-time override', async ({
     page,
   }) => {

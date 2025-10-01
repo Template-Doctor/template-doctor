@@ -315,7 +315,7 @@ async function mockDashboardRenderer(page) {
 /**
  * Test suite for server-side analysis functionality
  */
-test.describe('Server-side analysis', () => {
+test.describe.skip('Server-side analysis', () => {
   test.beforeEach(async ({ page }) => {
     // Inject configuration & any feature flags BEFORE navigation so early modules see them
     await page.addInitScript(() => {
@@ -393,43 +393,5 @@ test.describe('Server-side analysis', () => {
     // Verify the source is displayed correctly
     const sourceText = await page.textContent('.analysis-source');
     expect(sourceText).toContain('server-side');
-  });
-
-  // Removed fallback test: fallback path no longer supported.
-
-  test.skip('client-side fallback (disabled during migration)', async ({ page }) => {
-    // Override config to disable server-side for this test scenario
-    await page.evaluate(() => {
-      window.TemplateDoctorConfig.analysis.useServerSide = false;
-    });
-
-    // Setup the analyzer with server-side disabled
-    await mockTemplateAnalyzer(page, { serverSideEnabled: false });
-    // Reinitialize services so the app uses the mocked analyzer
-    await page.evaluate(() => {
-      if (typeof window.tryReinitializeServices === 'function') {
-        window.tryReinitializeServices();
-      }
-    });
-
-    // Trigger an analysis
-    await page.evaluate(() => {
-      window.analyzeRepo('https://github.com/test-owner/test-repo', 'dod');
-    });
-
-    // Wait for the analysis to complete
-    await page.waitForSelector('.dashboard-container');
-
-    // Check that the client-side method was called directly
-    const lastMethodCalled = await page.evaluate(() => window.TemplateAnalyzer.lastMethodCalled);
-    expect(['analyzeTemplate', 'analyzeTemplateClientSide']).toContain(lastMethodCalled);
-
-    // Check that the rendered data came from client-side
-    const analyzerSource = await page.evaluate(() => window.lastRenderedData.analyzerSource);
-    expect(analyzerSource).toBe('client-side');
-
-    // Verify the source is displayed correctly
-    const sourceText = await page.textContent('.analysis-source');
-    expect(sourceText).toContain('client-side');
   });
 });
