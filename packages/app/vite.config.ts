@@ -1,9 +1,12 @@
 import { defineConfig } from 'vite';
+import { copyFileSync, mkdirSync } from 'fs';
+import { join } from 'path';
 
 // Single consolidated Vite configuration.
 // Using port 8080 to match previous python static server for minimal test disruption.
 export default defineConfig({
   root: '.',
+  publicDir: 'public', // Vite will copy this entire directory to dist/
   server: {
     port: 4000,
     strictPort: true,

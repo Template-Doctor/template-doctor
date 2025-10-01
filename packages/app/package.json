@@ -12,6 +12,7 @@
     "preview": "vite preview",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "prebuild": "node scripts/sync-static-files.js",
     "build": "vite build",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
