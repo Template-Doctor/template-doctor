@@ -122,14 +122,19 @@ async function loadEnvironmentVariables(): Promise<EnvironmentVariablesShape> {
         console.log('[config-loader] attempting client-settings fetch:', url);
         response = await fetch(url, { cache: 'no-store' });
         if (response.ok) {
-          data = await response.json();
-          console.log(
-            '[config-loader] loaded client-settings from',
-            url,
-            'keys:',
-            Object.keys(data),
-          );
-          break;
+          try {
+            data = await response.json();
+            console.log(
+              '[config-loader] loaded client-settings from',
+              url,
+              'keys:',
+              Object.keys(data),
+            );
+            break;
+          } catch (jsonErr) {
+            console.warn('[config-loader] JSON parse failed for', url, '- trying next candidate');
+            response = null; // Mark as failed so we try next candidate
+          }
         } else {
           console.warn('[config-loader] non-OK response', response.status, 'for', url);
         }

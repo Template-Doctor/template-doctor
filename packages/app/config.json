@@ -1,8 +1,8 @@
 {
   "githubOAuth": {
-    "clientId": "Ov23li6IDVTv9Ml50OKi",
+    "clientId": "",
     "scope": "repo read:user",
-    "redirectUri": "https://icy-moss-0a539981e.2.azurestaticapps.net/callback.html"
+    "redirectUri": ""
   },
   "backend": {
     "baseUrl": "",
