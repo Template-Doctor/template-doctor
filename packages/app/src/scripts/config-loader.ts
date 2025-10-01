@@ -105,8 +105,16 @@ async function loadEnvironmentVariables(): Promise<EnvironmentVariablesShape> {
         }
       }
     } else {
-      // Deployed / remote: container style first, then legacy path.
-      candidates.push(containerPath, devPath);
+      // Deployed / remote: Azure Static Web Apps always uses /api prefix
+      // Only try containerPath if NOT on azurestaticapps.net
+      const isAzureSWA = window.location.hostname.includes('azurestaticapps.net');
+      if (isAzureSWA) {
+        // Azure Static Web Apps: API is always at /api/v4/...
+        candidates.push(devPath);
+      } else {
+        // Other deployments: try container style first, then legacy path
+        candidates.push(containerPath, devPath);
+      }
     }
     // If SERVE_FRONTEND flag present globally, prioritize containerPath first
     try {
