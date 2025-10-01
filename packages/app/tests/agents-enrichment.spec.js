@@ -106,7 +106,7 @@ This is missing the proper table structure.
 
     // Verify badge styling (orange background)
     const bgColor = await badge.evaluate((el) => window.getComputedStyle(el).backgroundColor);
-    expect(bgColor).toContain('255'); // #ff9800 contains rgb(255, 152, 0)
+    expect(bgColor).toContain('240'); // #f0ad4ff0 contains #f0ad4eff
   });
 
   test('shows "Agents: OK" badge when agents.md is valid', async ({ page }) => {
@@ -159,10 +159,10 @@ This is missing the proper table structure.
     // Wait for agents enrichment
     await page.waitForTimeout(1500);
 
-    // Verify "Agents: OK" badge
+    // Verify "Agents: Valid" badge
     const badge = page.locator('#agents-status-badge');
     await expect(badge).toBeVisible({ timeout: 3000 });
-    await expect(badge).toHaveText('Agents: OK');
+    await expect(badge).toHaveText('Agents: Valid');
 
     // Verify badge styling (green background)
     const bgColor = await badge.evaluate((el) => window.getComputedStyle(el).backgroundColor);
