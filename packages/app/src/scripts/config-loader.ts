@@ -1,4 +1,5 @@
 // Migrated from js/config-loader.js (behavior preserved) – now typed.
+import { buildApiUrl, API_ENDPOINTS } from './api-constants.js';
 
 interface BackendEnvShape {
   baseUrl?: string;
@@ -78,50 +79,11 @@ async function loadEnvironmentVariables(): Promise<EnvironmentVariablesShape> {
         }
       }
     }
-    // Paths
-    const devPath = '/api/v4/client-settings'; // Functions or dev proxy
-    const containerPath = '/v4/client-settings'; // Unified container mount
+    // Use centralized API configuration - much simpler!
+    const apiUrl = buildApiUrl(API_ENDPOINTS.CLIENT_SETTINGS);
     const tried: string[] = [];
+    const candidates: string[] = [apiUrl];
     let response: Response | null = null;
-    // Strategy:
-    // 1. If localhost & current port looks like Functions (7071) OR explicit funcPort provided -> try devPath absolute.
-    // 2. Otherwise (likely unified container via localhost:4000) first try containerPath relative.
-    // 3. Fallback attempts: the other style, then plain relative devPath.
-    const currentPort = window.location.port;
-    const candidates: string[] = [];
-    if (isLocalhost) {
-      if (currentPort === '7071') {
-        // Classic split dev scenario: frontend (maybe vite) + functions host; prioritize functions host.
-        candidates.push(`http://localhost:${localPort}${devPath}`);
-        candidates.push(containerPath);
-        candidates.push(devPath);
-      } else {
-        // Unified container or alternate local port (e.g., 4000, 5173, 8080). Prefer same-origin first.
-        candidates.push(containerPath);
-        candidates.push(devPath);
-        // Only probe the functions host explicitly if the user provided an override.
-        if (explicitFuncPort) {
-          candidates.push(`http://localhost:${localPort}${devPath}`);
-        }
-      }
-    } else {
-      // Deployed / remote: Azure Static Web Apps always uses /api prefix
-      // Only try containerPath if NOT on azurestaticapps.net
-      const isAzureSWA = window.location.hostname.includes('azurestaticapps.net');
-      if (isAzureSWA) {
-        // Azure Static Web Apps: API is always at /api/v4/...
-        candidates.push(devPath);
-      } else {
-        // Other deployments: try container style first, then legacy path
-        candidates.push(containerPath, devPath);
-      }
-    }
-    // If SERVE_FRONTEND flag present globally, prioritize containerPath first
-    try {
-      if ((window as any).TemplateDoctorConfig?.SERVE_FRONTEND || (window as any).SERVE_FRONTEND) {
-        candidates.unshift(containerPath);
-      }
-    } catch {}
     let data: EnvironmentVariablesShape = {};
     for (const url of candidates) {
       if (tried.includes(url)) continue;

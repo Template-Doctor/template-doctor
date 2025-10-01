@@ -1,4 +1,5 @@
 // Migrated from js/auth.js (behavior preserved) with TypeScript typings added
+import { buildApiUrl, API_ENDPOINTS } from './api-constants.js';
 
 interface AuthConfig {
   clientId: string;
@@ -294,16 +295,10 @@ class GitHubAuth {
     debug('exchangeCodeForToken', 'Starting token exchange with code', code);
     debug('exchangeCodeForToken', 'Sending request to Azure Function');
     sessionStorage.setItem('last_auth_code', code);
-    const isLocalhost = window.location.hostname === 'localhost';
-    let apiUrl;
-    if (isLocalhost) {
-      // On localhost, always use port 7071 for Functions
-      apiUrl = 'http://localhost:7071/api/v4/github-oauth-token';
-    } else if ((window as any).ApiRoutes) {
-      apiUrl = (window as any).ApiRoutes.build('github-oauth-token');
-    } else {
-      apiUrl = '/api/v4/github-oauth-token';
-    }
+    
+    // Use centralized API configuration
+    const apiUrl = buildApiUrl(API_ENDPOINTS.GITHUB_OAUTH_TOKEN);
+    
     debug('exchangeCodeForToken', `API URL: ${apiUrl}`);
     fetch(apiUrl, {
       method: 'POST',
