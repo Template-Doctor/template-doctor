@@ -188,7 +188,11 @@ class GitHubAuth {
       const notify = (window as any).Notifications?.info?.bind((window as any).Notifications);
       notify && notify('Preparing login…','Loading authentication configuration',2000);
       const error = (window as any).Notifications?.error?.bind((window as any).Notifications);
-      error ? error('Missing OAuth client ID','GitHub OAuth clientId is not configured. Set GITHUB_CLIENT_ID environment variable in your .env file.',6000) : alert('GitHub OAuth clientId is not configured. Please set GITHUB_CLIENT_ID in your .env file.');
+      if (error) {
+        error('Missing OAuth client ID','GitHub OAuth clientId is not configured. Set GITHUB_CLIENT_ID environment variable in your .env file.',6000);
+      } else {
+        console.error('GitHub OAuth clientId is not configured. Please set GITHUB_CLIENT_ID in your .env file.');
+      }
       return;
     }
     authUrl.searchParams.append('allow_signup','true');
@@ -251,7 +255,7 @@ class GitHubAuth {
       .then(response => {
         debug('exchangeCodeForToken','Got response from token exchange', { status: response.status, statusText: response.statusText, ok: response.ok, headers: Array.from(response.headers.entries()) });
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        return response.clone().text().then(rawText => { debug('exchangeCodeForToken','Raw token exchange response:', rawText); try { const rawJson = JSON.parse(rawText); debug('exchangeCodeForToken','Raw token exchange response as JSON:', rawJson); if (rawJson.error){ const errorMsg = `${rawJson.error}: ${rawJson.error_description || 'Unknown error'}`; const errorNotify = (window as any).Notifications?.error?.bind((window as any).Notifications); errorNotify ? errorNotify('GitHub OAuth Error', errorMsg, 10000) : alert(`GitHub OAuth Error: ${errorMsg}`); throw new Error(errorMsg); } if (rawJson.scope) debug('exchangeCodeForToken','Token scopes from response:', rawJson.scope); } catch(e){ debug('exchangeCodeForToken','Failed to parse raw response as JSON:', e); } return response.json(); });
+        return response.clone().text().then(rawText => { debug('exchangeCodeForToken','Raw token exchange response:', rawText); try { const rawJson = JSON.parse(rawText); debug('exchangeCodeForToken','Raw token exchange response as JSON:', rawJson); if (rawJson.error){ const errorMsg = `${rawJson.error}: ${rawJson.error_description || 'Unknown error'}`; const errorNotify = (window as any).Notifications?.error?.bind((window as any).Notifications); if (errorNotify) { errorNotify('GitHub OAuth Error', errorMsg, 10000); } else { console.error('GitHub OAuth Error:', errorMsg); } throw new Error(errorMsg); } if (rawJson.scope) debug('exchangeCodeForToken','Token scopes from response:', rawJson.scope); } catch(e){ debug('exchangeCodeForToken','Failed to parse raw response as JSON:', e); } return response.json(); });
       })
       .then((data: TokenExchangeResponse) => {
         debug('exchangeCodeForToken','Token exchange response data received', data);
@@ -327,7 +331,8 @@ class GitHubAuth {
       if (username) username.textContent = (this.userInfo && (this.userInfo.name || this.userInfo.login)) || 'Loading…';
   if (userAvatar && userAvatar instanceof HTMLImageElement) userAvatar.src = (this.userInfo && this.userInfo.avatarUrl) || 'https://avatars.githubusercontent.com/u/0';
       if (searchSection) searchSection.style.display = 'block';
-      if (welcomeSection) welcomeSection.style.display = 'none';
+      // Remove welcome section from DOM instead of just hiding it
+      if (welcomeSection) welcomeSection.remove();
       document.dispatchEvent(new CustomEvent('auth-state-changed', { detail: { authenticated: true, provisional: !this.userInfo }, bubbles: true, cancelable: true }));
       // If we have token but no user info yet, initiate fetch (idempotent) – safe because fetchUserInfo checks token.
       if (!this.userInfo) {

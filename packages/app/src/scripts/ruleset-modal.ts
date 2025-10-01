@@ -196,14 +196,14 @@ function getSelectedCategories(): SelectedCategories {
 function showNotification(type: 'success' | 'error' | 'warning', message: string): void {
   if ((window as any).NotificationSystem) {
     if (type === 'success') {
-      (window as any).NotificationSystem.showSuccess(message);
+      (window as any).NotificationSystem.showSuccess('Configuration', message);
     } else if (type === 'error') {
-      (window as any).NotificationSystem.showError(message);
+      (window as any).NotificationSystem.showError('Configuration Error', message);
     } else {
-      (window as any).NotificationSystem.showWarning(message);
+      (window as any).NotificationSystem.showWarning('Configuration', message);
     }
   } else {
-    alert(message);
+    console.error('[RulesetModal] NotificationSystem not available:', message);
   }
 }
 
@@ -549,7 +549,7 @@ window.showRulesetModal = showRulesetModal;
 
     console.log('[AnalyzeRepoIntegr] Step 4: Showing spinner...');
     showSpinner(containers);
-    showNotification('info', 'Starting analysis...');
+    showNotification('success', 'Starting analysis...');
 
     try {
       console.log('[AnalyzeRepoIntegr] Step 5: Calling analyzeTemplateServerSide...');

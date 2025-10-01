@@ -333,7 +333,11 @@ async function performSearch(query: string): Promise<void> {
               return;
             }
           } else {
-            alert('Please log in with GitHub to avoid rate limiting when analyzing repositories.');
+            if ((window as any).NotificationSystem) {
+              (window as any).NotificationSystem.showWarning('Login Recommended', 'Please log in with GitHub to avoid rate limiting when analyzing repositories.', 6000);
+            } else {
+              console.warn('Please log in with GitHub to avoid rate limiting when analyzing repositories.');
+            }
             // Continue anyway if they choose not to log in
           }
         }
@@ -343,7 +347,11 @@ async function performSearch(query: string): Promise<void> {
           window.TemplateAnalyzer.analyzeTemplate(matchedTemplate.repoUrl)
             .catch(err => {
               console.error('Analysis error:', err);
-              alert('Error analyzing repository: ' + (err.message || String(err)));
+              if ((window as any).NotificationSystem) {
+                (window as any).NotificationSystem.showError('Analysis Failed', 'Error analyzing repository: ' + (err.message || String(err)), 8000);
+              } else {
+                console.error('Error analyzing repository:', err.message || String(err));
+              }
             });
         } else {
           // Fallback to direct navigation
@@ -444,7 +452,11 @@ async function performSearch(query: string): Promise<void> {
                   return;
                 }
               } else {
-                alert('Please log in with GitHub to avoid rate limiting when analyzing repositories.');
+                if ((window as any).NotificationSystem) {
+                  (window as any).NotificationSystem.showWarning('Login Recommended', 'Please log in with GitHub to avoid rate limiting when analyzing repositories.', 6000);
+                } else {
+                  console.warn('Please log in with GitHub to avoid rate limiting when analyzing repositories.');
+                }
                 // Continue anyway if they choose not to log in
               }
             }
@@ -453,7 +465,11 @@ async function performSearch(query: string): Promise<void> {
               window.TemplateAnalyzer.analyzeTemplate(template.repoUrl)
                 .catch(err => {
                   console.error('Analysis error:', err);
-                  alert('Error analyzing repository: ' + (err.message || String(err)));
+                  if ((window as any).NotificationSystem) {
+                    (window as any).NotificationSystem.showError('Analysis Failed', 'Error analyzing repository: ' + (err.message || String(err)), 8000);
+                  } else {
+                    console.error('Error analyzing repository:', err.message || String(err));
+                  }
                 });
             } else {
               // Fallback to direct navigation
@@ -525,7 +541,11 @@ async function performSearch(query: string): Promise<void> {
             return;
           }
         } else {
-          alert('Please log in with GitHub to avoid rate limiting when analyzing repositories.');
+          if ((window as any).NotificationSystem) {
+            (window as any).NotificationSystem.showWarning('Login Recommended', 'Please log in with GitHub to avoid rate limiting when analyzing repositories.', 6000);
+          } else {
+            console.warn('Please log in with GitHub to avoid rate limiting when analyzing repositories.');
+          }
           return;
         }
       }
@@ -535,11 +555,19 @@ async function performSearch(query: string): Promise<void> {
         window.TemplateAnalyzer.analyzeTemplate(repoUrl)
           .catch(err => {
             console.error('Analysis error:', err);
-            alert('Error analyzing repository: ' + (err.message || String(err)));
+            if ((window as any).NotificationSystem) {
+              (window as any).NotificationSystem.showError('Analysis Failed', 'Error analyzing repository: ' + (err.message || String(err)), 8000);
+            } else {
+              console.error('Error analyzing repository:', err.message || String(err));
+            }
           });
       } else {
         // Fallback behavior
-        alert(`No analyzer available for ${repoUrl}`);
+        if ((window as any).NotificationSystem) {
+          (window as any).NotificationSystem.showError('Analyzer Unavailable', `No analyzer available for ${repoUrl}`, 5000);
+        } else {
+          console.error(`No analyzer available for ${repoUrl}`);
+        }
       }
     });
     
