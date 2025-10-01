@@ -12,6 +12,7 @@ const publicDir = path.join(rootDir, 'public');
 
 // Create public directory structure
 const dirs = [
+  'assets/images',
   'configs',
   'css',
   'results'
@@ -36,6 +37,15 @@ const copyOps = [
   { src: 'configs/dod-config.json', dest: 'configs/dod-config.json' },
   { src: 'configs/partner-config.json', dest: 'configs/partner-config.json' },
 ];
+
+// Copy assets/images directory
+const assetsImagesDir = path.join(rootDir, 'assets', 'images');
+if (fs.existsSync(assetsImagesDir)) {
+  const imageFiles = fs.readdirSync(assetsImagesDir);
+  imageFiles.forEach(file => {
+    copyOps.push({ src: `assets/images/${file}`, dest: `assets/images/${file}` });
+  });
+}
 
 // Copy CSS files
 const cssDir = path.join(rootDir, 'css');

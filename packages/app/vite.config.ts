@@ -25,7 +25,10 @@ export default defineConfig({
     target: 'es2022',
     sourcemap: true,
     rollupOptions: {
-      input: 'index.html',
+      input: {
+        main: 'index.html',
+        callback: 'callback.html',
+      },
       output: {
         assetFileNames: (assetInfo) => {
           if (assetInfo.name && assetInfo.name.endsWith('.css')) {
