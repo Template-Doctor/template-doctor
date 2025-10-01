@@ -87,6 +87,21 @@ class GitHubClient {
   async getAuthenticatedUser(): Promise<GitHubUser> { return this.request<GitHubUser>('/user'); }
   async checkTokenScopes(): Promise<string[]> { const token=this.auth?.getAccessToken?.(); if(!token) return []; const r=await fetch(`${this.baseUrl}/user`,{headers:{Authorization:`token ${token}`}}); const hdr=r.headers.get('X-OAuth-Scopes'); return hdr?hdr.split(',').map(s=>s.trim()):[]; }
   async getRepository(owner: string, repo: string): Promise<GitHubRepo> { return this.request<GitHubRepo>(`/repos/${owner}/${repo}`); }
+  
+  /**
+   * Simple fork creation - just POST to /repos/{owner}/{repo}/forks
+   * This works even with SAML/SSO orgs because you're creating in YOUR namespace
+   * Requires public_repo or repo scope, no SSO authorization needed
+   * NO metadata reads - just fork and return
+   */
+  async forkRepository(owner: string, repo: string): Promise<any> {
+    console.log(`[GitHubClient] Forking ${owner}/${repo}...`);
+    const result = await this.request(`/repos/${owner}/${repo}/forks`, { method: 'POST' });
+    console.log(`[GitHubClient] Fork initiated`);
+    // Don't poll or read metadata - just return the result
+    return result;
+  }
+  
   async ensureAccessibleRepo(owner: string, repo: string, { forceFork=false }: { forceFork?: boolean } = {}) {
     const currentUsername = this.getCurrentUsername(); if(!currentUsername) throw new Error('Not authenticated');
     const namesEq = owner && currentUsername && owner.toLowerCase()===currentUsername.toLowerCase();

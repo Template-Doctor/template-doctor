@@ -125,49 +125,16 @@ function ensureContextWrapper(mainTitle: string, issue: ComplianceIssue, data: R
   return prefix + existingBody.replace(/^\n+/,'');
 }
 
-// Resolve a safe fork target (user-owned) avoiding SAML org restrictions.
-// Ensures the fork exists before returning the context
+// For issue creation: just use the original repo (no fork needed)
+// User must have SAML authorization if the org requires it
 interface ForkContext { owner: string; repo: string; forked: boolean; hasIssues: boolean }
 
 async function resolveForkContext(owner: string, repo: string): Promise<ForkContext>{
-  const gh = currentGitHubClient();
+  console.log(`[IssueService] Using original repository: ${owner}/${repo}`);
   
-  // Get current user
-  const currentUser = gh?.auth?.getUsername?.() || gh?.getCurrentUsername?.();
-  
-  if (!currentUser) {
-    console.warn('[IssueService] No current user found, using original owner');
-    return { owner, repo, forked: false, hasIssues: true };
-  }
-  
-  // If user already owns the repo, no need to fork
-  if (owner.toLowerCase() === currentUser.toLowerCase()) {
-    console.log(`[IssueService] User ${currentUser} owns the repository, no fork needed.`);
-    return { owner, repo, forked: false, hasIssues: true };
-  }
-  
-  // User doesn't own the repo - need to ensure fork exists
-  console.log(`[IssueService] Repository owned by ${owner}, not ${currentUser}. Ensuring fork exists...`);
-  
-  try {
-    // Use ensureAccessibleRepo which creates fork if needed
-    if (gh && typeof gh.ensureAccessibleRepo === 'function') {
-      const result = await gh.ensureAccessibleRepo(owner, repo, { forceFork: false });
-      const repoMeta = result?.repo || {};
-      return { 
-        owner: currentUser, 
-        repo, 
-        forked: true, 
-        hasIssues: repoMeta.has_issues !== false 
-      };
-    } else {
-      console.warn('[IssueService] ensureAccessibleRepo not available, assuming fork exists');
-      return { owner: currentUser, repo, forked: true, hasIssues: true };
-    }
-  } catch(e){
-    console.error('[IssueService] Fork operation failed:', (e as any)?.message || e);
-    throw new Error(`Failed to ensure fork exists: ${(e as any)?.message || e}`);
-  }
+  // Issues are created directly in the original repo (legacy behavior)
+  // If the repo is SAML-protected, the user's token must be authorized
+  return { owner, repo, forked: false, hasIssues: true };
 }
 
 async function createIssues(){
