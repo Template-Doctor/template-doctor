@@ -553,6 +553,30 @@ async function performSearch(query: string): Promise<void> {
       if (window.TemplateAnalyzer && typeof window.TemplateAnalyzer.analyzeTemplate === 'function') {
         console.log('[Search DEBUG] Calling TemplateAnalyzer.analyzeTemplate');
         window.TemplateAnalyzer.analyzeTemplate(repoUrl)
+          .then(result => {
+            console.log('[Search] Analysis completed successfully');
+            // Auto-submit analysis results if authenticated (unless auto-save is disabled)
+            const cfg = (window as any).TemplateDoctorConfig || {};
+            const shouldAutoSubmit = !cfg.hasOwnProperty('autoSaveResults') || cfg.autoSaveResults !== false;
+            if (shouldAutoSubmit && (window as any).submitAnalysisToGitHub && (window as any).GitHubClient?.auth?.isAuthenticated()) {
+              const username = (window as any).GitHubClient.auth.getUsername();
+              if (username) {
+                console.log('[Search] Auto-submitting analysis results to GitHub');
+                (window as any).submitAnalysisToGitHub(result, username)
+                  .then((submitResult: any) => {
+                    if (submitResult.success) {
+                      console.log('[Search] Analysis auto-submitted successfully');
+                    } else {
+                      console.warn('[Search] Analysis auto-submit failed:', submitResult.error);
+                    }
+                  })
+                  .catch((submitErr: any) => {
+                    console.error('[Search] Analysis auto-submit error:', submitErr);
+                  });
+              }
+            }
+            return result;
+          })
           .catch(err => {
             console.error('Analysis error:', err);
             if ((window as any).NotificationSystem) {
