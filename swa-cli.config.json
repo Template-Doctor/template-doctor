@@ -4,9 +4,10 @@
         "template-doctor": {
             "appLocation": "packages/app",
             "apiLocation": "packages/api",
-            "outputLocation": ".",
+            "outputLocation": "dist",
             "apiLanguage": "node",
             "apiVersion": "18",
+            "appBuildCommand": "npm run build",
             "apiBuildCommand": "rm -rf node_modules && npm ci --omit=dev",
             "appName": "template-doctor-new",
             "resourceGroup": "template-doctor-rg"

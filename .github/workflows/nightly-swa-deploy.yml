@@ -26,6 +26,18 @@ jobs:
             - name: Checkout
               uses: actions/checkout@v4
 
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '20'
+                  cache: 'npm'
+
+            - name: Install dependencies and build
+              run: |
+                  npm ci
+                  npm run build -w packages/app
+                  npm run build -w packages/api
+
             - name: Ensure config is present under app folder
               run: |
                   mkdir -p packages/app
@@ -79,14 +91,14 @@ jobs:
               uses: azure/static-web-apps-deploy@v1
               with:
                   azure_static_web_apps_api_token: ${{ env.DEPLOY_TOKEN }}
-                  app_location: packages/app
+                  app_location: packages/app/dist
                   api_location: packages/api
                   # Explicitly set action/environment for non-PR triggers
                   action: upload
                   deployment_environment: production
                   # Point to the folder containing staticwebapp.config.json (now at repo root)
                   config_file_location: .
-                  # Treat app content as prebuilt; upload from the app folder directly
-                  app_artifact_location: packages/app
+                  # Treat app content as prebuilt; upload from the dist folder directly
+                  app_artifact_location: .
                   skip_app_build: true
                   skip_api_build: true
