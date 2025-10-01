@@ -1,0 +1,22 @@
+{
+  "scriptFile": "../dist/validation-status.js",
+  "bindings": [
+    {
+      "authLevel": "anonymous",
+      "type": "httpTrigger",
+      "direction": "in",
+      "name": "req",
+      "methods": [
+        "get",
+        "post",
+        "options"
+      ],
+      "route": "v4/validation-status"
+    },
+    {
+      "type": "http",
+      "direction": "out",
+      "name": "res"
+    }
+  ]
+}

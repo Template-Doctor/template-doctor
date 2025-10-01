@@ -1,0 +1,21 @@
+{
+  "scriptFile": "../dist/validation-ossf.js",
+  "bindings": [
+    {
+      "authLevel": "anonymous",
+      "type": "httpTrigger",
+      "direction": "in",
+      "name": "req",
+      "methods": [
+        "post",
+        "options"
+      ],
+      "route": "v4/validation-ossf"
+    },
+    {
+      "type": "http",
+      "direction": "out",
+      "name": "res"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "scriptFile": "../dist/runtime-config.js",
+  "bindings": [
+    {
+      "authLevel": "anonymous",
+      "type": "httpTrigger",
+      "direction": "in",
+      "name": "req",
+      "methods": [
+        "get",
+        "head",
+        "options"
+      ],
+      "route": "v4/client-settings"
+    },
+    {
+      "type": "http",
+      "direction": "out",
+      "name": "res"
+    }
+  ]
+}

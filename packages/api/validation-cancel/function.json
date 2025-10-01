@@ -1,0 +1,21 @@
+{
+  "scriptFile": "../dist/validation-cancel.js",
+  "bindings": [
+    {
+      "authLevel": "anonymous",
+      "type": "httpTrigger",
+      "direction": "in",
+      "name": "req",
+      "methods": [
+        "post",
+        "options"
+      ],
+      "route": "v4/validation-cancel"
+    },
+    {
+      "type": "http",
+      "direction": "out",
+      "name": "res"
+    }
+  ]
+}

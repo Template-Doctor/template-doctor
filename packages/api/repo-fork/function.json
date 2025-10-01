@@ -1,0 +1,21 @@
+{
+  "scriptFile": "../dist/repo-fork.js",
+  "bindings": [
+    {
+      "authLevel": "anonymous",
+      "type": "httpTrigger",
+      "direction": "in",
+      "name": "req",
+      "methods": [
+        "post",
+        "options"
+      ],
+      "route": "v4/repo-fork"
+    },
+    {
+      "type": "http",
+      "direction": "out",
+      "name": "res"
+    }
+  ]
+}

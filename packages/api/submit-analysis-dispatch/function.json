@@ -1,0 +1,21 @@
+{
+  "scriptFile": "../dist/submit-analysis-dispatch.js",
+  "bindings": [
+    {
+      "authLevel": "anonymous",
+      "type": "httpTrigger",
+      "direction": "in",
+      "name": "req",
+      "methods": [
+        "post",
+        "options"
+      ],
+      "route": "v4/submit-analysis-dispatch"
+    },
+    {
+      "type": "http",
+      "direction": "out",
+      "name": "res"
+    }
+  ]
+}
