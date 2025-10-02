@@ -1,6 +1,6 @@
 import { HttpRequest, Context } from "@azure/functions";
 import { wrapHttp } from "./shared/http";
-import { runAnalyzer } from "analyzer-core";
+import { runAnalyzer } from "./analyzer-core";
 
 interface AnalyzeRequest {
     repoUrl?: string; // Single repo (legacy)
