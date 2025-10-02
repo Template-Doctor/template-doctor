@@ -29,6 +29,7 @@ dirs.forEach(dir => {
 const copyOps = [
   // Root files
   { src: 'robots.txt', dest: 'robots.txt' },
+  { src: 'setup.html', dest: 'setup.html' },
   
   // Config files
   { src: 'config.json', dest: 'config.json' },
