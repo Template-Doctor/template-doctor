@@ -1,5 +1,5 @@
-// Simplified notification API - delegates to full notifications.ts implementation
-import { Notifications } from './notifications.ts';
+// Unified notification system migrated from legacy implementation
+import { Notifications } from './notifications.js';
 
 export type NotificationType = 'success' | 'error' | 'warning' | 'info';
 

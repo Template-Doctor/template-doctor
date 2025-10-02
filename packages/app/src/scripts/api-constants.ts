@@ -9,7 +9,16 @@
  * - Azure SWA: same-origin (uses /api prefix automatically)
  */
 export function getApiBase(): string {
-  const isLocalhost = window.location.hostname === 'localhost';
+  // Check for configured API base in TemplateDoctorConfig
+  const cfg = (window as any).TemplateDoctorConfig || {};
+  
+  // Use configured apiBase if available
+  if (cfg.apiBase) return cfg.apiBase.replace(/\/$/, '');
+  
+  // Check for backend.baseUrl configuration
+  if (cfg.backend?.baseUrl) return cfg.backend.baseUrl.replace(/\/$/, '');
+  
+  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
   
   if (isLocalhost) {
     // Check for explicit override

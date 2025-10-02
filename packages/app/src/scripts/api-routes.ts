@@ -8,7 +8,10 @@ interface ApiRouteBuildOptions {
 interface TemplateDoctorConfigShape {
   apiBase?: string;
   apiVersion?: string;
-  backend?: { apiVersion?: string };
+  backend?: { 
+    apiVersion?: string;
+    baseUrl?: string;
+  };
   [k: string]: any; // keep loose until full config typing pass
 }
 
@@ -25,22 +28,38 @@ interface ApiRoutesGlobal {
 
   function getApiBase(): string {
     const cfg: TemplateDoctorConfigShape = (window as any).TemplateDoctorConfig || {};
+    
+    // Use configured apiBase if available
     if (cfg.apiBase) return normalizeBase(cfg.apiBase);
+    
+    // Check for backend.baseUrl configuration
+    if (cfg.backend?.baseUrl) return normalizeBase(cfg.backend.baseUrl);
+    
     const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
     if (isLocal) {
+      // For localhost, default to port 7071 (Azure Functions) instead of current origin
       if (window.location.port === '7071') return 'http://localhost:7071';
-      return normalizeBase(window.location.origin);
+      return 'http://localhost:7071'; // Always use Functions port for local dev
     }
+    
+    // Production: use same-origin (Azure SWA will route /api/* to Functions)
     return normalizeBase(window.location.origin);
   }
 
   function getVersionPrefix(path: string, version: string | undefined): string {
-    if (!version) return '/api';
+    // Always use v4 for now - simplify the logic
+    const defaultVersion = 'v4';
+    const effectiveVersion = version || defaultVersion;
+    
     const trimmed = path.replace(/^\//, '');
-    if (trimmed.startsWith(`api/${version}/`) || trimmed === `api/${version}`) {
+    
+    // If the path already includes the full API prefix, just return /api
+    if (trimmed.startsWith(`api/${effectiveVersion}/`)) {
       return '/api';
     }
-    return `/api/${version}`;
+    
+    // Otherwise, add the version prefix
+    return `/api/${effectiveVersion}`;
   }
 
   function build(path: string, options?: ApiRouteBuildOptions): string {
@@ -51,6 +70,20 @@ interface ApiRoutesGlobal {
     const prefix = getVersionPrefix(trimmed, version);
     const base = getApiBase();
     let url = `${base}${prefix}/${trimmed}`.replace(/([^:])\/+/, '$1/');
+    
+    // Temporary debug logging
+    if (path.includes('template') || path.includes('client')) {
+      console.log('[api-routes] URL build:', {
+        path,
+        configVersion: cfg.apiVersion,
+        backendVersion: cfg.backend?.apiVersion,
+        resolvedVersion: version,
+        base,
+        prefix,
+        finalUrl: url
+      });
+    }
+    
     const query = options && options.query;
     if (query && typeof query === 'object') {
       const qp = Object.entries(query)

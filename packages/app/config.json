@@ -5,7 +5,7 @@
     "redirectUri": ""
   },
   "backend": {
-    "baseUrl": "",
+    "baseUrl": "http://localhost:7071",
     "functionKey": "",
     "apiVersion": "v4"
   },
