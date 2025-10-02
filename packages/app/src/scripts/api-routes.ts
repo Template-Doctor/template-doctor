@@ -70,20 +70,6 @@ interface ApiRoutesGlobal {
     const prefix = getVersionPrefix(trimmed, version);
     const base = getApiBase();
     let url = `${base}${prefix}/${trimmed}`.replace(/([^:])\/+/, '$1/');
-    
-    // Temporary debug logging
-    if (path.includes('template') || path.includes('client')) {
-      console.log('[api-routes] URL build:', {
-        path,
-        configVersion: cfg.apiVersion,
-        backendVersion: cfg.backend?.apiVersion,
-        resolvedVersion: version,
-        base,
-        prefix,
-        finalUrl: url
-      });
-    }
-    
     const query = options && options.query;
     if (query && typeof query === 'object') {
       const qp = Object.entries(query)
