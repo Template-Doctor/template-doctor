@@ -46,6 +46,7 @@ jobs:
             - name: Install dependencies and build app
               run: |
                   npm ci
+                  npm run build -w packages/analyzer-core
                   npm run build -w packages/app
                   npm run build -w packages/api
 
