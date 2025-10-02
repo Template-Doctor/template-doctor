@@ -135,3 +135,5 @@ async function simulateAsync(batchId: string, ctx: InvocationContext) {
 function delay(ms: number) {
     return new Promise((res) => setTimeout(res, ms));
 }
+
+export default batchScanStartHandler;

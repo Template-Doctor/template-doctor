@@ -29,6 +29,7 @@ functions.forEach(func => {
   const dir = path.join(__dirname, func.name);
   const functionJson = {
     scriptFile: `../dist/${func.name}.js`,
+    entryPoint: 'default',
     bindings: [
       {
         authLevel: 'anonymous',

@@ -1,5 +1,6 @@
 {
   "scriptFile": "../dist/validation-callback.js",
+  "entryPoint": "default",
   "bindings": [
     {
       "authLevel": "anonymous",

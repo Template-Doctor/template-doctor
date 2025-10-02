@@ -190,3 +190,5 @@ export async function repoForkHandler(
 function delay(ms: number) {
     return new Promise((res) => setTimeout(res, ms));
 }
+
+export default repoForkHandler;

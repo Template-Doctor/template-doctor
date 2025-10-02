@@ -1,5 +1,6 @@
 {
   "scriptFile": "../dist/archive-collection.js",
+  "entryPoint": "default",
   "bindings": [
     {
       "authLevel": "anonymous",

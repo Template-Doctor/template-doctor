@@ -1,5 +1,6 @@
 {
   "scriptFile": "../dist/issue-create.js",
+  "entryPoint": "default",
   "bindings": [
     {
       "authLevel": "anonymous",

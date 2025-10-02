@@ -1,5 +1,6 @@
 {
   "scriptFile": "../dist/issue-ai-proxy.js",
+  "entryPoint": "default",
   "bindings": [
     {
       "authLevel": "anonymous",

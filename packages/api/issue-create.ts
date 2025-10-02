@@ -274,3 +274,5 @@ function hashColor(input: string): string {
         .toString(16)
         .padStart(6, "0");
 }
+
+export default issueCreateHandler;
