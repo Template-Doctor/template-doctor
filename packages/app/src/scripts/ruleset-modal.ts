@@ -611,7 +611,20 @@ window.showRulesetModal = showRulesetModal;
     } catch (error: any) {
       console.error('[AnalyzeRepoIntegr] ✗ FAILED:', error);
       console.log('═══════════════════════════════════════════════════════');
-      showError(containers, error.message || 'Analysis failed');
+      
+      // Enhanced error message for common issues
+      let errorMessage = error.message || 'Analysis failed';
+      
+      // Check for specific error types and provide helpful guidance
+      if (errorMessage.includes('Cannot connect to backend')) {
+        errorMessage = '❌ Backend Server Not Running\n\n' + errorMessage;
+      } else if (errorMessage.includes('SSO authorization') || errorMessage.includes('403')) {
+        errorMessage = '🔒 SSO Authorization Required\n\n' + errorMessage;
+      } else if (errorMessage.includes('404')) {
+        errorMessage = '⚠️ Repository Not Found\n\n' + errorMessage;
+      }
+      
+      showError(containers, errorMessage);
       showNotification('error', `Failed: ${error.message || 'Unknown error'}`);
       throw error;
     }
