@@ -372,11 +372,27 @@ async function performSearch(query: string): Promise<void> {
           }
         }
 
-        if (
+        // Use window.analyzeRepo for proper UI flow (shows modal, spinner, scrolls to results)
+        if ((window as any).analyzeRepo && typeof (window as any).analyzeRepo === 'function') {
+          console.log('[Search DEBUG] Calling window.analyzeRepo');
+          (window as any).analyzeRepo(matchedTemplate.repoUrl, 'dod').catch((err: any) => {
+            console.error('Analysis error:', err);
+            if ((window as any).NotificationSystem) {
+              (window as any).NotificationSystem.showError(
+                'Analysis Failed',
+                'Error analyzing repository: ' + (err.message || String(err)),
+                8000,
+              );
+            } else {
+              console.error('Error analyzing repository:', err.message || String(err));
+            }
+          });
+        } else if (
           window.TemplateAnalyzer &&
           typeof window.TemplateAnalyzer.analyzeTemplate === 'function'
         ) {
-          console.log('[Search DEBUG] Calling TemplateAnalyzer.analyzeTemplate');
+          // Fallback to client-side analyzer
+          console.log('[Search DEBUG] Fallback: calling TemplateAnalyzer.analyzeTemplate');
           window.TemplateAnalyzer.analyzeTemplate(matchedTemplate.repoUrl).catch((err) => {
             console.error('Analysis error:', err);
             if ((window as any).NotificationSystem) {
@@ -511,10 +527,27 @@ async function performSearch(query: string): Promise<void> {
               }
             }
 
-            if (
+            // Use window.analyzeRepo for proper UI flow (shows modal, spinner, scrolls to results)
+            if ((window as any).analyzeRepo && typeof (window as any).analyzeRepo === 'function') {
+              console.log('[Search DEBUG] Calling window.analyzeRepo');
+              (window as any).analyzeRepo(template.repoUrl, 'dod').catch((err: any) => {
+                console.error('Analysis error:', err);
+                if ((window as any).NotificationSystem) {
+                  (window as any).NotificationSystem.showError(
+                    'Analysis Failed',
+                    'Error analyzing repository: ' + (err.message || String(err)),
+                    8000,
+                  );
+                } else {
+                  console.error('Error analyzing repository:', err.message || String(err));
+                }
+              });
+            } else if (
               window.TemplateAnalyzer &&
               typeof window.TemplateAnalyzer.analyzeTemplate === 'function'
             ) {
+              // Fallback to client-side analyzer
+              console.log('[Search DEBUG] Fallback: calling TemplateAnalyzer.analyzeTemplate');
               window.TemplateAnalyzer.analyzeTemplate(template.repoUrl).catch((err) => {
                 console.error('Analysis error:', err);
                 if ((window as any).NotificationSystem) {
@@ -619,11 +652,27 @@ async function performSearch(query: string): Promise<void> {
         }
       }
 
-      if (
+      // Use window.analyzeRepo for proper UI flow (shows modal, spinner, scrolls to results)
+      if ((window as any).analyzeRepo && typeof (window as any).analyzeRepo === 'function') {
+        console.log('[Search DEBUG] Calling window.analyzeRepo');
+        (window as any).analyzeRepo(repoUrl, 'dod').catch((err: any) => {
+          console.error('Analysis error:', err);
+          if ((window as any).NotificationSystem) {
+            (window as any).NotificationSystem.showError(
+              'Analysis Failed',
+              'Error analyzing repository: ' + (err.message || String(err)),
+              8000,
+            );
+          } else {
+            console.error('Error analyzing repository:', err.message || String(err));
+          }
+        });
+      } else if (
         window.TemplateAnalyzer &&
         typeof window.TemplateAnalyzer.analyzeTemplate === 'function'
       ) {
-        console.log('[Search DEBUG] Calling TemplateAnalyzer.analyzeTemplate');
+        // Fallback to direct analyzer (no UI updates)
+        console.log('[Search DEBUG] Fallback: calling TemplateAnalyzer.analyzeTemplate');
         window.TemplateAnalyzer.analyzeTemplate(repoUrl)
           .then((result) => {
             console.log('[Search] Analysis completed successfully');
