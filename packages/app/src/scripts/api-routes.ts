@@ -29,20 +29,26 @@ interface ApiRoutesGlobal {
   function getApiBase(): string {
     const cfg: TemplateDoctorConfigShape = (window as any).TemplateDoctorConfig || {};
     
-    // Use configured apiBase if available
-    if (cfg.apiBase) return normalizeBase(cfg.apiBase);
+    // SIMPLIFIED: Trust the config. Period.
+    // Runtime-config.ts and config-loader.ts handle all the complex logic.
+    // We just read the final answer.
+    console.log('[api-routes] getApiBase called, config:', {
+      hasConfig: !!cfg,
+      apiBase: cfg.apiBase,
+      backendBaseUrl: cfg.backend?.baseUrl,
+    });
     
-    // Check for backend.baseUrl configuration
-    if (cfg.backend?.baseUrl) return normalizeBase(cfg.backend.baseUrl);
-    
-    const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-    if (isLocal) {
-      // For localhost, default to port 7071 (Azure Functions) instead of current origin
-      if (window.location.port === '7071') return 'http://localhost:7071';
-      return 'http://localhost:7071'; // Always use Functions port for local dev
+    if (cfg.apiBase) {
+      console.log('[api-routes] Using cfg.apiBase:', cfg.apiBase);
+      return normalizeBase(cfg.apiBase);
+    }
+    if (cfg.backend?.baseUrl) {
+      console.log('[api-routes] Using cfg.backend.baseUrl:', cfg.backend.baseUrl);
+      return normalizeBase(cfg.backend.baseUrl);
     }
     
-    // Production: use same-origin (Azure SWA will route /api/* to Functions)
+    // Emergency fallback only - this should never happen if config loaded properly
+    console.warn('[api-routes] No apiBase in config! Using window.location.origin as emergency fallback');
     return normalizeBase(window.location.origin);
   }
 

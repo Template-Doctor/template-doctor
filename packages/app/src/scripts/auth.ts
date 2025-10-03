@@ -291,16 +291,23 @@ class GitHubAuth {
       debug('handleCallback', 'No code found in sessionStorage');
     }
   }
-  exchangeCodeForToken(code: string): void {
+  async exchangeCodeForToken(code: string): Promise<boolean | void> {
     debug('exchangeCodeForToken', 'Starting token exchange with code', code);
     debug('exchangeCodeForToken', 'Sending request to Azure Function');
     sessionStorage.setItem('last_auth_code', code);
+    
+    // CRITICAL: Wait for config to load before making API calls
+    if ((window as any).TemplateDoctorConfigReady) {
+      debug('exchangeCodeForToken', 'Waiting for config to load...');
+      await (window as any).TemplateDoctorConfigReady;
+      debug('exchangeCodeForToken', 'Config loaded, proceeding with API call');
+    }
     
     // Use centralized API configuration
     const apiUrl = buildApiUrl(API_ENDPOINTS.GITHUB_OAUTH_TOKEN);
     
     debug('exchangeCodeForToken', `API URL: ${apiUrl}`);
-    fetch(apiUrl, {
+    return fetch(apiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       mode: 'cors',

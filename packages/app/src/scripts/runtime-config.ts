@@ -38,6 +38,12 @@ const DEFAULTS: RuntimeConfig = {
 const W = window as any;
 W.TemplateDoctorConfig = { ...DEFAULTS };
 
+// Config readiness promise - other modules can await this
+let configReadyResolve: () => void;
+W.TemplateDoctorConfigReady = new Promise<void>((resolve) => {
+  configReadyResolve = resolve;
+});
+
 async function loadConfig(): Promise<void> {
   try {
     if (W.ConfigLoader?.loadConfig) {
@@ -243,8 +249,14 @@ function forceSameOriginFallback(): void {
 }
 
 // Kick off async load.
-loadConfig().catch(() => {
-  console.log('[runtime-config.ts] loadConfig failed; defaults in place');
-});
+loadConfig()
+  .then(() => {
+    console.log('[runtime-config.ts] Config loaded and ready');
+    configReadyResolve();
+  })
+  .catch(() => {
+    console.log('[runtime-config.ts] loadConfig failed; defaults in place');
+    configReadyResolve(); // Resolve anyway so other code doesn't hang
+  });
 
 export {}; // ensure this file is a module
