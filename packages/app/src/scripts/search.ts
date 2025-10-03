@@ -336,10 +336,17 @@ async function performSearch(query: string): Promise<void> {
 
     console.log('[Search DEBUG] Adding matched template to results:', repoName);
 
-    // Add click handler to view the report
-    div.addEventListener('click', () => {
-      console.log('[Search DEBUG] Template clicked:', matchedTemplate.repoUrl);
-      if (matchedTemplate.repoUrl) {
+    // Add specific click handlers to buttons (not the whole div)
+    const analyzeBtn = div.querySelector('.analyze-btn') as HTMLButtonElement;
+    const validateBtn = div.querySelector('.validate-btn') as HTMLButtonElement;
+
+    if (analyzeBtn) {
+      analyzeBtn.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent event bubbling
+        console.log('[Search DEBUG] Analyze button clicked:', matchedTemplate.repoUrl);
+        
+        if (!matchedTemplate.repoUrl) return;
+
         // Check if user is authenticated to avoid rate limiting
         const isAuthenticated =
           window.GitHubAuth &&
@@ -356,19 +363,6 @@ async function performSearch(query: string): Promise<void> {
               window.GitHubAuth.login();
               return;
             }
-          } else {
-            if ((window as any).NotificationSystem) {
-              (window as any).NotificationSystem.showWarning(
-                'Login Recommended',
-                'Please log in with GitHub to avoid rate limiting when analyzing repositories.',
-                6000,
-              );
-            } else {
-              console.warn(
-                'Please log in with GitHub to avoid rate limiting when analyzing repositories.',
-              );
-            }
-            // Continue anyway if they choose not to log in
           }
         }
 
@@ -383,35 +377,28 @@ async function performSearch(query: string): Promise<void> {
                 'Error analyzing repository: ' + (err.message || String(err)),
                 8000,
               );
-            } else {
-              console.error('Error analyzing repository:', err.message || String(err));
             }
           });
-        } else if (
-          window.TemplateAnalyzer &&
-          typeof window.TemplateAnalyzer.analyzeTemplate === 'function'
-        ) {
-          // Fallback to client-side analyzer
-          console.log('[Search DEBUG] Fallback: calling TemplateAnalyzer.analyzeTemplate');
-          window.TemplateAnalyzer.analyzeTemplate(matchedTemplate.repoUrl).catch((err) => {
-            console.error('Analysis error:', err);
-            if ((window as any).NotificationSystem) {
-              (window as any).NotificationSystem.showError(
-                'Analysis Failed',
-                'Error analyzing repository: ' + (err.message || String(err)),
-                8000,
-              );
-            } else {
-              console.error('Error analyzing repository:', err.message || String(err));
-            }
-          });
-        } else {
-          // Fallback to direct navigation
-          console.log('[Search DEBUG] No analyzer available, redirecting to template page');
-          window.location.href = `/templates/${encodeURIComponent(repoName)}`;
         }
-      }
-    });
+      });
+    }
+
+    if (validateBtn) {
+      validateBtn.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent event bubbling
+        console.log('[Search DEBUG] Validate button clicked:', matchedTemplate.repoUrl);
+        
+        if ((window as any).NotificationSystem) {
+          (window as any).NotificationSystem.showInfo(
+            'Validation',
+            'Template validation feature coming soon!',
+            3000,
+          );
+        } else {
+          alert('Template validation feature coming soon!');
+        }
+      });
+    }
 
     container.appendChild(div);
 
@@ -492,17 +479,23 @@ async function performSearch(query: string): Promise<void> {
 
         div.innerHTML = html;
 
-        // Add click handler
-        div.addEventListener('click', () => {
-          if (template.repoUrl) {
-            // Check if user is authenticated to avoid rate limiting
+        // Add specific click handlers to buttons
+        const analyzeBtn = div.querySelector('.analyze-btn') as HTMLButtonElement;
+        const validateBtn = div.querySelector('.validate-btn') as HTMLButtonElement;
+
+        if (analyzeBtn) {
+          analyzeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            
+            if (!template.repoUrl) return;
+
+            // Check if user is authenticated
             const isAuthenticated =
               window.GitHubAuth &&
               typeof window.GitHubAuth.isAuthenticated === 'function' &&
               window.GitHubAuth.isAuthenticated();
 
             if (!isAuthenticated) {
-              // Prompt user to log in first
               if (window.GitHubAuth && typeof window.GitHubAuth.login === 'function') {
                 const confirmLogin = confirm(
                   'To analyze GitHub repositories without hitting rate limits, you need to log in with GitHub. Would you like to log in now?',
@@ -511,25 +504,11 @@ async function performSearch(query: string): Promise<void> {
                   window.GitHubAuth.login();
                   return;
                 }
-              } else {
-                if ((window as any).NotificationSystem) {
-                  (window as any).NotificationSystem.showWarning(
-                    'Login Recommended',
-                    'Please log in with GitHub to avoid rate limiting when analyzing repositories.',
-                    6000,
-                  );
-                } else {
-                  console.warn(
-                    'Please log in with GitHub to avoid rate limiting when analyzing repositories.',
-                  );
-                }
-                // Continue anyway if they choose not to log in
               }
             }
 
-            // Use window.analyzeRepo for proper UI flow (shows modal, spinner, scrolls to results)
+            // Use window.analyzeRepo
             if ((window as any).analyzeRepo && typeof (window as any).analyzeRepo === 'function') {
-              console.log('[Search DEBUG] Calling window.analyzeRepo');
               (window as any).analyzeRepo(template.repoUrl, 'dod').catch((err: any) => {
                 console.error('Analysis error:', err);
                 if ((window as any).NotificationSystem) {
@@ -538,34 +517,27 @@ async function performSearch(query: string): Promise<void> {
                     'Error analyzing repository: ' + (err.message || String(err)),
                     8000,
                   );
-                } else {
-                  console.error('Error analyzing repository:', err.message || String(err));
                 }
               });
-            } else if (
-              window.TemplateAnalyzer &&
-              typeof window.TemplateAnalyzer.analyzeTemplate === 'function'
-            ) {
-              // Fallback to client-side analyzer
-              console.log('[Search DEBUG] Fallback: calling TemplateAnalyzer.analyzeTemplate');
-              window.TemplateAnalyzer.analyzeTemplate(template.repoUrl).catch((err) => {
-                console.error('Analysis error:', err);
-                if ((window as any).NotificationSystem) {
-                  (window as any).NotificationSystem.showError(
-                    'Analysis Failed',
-                    'Error analyzing repository: ' + (err.message || String(err)),
-                    8000,
-                  );
-                } else {
-                  console.error('Error analyzing repository:', err.message || String(err));
-                }
-              });
-            } else {
-              // Fallback to direct navigation
-              window.location.href = `/templates/${encodeURIComponent(repoName)}`;
             }
-          }
-        });
+          });
+        }
+
+        if (validateBtn) {
+          validateBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            
+            if ((window as any).NotificationSystem) {
+              (window as any).NotificationSystem.showInfo(
+                'Validation',
+                'Template validation feature coming soon!',
+                3000,
+              );
+            } else {
+              alert('Template validation feature coming soon!');
+            }
+          });
+        }
 
         container.appendChild(div);
       });
@@ -624,87 +596,31 @@ async function performSearch(query: string): Promise<void> {
       </div>
     `;
 
-    // Add click handler
-    div.addEventListener('click', () => {
-      if (!isAuthenticated) {
-        // Prompt user to log in first
-        if (window.GitHubAuth && typeof window.GitHubAuth.login === 'function') {
-          const confirmLogin = confirm(
-            'To analyze GitHub repositories without hitting rate limits, you need to log in with GitHub. Would you like to log in now?',
-          );
-          if (confirmLogin) {
-            window.GitHubAuth.login();
-            return;
-          }
-        } else {
-          if ((window as any).NotificationSystem) {
-            (window as any).NotificationSystem.showWarning(
-              'Login Recommended',
-              'Please log in with GitHub to avoid rate limiting when analyzing repositories.',
-              6000,
+    // Add specific click handlers to buttons
+    const analyzeBtn = div.querySelector('.analyze-btn') as HTMLButtonElement;
+    const validateBtn = div.querySelector('.validate-btn') as HTMLButtonElement;
+
+    if (analyzeBtn) {
+      analyzeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+
+        if (!isAuthenticated) {
+          // Prompt user to log in first
+          if (window.GitHubAuth && typeof window.GitHubAuth.login === 'function') {
+            const confirmLogin = confirm(
+              'To analyze GitHub repositories without hitting rate limits, you need to log in with GitHub. Would you like to log in now?',
             );
-          } else {
-            console.warn(
-              'Please log in with GitHub to avoid rate limiting when analyzing repositories.',
-            );
+            if (confirmLogin) {
+              window.GitHubAuth.login();
+              return;
+            }
           }
           return;
         }
-      }
 
-      // Use window.analyzeRepo for proper UI flow (shows modal, spinner, scrolls to results)
-      if ((window as any).analyzeRepo && typeof (window as any).analyzeRepo === 'function') {
-        console.log('[Search DEBUG] Calling window.analyzeRepo');
-        (window as any).analyzeRepo(repoUrl, 'dod').catch((err: any) => {
-          console.error('Analysis error:', err);
-          if ((window as any).NotificationSystem) {
-            (window as any).NotificationSystem.showError(
-              'Analysis Failed',
-              'Error analyzing repository: ' + (err.message || String(err)),
-              8000,
-            );
-          } else {
-            console.error('Error analyzing repository:', err.message || String(err));
-          }
-        });
-      } else if (
-        window.TemplateAnalyzer &&
-        typeof window.TemplateAnalyzer.analyzeTemplate === 'function'
-      ) {
-        // Fallback to direct analyzer (no UI updates)
-        console.log('[Search DEBUG] Fallback: calling TemplateAnalyzer.analyzeTemplate');
-        window.TemplateAnalyzer.analyzeTemplate(repoUrl)
-          .then((result) => {
-            console.log('[Search] Analysis completed successfully');
-            // Auto-submit analysis results if authenticated (unless auto-save is disabled)
-            const cfg = (window as any).TemplateDoctorConfig || {};
-            const shouldAutoSubmit =
-              !cfg.hasOwnProperty('autoSaveResults') || cfg.autoSaveResults !== false;
-            if (
-              shouldAutoSubmit &&
-              (window as any).submitAnalysisToGitHub &&
-              (window as any).GitHubClient?.auth?.isAuthenticated()
-            ) {
-              const username = (window as any).GitHubClient.auth.getUsername();
-              if (username) {
-                console.log('[Search] Auto-submitting analysis results to GitHub');
-                (window as any)
-                  .submitAnalysisToGitHub(result, username)
-                  .then((submitResult: any) => {
-                    if (submitResult.success) {
-                      console.log('[Search] Analysis auto-submitted successfully');
-                    } else {
-                      console.warn('[Search] Analysis auto-submit failed:', submitResult.error);
-                    }
-                  })
-                  .catch((submitErr: any) => {
-                    console.error('[Search] Analysis auto-submit error:', submitErr);
-                  });
-              }
-            }
-            return result;
-          })
-          .catch((err) => {
+        // Use window.analyzeRepo for proper UI flow
+        if ((window as any).analyzeRepo && typeof (window as any).analyzeRepo === 'function') {
+          (window as any).analyzeRepo(repoUrl, 'dod').catch((err: any) => {
             console.error('Analysis error:', err);
             if ((window as any).NotificationSystem) {
               (window as any).NotificationSystem.showError(
@@ -712,23 +628,27 @@ async function performSearch(query: string): Promise<void> {
                 'Error analyzing repository: ' + (err.message || String(err)),
                 8000,
               );
-            } else {
-              console.error('Error analyzing repository:', err.message || String(err));
             }
           });
-      } else {
-        // Fallback behavior
+        }
+      });
+    }
+
+    if (validateBtn) {
+      validateBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        
         if ((window as any).NotificationSystem) {
-          (window as any).NotificationSystem.showError(
-            'Analyzer Unavailable',
-            `No analyzer available for ${repoUrl}`,
-            5000,
+          (window as any).NotificationSystem.showInfo(
+            'Validation',
+            'Template validation feature coming soon!',
+            3000,
           );
         } else {
-          console.error(`No analyzer available for ${repoUrl}`);
+          alert('Template validation feature coming soon!');
         }
-      }
-    });
+      });
+    }
 
     container.appendChild(div);
 
