@@ -4,22 +4,29 @@ This document provides specific guidance for AI agents working with the Template
 
 ## Project Overview
 
-Template Doctor analyzes and validates sample templates, with a focus on Azure Developer CLI (azd) templates. It's structured as a monorepo with independently deployable packages:
+Template Doctor analyzes and validates sample templates, with a focus on Azure Developer CLI (azd) templates. It runs as a containerized application with Express backend and Vite frontend.
 
-- **packages/app**: Static web app (frontend UI)
-- **packages/api**: Azure Functions (PR creation, OAuth helpers, AZD validation)
-- **packages/analyzer-core**: Core analyzer functionality
-- **packages/parity-tests**: Test suite for feature parity validation
+### Architecture (Current)
+
+- **packages/app**: Vite SPA (TypeScript frontend)
+- **packages/server**: Express backend (TypeScript REST API)
+- **packages/analyzer-core**: Core analyzer functionality (shared)
+- **Docker**: Containerized deployment (multi-container and single-container options)
+
+### Architecture (Legacy - Separate Branch)
+
+- **packages/api**: Azure Functions (maintained in `legacy/azure-functions` branch)
+- **packages/parity-tests**: Legacy test suite
 
 ## Development Environment Setup
 
 ### Prerequisites
 
-- Node.js LTS
+- Node.js LTS (v18+)
 - npm
-- Azure Functions Core Tools (for API development)
+- Docker and Docker Compose (recommended for local development)
 
-### Installation Steps
+### Quick Start with Docker (Recommended)
 
 1. Clone the repository:
 
@@ -42,103 +49,95 @@ Template Doctor analyzes and validates sample templates, with a focus on Azure D
 
     Edit the `.env` file with appropriate values. **CRITICAL**: You must set `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` in `.env`.
 
-4. Configure local Azure Functions:
+4. Start with Docker Compose:
 
     ```bash
-    cd packages/api
-    cp local.settings.example.json local.settings.json
+    docker-compose up
     ```
 
-    Edit `local.settings.json` and add the same `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` from `.env`.
+5. Access the application:
+    - Frontend: http://localhost:3000
+    - Backend API: http://localhost:3001
 
-5. Configure frontend:
+### Manual Development (Two-Terminal Approach)
 
-    ```bash
-    cd packages/app
-    cp config.json.example config.json
-    ```
+If you prefer running services without Docker:
 
-    Edit `config.json` and ensure:
-    - `githubOAuth.clientId` matches your `GITHUB_CLIENT_ID`
-    - `backend.baseUrl` is set to `"http://localhost:7071"` for local dev
+1. Follow steps 1-3 from Quick Start above
 
-6. Build both packages:
+2. Build both packages:
 
     ```bash
-    cd /path/to/template-doctor
-    npm run build -w packages/api
+    npm run build -w packages/server
     npm run build -w packages/app
     ```
 
-7. **IMPORTANT**: Start services in SEPARATE terminals (do not use background processes):
+3. **IMPORTANT**: Start services in SEPARATE terminals (do not use background processes):
 
-    **Terminal 1 - Azure Functions (backend on port 7071):**
+    **Terminal 1 - Express Backend (on port 3001):**
 
     ```bash
-    cd packages/api
-    npm start
+    cd packages/server
+    npm run dev
     ```
 
-    **Terminal 2 - Vite dev server (frontend on port 4000):**
+    **Terminal 2 - Vite dev server (on port 4000):**
 
     ```bash
     cd packages/app
     npm run dev
     ```
 
-8. Access the application at http://localhost:4000
+4. Access the application at http://localhost:4000
+
+### Port Allocation
+
+| Service | Development | Preview | Docker | Legacy (Functions) |
+|---------|-------------|---------|--------|-------------------|
+| Vite Dev Server | 4000 | - | - | 4000 |
+| Vite Preview | - | 3000 | 3000 | - |
+| Express Backend | 3001 | 3001 | 3001 | - |
+| Azure Functions (Legacy) | - | - | - | 7071 |
 
 ### Critical Local Development Requirements
 
-- **Two separate terminals required**: One for Azure Functions (port 7071), one for Vite (port 4000)
-- **Azure Functions MUST be running** before using OAuth login or analysis features
+- **Docker Compose (Recommended)**: Single command starts all services with proper networking
+- **Manual Mode**: Two separate terminals required (Express on 3001, Vite on 4000)
+- **Express Backend MUST be running** before using OAuth login or analysis features
 - **Hard refresh required** (Cmd+Shift+R / Ctrl+Shift+R) after any config changes
-- **Port conflicts**: If you see EADDRINUSE errors, kill processes: `lsof -ti :4000 | xargs kill -9` and `lsof -ti :7071 | xargs kill -9`
+- **Port conflicts**: If you see EADDRINUSE errors, kill processes: `lsof -ti :3000 | xargs kill -9` and `lsof -ti :3001 | xargs kill -9` and `lsof -ti :4000 | xargs kill -9`
 
-## Configuration Architecture (Post-Migration)
+## Configuration Architecture (Express Migration)
 
-The configuration system has three layers that must be properly aligned:
+The configuration system has three layers optimized for the containerized architecture:
 
-1. **Server-side** (`packages/api/local.settings.json`): Azure Functions configuration
+1. **Backend** (`packages/server/.env`): Express server configuration
     - Required: `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GH_WORKFLOW_TOKEN`
+    - Copied from root `.env` during Docker build
     - Used by OAuth token exchange and API endpoints
+    - Port configured via `PORT` (default: 3001)
 
-2. **Client-side** (`packages/app/config.json`): Frontend configuration
+2. **Frontend** (`packages/app/config.json`): Client configuration
     - Required: `githubOAuth.clientId` (must match server's `GITHUB_CLIENT_ID`)
-    - Required: `backend.baseUrl` set to `"http://localhost:7071"` for local dev
-    - Used by frontend for OAuth flow and API calls
+    - Backend URLs:
+        - Local dev: `"http://localhost:3001"` (manual) or `"http://localhost:3001"` (Docker)
+        - Preview: `"http://localhost:3001"`
+        - Production: Configured via environment
+    - Three-tier override system:
+        - `config.json` - Base configuration
+        - `config.local.json` - Local overrides (not committed)
+        - `config.preview.json` - Preview/production overrides
 
 3. **Environment** (`.env` at repo root): Shared configuration
-    - Used by build tools and CLI scripts
-    - Values must be duplicated into `local.settings.json` for Functions to access them
+    - Used by build tools, Docker Compose, and copied to backend
+    - Single source of truth for GitHub tokens and OAuth credentials
 
 **Local Development Flow:**
 
-- On localhost, frontend skips the server's `/api/v4/client-settings` endpoint
-- Config is loaded directly from `config.json` (simpler, no server dependency during startup)
-- OAuth calls hardcoded to `http://localhost:7071/api/v4/github-oauth-token`
-- Analysis calls use `apiBase` from `config.json` → `http://localhost:7071`
-
-5. Access the application at http://localhost:5173
-
-## Code Structure Insights
-
-- The frontend is migrating from legacy vanilla JS to TypeScript (TS modules under `packages/app/src/` are authoritative; legacy JS is being deleted in phases)
-- The API is Azure Functions
-- Results are stored as JS files under `packages/app/results/`
-- Configuration is split across:
-    - `.env` file (root)
-    - `config.json` files (in packages)
-
-## OAuth Configuration
-
-For local development:
-
-- GitHub OAuth callback URL must match frontend port: `http://localhost:4000/callback.html`
-- If changing the port, update both:
-    1. The local server command in README.md
-    2. The callback URL in GitHub OAuth app settings
-    3. The examples in docs/development/OAUTH_CONFIGURATION.md
+- Frontend loads config from `/api/v4/client-settings` endpoint (served by Express)
+- OAuth calls: `http://localhost:3001/api/v4/github-oauth-token`
+- Analysis calls: `http://localhost:3001/api/v4/analyze`
+- Docker networking handles inter-container communication automatically
 
 ## Testing Guidelines
 
@@ -158,11 +157,11 @@ npm run test -- "-g" "should handle search functionality" packages/app/tests/app
 
 ### API Smoke Script
 
-For a quick end‑to‑end verification of the local Azure Functions endpoints (runtime-config, validation, analysis, archive, PR creation, etc.) use the smoke script:
+For a quick end‑to‑end verification of the Express endpoints (config, validation, analysis, etc.) use the smoke script:
 
 ```bash
-./scripts/smoke-api.sh            # assumes host at http://localhost:7071 and reads .env
-BASE=http://localhost:7072 ./scripts/smoke-api.sh   # override base
+./scripts/smoke-api.sh            # assumes host at http://localhost:3001 and reads .env
+BASE=http://localhost:3001 ./scripts/smoke-api.sh   # override base
 DRY_RUN=1 ./scripts/smoke-api.sh  # print commands only
 ```
 
@@ -170,12 +169,14 @@ The script will:
 
 1. Load variables from `.env` (simple KEY=VALUE lines)
 2. Probe each public endpoint (GET/POST) and basic negative routes
-3. Attempt authenticated operations if `GITHUB_TOKEN` is present (add-template-pr, setup overrides, issue-ai)
+3. Attempt authenticated operations if `GITHUB_TOKEN` is present
 4. Summarize success/fail at the end
 
 Environment variable precedence: explicitly exported shell vars > `.env`. Override any value by exporting before invoking the script.
 
 The script exits non‑zero on the first critical failure (missing endpoint / unexpected HTTP code) so it can be wired into CI.
+
+**Note**: Update `BASE` to match your Express server port (default: 3001)
 
 ### Test Conventions
 
@@ -195,16 +196,23 @@ The script exits non‑zero on the first critical failure (missing endpoint / un
 - `packages/app/results/index-data.js`: Master list of scanned templates
 - `packages/app/results/<owner-repo>/<timestamp>-data.js`: Per-scan data
 - `packages/app/results/<owner-repo>/<timestamp>-dashboard.html`: Per-scan dashboard
+- `packages/server/src/routes/`: Express API route handlers
+- `packages/server/src/middleware/`: CORS, error handling, logging
 - `docs/development/ENVIRONMENT_VARIABLES.md`: Complete reference of all environment variables
 - `docs/development/OAUTH_CONFIGURATION.md`: OAuth setup details
+- `docs/development/EXPRESS_MIGRATION_MATRIX.md`: Azure Functions → Express migration tracking
 - `docs/usage/GITHUB_ACTION_SETUP.md`: GitHub Action setup guide
+- `docker-compose.yml`: Multi-container development setup
+- `Dockerfile.combined`: Single-container production build
 
 ## Security Considerations
 
 - Sensitive credentials should be stored in environment variables, not committed to the repo
 - GitHub OAuth requires different app registrations for local and production environments
-- For AZD deployment, Azure Managed Identity is required
+- Express server validates CORS origins and handles authentication middleware
 - The Security Analysis feature reviews Bicep files for security best practices
+- Docker containers run with minimal privileges
+- Environment variables are passed securely through Docker secrets in production
 
 ### SAML/SSO and Forking Policy
 
@@ -215,36 +223,46 @@ The script exits non‑zero on the first critical failure (missing endpoint / un
 
 ## Common Troubleshooting
 
-- OAuth redirect issues: Ensure ports match between GitHub OAuth app settings and local server
-- Azure Function issues: Check local.settings.json and environment variables
-- Deployment failures: Review the CI/CD workflows and environment setup
+- **OAuth redirect issues**: Ensure ports match between GitHub OAuth app settings and local server (3000 for preview/Docker, 4000 for dev, 3001 for Express API)
+- **Express server not starting**: Check `.env` file exists and has required variables, verify port 3001 is not in use
+- **Docker issues**: Ensure Docker and Docker Compose are installed and running, check `docker-compose logs` for errors
+- **Configuration mismatch**: Verify `config.json` has correct `githubOAuth.clientId` matching `.env`
+- **Port conflicts**: Kill processes using ports 3000, 3001, 4000 as needed
+- **Deployment failures**: Review the CI/CD workflows and environment setup
 
 ## Known Quirks
 
-- The frontend is JavaScript for fast prototyping, with plans to migrate to TypeScript
+- The frontend has been fully migrated to TypeScript (TS modules are authoritative)
 - Results are stored as JS files rather than a database for simplicity
 - After "Save Results" creates a PR and the PR is merged, results appear on the site after the nightly deploy or manual admin deploy
+- Express migration is in progress: 3/20 endpoints migrated (see EXPRESS_MIGRATION_MATRIX.md)
+- Legacy Azure Functions code preserved in separate branch for reference
 
-## HTTP Wrapper / Azure Functions Notes
+## Express Architecture Notes
 
-The Azure Functions (Node) handlers in `packages/api` use a helper `wrapHttp` (see `src/shared/http.ts`).
+The Express server (`packages/server/`) provides a simplified backend architecture:
 
-- Invocation Signature: Azure Functions runtime calls exported handlers with `(context, req)`.
-- Historical Bug: Earlier code reversed parameters `(req, ctx)` which produced empty 200 responses because `ctx.res` was never set. This has been fixed.
-- Backward Compatibility: `wrapHttp` now both sets `ctx.res` and returns it. Legacy tests that previously relied on a returned `{ status, body }` object will still work, while the Functions host uses `ctx.res`.
-- Writing New Tests: Prefer calling `await handler(ctx, req)` and asserting on the returned value (which equals `ctx.res`).
-- HEAD Requests: The wrapper suppresses bodies for `HEAD` automatically.
-- OPTIONS Requests: Auto CORS 204 with standard headers.
+- **Route Handlers**: Located in `src/routes/`, one file per major feature (analyze.ts, auth.ts, etc.)
+- **Middleware**: CORS handling, error handling, request logging in `src/middleware/`
+- **Shared Utilities**: Common functions in `src/shared/` (GitHub client, utilities, types)
+- **Port**: Default 3001, configurable via `PORT` environment variable
+- **CORS**: Configured to allow frontend origins (localhost:3000, localhost:4000, production domain)
+- **Error Handling**: Centralized error handler with proper HTTP status codes
+- **Logging**: Request/response logging for debugging
 
-If you observe a 200 with an empty body for a new endpoint, double‑check:
+### Migration from Azure Functions
 
-1. The function export order `(ctx, req)`.
-2. That you are not accidentally returning a plain object instead of using `wrapHttp`.
-3. The test is not invoking `(req, ctx)` by mistake.
+When migrating an Azure Function to Express:
 
-### Smoke Testing
-
-Use `./scripts/smoke-api.sh` after starting the Functions host to exercise the primary endpoints. It reads `.env`, supports `DRY_RUN=1`, and fails fast on critical issues. The script expects the updated route `/api/v4/client-settings` for runtime configuration.
+1. Create new route file in `packages/server/src/routes/`
+2. Copy core logic from Azure Function
+3. Replace `context` with `req`/`res` Express patterns
+4. Update error handling to use Express `next(error)` pattern
+5. Add route to `src/index.ts`
+6. Update `EXPRESS_MIGRATION_MATRIX.md`
+7. Add tests in `packages/server/tests/`
+8. Update frontend to use new endpoint (if route changed)
+9. Run smoke tests: `./scripts/smoke-api.sh`
 
 ## Frontend TypeScript Migration & Legacy File Deletion (Production Policy)
 

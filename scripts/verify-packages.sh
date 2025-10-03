@@ -2,9 +2,10 @@
 set -euo pipefail
 
 # Guard script: ensure only the expected set of package directories exist on main.
-# Prevents accidental leakage of experimental workspaces (server, api-legacy, analyzer-core, etc.).
+# Prevents accidental leakage of experimental workspaces.
+# Updated for Express migration: expects 'app' and 'server' packages.
 
-EXPECTED_DIRS=(api app)
+EXPECTED_DIRS=(app server)
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 pkg_dir="$repo_root/packages"
