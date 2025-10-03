@@ -528,6 +528,29 @@ window.showRulesetModal = showRulesetModal;
     console.log('[AnalyzeRepoIntegr] showResults - hiding spinner, showing results');
     containers.loadingContainer.style.display = 'none';
     containers.resultsContainer.style.display = 'block';
+    
+    // Add back to search button if not already present
+    const header = containers.section.querySelector('.analysis-header');
+    if (header && !header.querySelector('.back-to-search')) {
+      const backButton = document.createElement('button');
+      backButton.className = 'back-to-search back-button';
+      backButton.innerHTML = '<i class="fas fa-arrow-left"></i> Back to Search';
+      backButton.onclick = () => {
+        console.log('[AnalyzeRepoIntegr] Back to search clicked');
+        // Hide the analysis section and show search
+        if ((window as any).UIController && typeof (window as any).UIController.showSection === 'function') {
+          (window as any).UIController.showSection('search');
+        } else {
+          // Fallback: manually toggle sections
+          const searchSection = document.getElementById('search-section');
+          const analysisSection = document.getElementById('analysis-section');
+          if (searchSection) searchSection.style.display = 'block';
+          if (analysisSection) analysisSection.style.display = 'none';
+        }
+      };
+      header.insertBefore(backButton, header.firstChild);
+    }
+    
     console.log('[AnalyzeRepoIntegr] ✓ Results container visible');
   }
 
