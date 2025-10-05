@@ -26,7 +26,7 @@
 ### Update `.env` in repo root:
 ```bash
 # GitHub OAuth (Port 3000 app)
-GITHUB_CLIENT_ID=Ov23li...YourClientID
+GITHUB_CLIENT_ID=.YourClientID
 GITHUB_CLIENT_SECRET=your_secret_here
 
 # GitHub Tokens (same as before)
@@ -39,7 +39,7 @@ GITHUB_TOKEN_ANALYZER=ghp_your_analyzer_token
 ```json
 {
   "githubOAuth": {
-    "clientId": "Ov23li...YourClientID",
+    "clientId": ".YourClientID",
     "redirectUri": "http://localhost:3000/callback.html"
   },
   "backend": {
@@ -51,7 +51,7 @@ GITHUB_TOKEN_ANALYZER=ghp_your_analyzer_token
 ### Update `packages/server/.env`:
 ```bash
 PORT=3001
-GITHUB_CLIENT_ID=Ov23li...YourClientID
+GITHUB_CLIENT_ID=.YourClientID
 GITHUB_CLIENT_SECRET=your_secret_here
 ```
 
@@ -176,7 +176,7 @@ Each needs its own GitHub OAuth app with matching callback URLs.
 
 ```bash
 # Required for OAuth
-GITHUB_CLIENT_ID=Ov23li...         # From GitHub OAuth app
+GITHUB_CLIENT_ID=.         # From GitHub OAuth app
 GITHUB_CLIENT_SECRET=abcd1234...   # From GitHub OAuth app
 
 # Required for API operations

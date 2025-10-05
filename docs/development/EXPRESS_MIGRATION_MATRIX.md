@@ -24,12 +24,12 @@ This document tracks the migration from Azure Functions to Express endpoints. Th
 
 | Azure Function | Express Route | Status | Dependencies | Notes |
 |----------------|---------------|--------|--------------|-------|
-| `validate-template` | `/api/v4/validate-template` | ⏳ Pending | GitHub API client | Triggers GitHub workflow dispatch |
-| `validation-status` | `/api/v4/validation-status` | ⏳ Pending | validate-template | Polls GitHub workflow status |
-| `validation-callback` | `/api/v4/validation-callback` | ⏳ Pending | validate-template | Webhook from GitHub workflow |
-| `validation-cancel` | `/api/v4/validation-cancel` | ⏳ Pending | validate-template | Cancels running validation |
-| `validation-docker-image` | `/api/v4/validation-docker-image` | ⏳ Pending | - | Docker image validation |
-| `validation-ossf` | `/api/v4/validation-ossf` | ⏳ Pending | - | OSSF scorecard validation |
+| `validate-template` | `/api/v4/validate-template` | ✅ Migrated | GitHub API client | Triggers GitHub workflow dispatch | 2025-01-05 |
+| `validation-docker-image` | `/api/v4/validation-docker-image` | ✅ Migrated | - | Docker image validation | 2025-01-05 |
+| `validation-ossf` | `/api/v4/validation-ossf` | ✅ Migrated | - | OSSF scorecard validation | 2025-01-05 |
+| `validation-status` | `/api/v4/validation-status` | ✅ Migrated | validate-template | Polls GitHub workflow status | 2025-01-05 |
+| `validation-callback` | `/api/v4/validation-callback` | ✅ Migrated | validate-template | Webhook from GitHub workflow | 2025-01-05 |
+| `validation-cancel` | `/api/v4/validation-cancel` | ✅ Migrated | validate-template | Cancels running validation | 2025-01-05 |
 
 ## GitHub Actions Integration (Priority 2)
 
@@ -58,7 +58,7 @@ This document tracks the migration from Azure Functions to Express endpoints. Th
 
 | Azure Function | Express Route | Status | Dependencies | Notes |
 |----------------|---------------|--------|--------------|-------|
-| `issue-create` | `/api/v4/issue-create` | ⏳ Pending | GitHub API client | Creates GitHub issues with labels |
+| `issue-create` | `/api/v4/issue-create` | ✅ Migrated | GitHub API client | Creates GitHub issues with labels | 2025-01-05 |
 | `issue-ai-proxy` | `/api/v4/issue-ai-proxy` | ⏳ Pending | AI provider config | Proxies AI enrichment requests |
 
 ## Setup & Configuration (Priority 6)
@@ -69,13 +69,15 @@ This document tracks the migration from Azure Functions to Express endpoints. Th
 
 ## Migration Progress
 
-### Completed: 3 / 20 (15%)
+### Completed: 10 / 20 (50%)
 
 - ✅ OAuth flow
 - ✅ Runtime configuration
 - ✅ Template analysis
+- ✅ All validation endpoints (6 endpoints)
+- ✅ Issue creation
 
-### Remaining: 17 Functions
+### Remaining: 10 Functions
 
 **Estimated Timeline:**
 - Priority 1 (Validation): 2-3 days

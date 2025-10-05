@@ -34,11 +34,15 @@ app.get('/api/health', (req: Request, res: Response) => {
 import { analyzeRouter } from './routes/analyze';
 import { authRouter } from './routes/auth';
 import { configRouter } from './routes/config';
+import { validationRouter } from './routes/validation';
+import { githubRouter } from './routes/github';
 
 // Register API routes (all under /api/v4)
 app.use('/api/v4', analyzeRouter);
 app.use('/api/v4', authRouter);
 app.use('/api/v4', configRouter);
+app.use('/api/v4', validationRouter);
+app.use('/api/v4', githubRouter);
 
 // Fallback to serve index.html for client-side routing (SPA)
 app.get('*', (req: Request, res: Response) => {
