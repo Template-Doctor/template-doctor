@@ -20,6 +20,19 @@ interface ArtifactsBody {
   workflowRunId?: string | number;
 }
 
+// Helper: Build GitHub API URL with query parameters
+function buildGitHubApiUrl(path: string, params?: Record<string, string | number>): string {
+  const url = new URL(`https://api.github.com${path}`);
+  
+  if (params) {
+    Object.entries(params).forEach(([key, value]) => {
+      url.searchParams.append(key, String(value));
+    });
+  }
+  
+  return url.toString();
+}
+
 // Helper: Parse owner/repo
 function parseOwnerRepo(orgRep: string | undefined, requestId: string): { owner: string; repo: string } | null {
   if (!orgRep || typeof orgRep !== 'string') {
@@ -54,8 +67,9 @@ async function dispatchWorkflow(
   inputs: Record<string, any>,
   token: string,
 ) {
-  const idPart = encodeURIComponent(String(workflowId));
-  const url = `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${idPart}/dispatches`;
+  const url = buildGitHubApiUrl(
+    `/repos/${owner}/${repo}/actions/workflows/${workflowId}/dispatches`
+  );
   const body = { ref: 'main', inputs };
 
   const res = await fetch(url, {
@@ -79,8 +93,16 @@ async function listRecentRuns(
   token: string,
   sinceIso: string,
 ): Promise<{ ok: boolean; status?: number; text?: string; json?: any }> {
-  const idPart = encodeURIComponent(String(workflowId));
-  const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/actions/workflows/${idPart}/runs?event=workflow_dispatch&per_page=100&branch=main&created:>=${encodeURIComponent(sinceIso)}`;
+  // Build URL using helper function for consistency and maintainability
+  const url = buildGitHubApiUrl(
+    `/repos/${owner}/${repo}/actions/workflows/${workflowId}/runs`,
+    {
+      event: 'workflow_dispatch',
+      per_page: 100,
+      branch: 'main',
+      created: `>${sinceIso}`, // GitHub API uses 'created' with comparison operators
+    }
+  );
 
   const res = await fetch(url, {
     headers: {
@@ -105,7 +127,7 @@ async function fetchArtifacts(
   runId: string | number,
   token: string,
 ): Promise<{ ok: boolean; status?: number; statusText?: string; text?: string; json?: any }> {
-  const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/actions/runs/${runId}/artifacts`;
+  const url = buildGitHubApiUrl(`/repos/${owner}/${repo}/actions/runs/${runId}/artifacts`);
 
   const res = await fetch(url, {
     headers: {
@@ -294,7 +316,7 @@ router.post('/workflow-run-status', async (req: Request, res: Response, next: Ne
     }
 
     // Fetch workflow run status from GitHub API
-    const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/actions/runs/${runIdNum}`;
+    const url = buildGitHubApiUrl(`/repos/${owner}/${repo}/actions/runs/${runIdNum}`);
     const apiRes = await fetch(url, {
       headers: {
         Authorization: `Bearer ${token}`,
