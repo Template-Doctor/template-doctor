@@ -43,9 +43,9 @@ This document tracks the migration from Azure Functions to Express endpoints. Th
 
 | Azure Function | Express Route | Status | Dependencies | Notes |
 |----------------|---------------|--------|--------------|-------|
-| `submit-analysis-dispatch` | `/api/v4/submit-analysis-dispatch` | ⏳ Pending | GitHub API client | Dispatches analysis submission workflow |
-| `add-template-pr` | `/api/v4/add-template-pr` | ⏳ Pending | GitHub API client | Creates PR with dashboard results |
-| `archive-collection` | `/api/v4/archive-collection` | ⏳ Pending | GitHub API client | Archives metadata to central repo |
+| `submit-analysis-dispatch` | `/api/v4/submit-analysis-dispatch` | ✅ Migrated | GitHub API client | Dispatches analysis submission workflow | 2025-01-05 |
+| `add-template-pr` | `/api/v4/add-template-pr` | ✅ Migrated | GitHub API client | Creates PR with dashboard results | 2025-01-05 |
+| `archive-collection` | `/api/v4/archive-collection` | ✅ Migrated | GitHub API client | Archives metadata to central repo | 2025-01-05 |
 
 ## Repository Management (Priority 4)
 
@@ -69,15 +69,16 @@ This document tracks the migration from Azure Functions to Express endpoints. Th
 
 ## Migration Progress
 
-### Completed: 10 / 20 (50%)
+### Completed: 13 / 20 (65%)
 
 - ✅ OAuth flow
 - ✅ Runtime configuration
 - ✅ Template analysis
 - ✅ All validation endpoints (6 endpoints)
 - ✅ Issue creation
+- ✅ All analysis & submission endpoints (3 endpoints)
 
-### Remaining: 10 Functions
+### Remaining: 7 Functions
 
 **Estimated Timeline:**
 - Priority 1 (Validation): 2-3 days

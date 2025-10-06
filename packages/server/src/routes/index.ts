@@ -1,9 +1,9 @@
 import { Router } from 'express';
 
 // Import existing route modules
-import { analyzeRouter } from './analyze';
-import { authRouter } from './auth';
-import { configRouter } from './config';
+import { analyzeRouter } from './analyze.js';
+import { authRouter } from './auth.js';
+import { configRouter } from './config.js';
 
 const apiRouter = Router();
 

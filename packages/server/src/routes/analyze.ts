@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { runAnalyzer } from '../analyzer-core';
+import { runAnalyzer } from '../analyzer-core/index.js';
 
 export const analyzeRouter = Router();
 

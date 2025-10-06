@@ -2,6 +2,11 @@ import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+// ESM equivalents for __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Load environment variables
 dotenv.config();
@@ -31,11 +36,12 @@ app.get('/api/health', (req: Request, res: Response) => {
 });
 
 // Import routes
-import { analyzeRouter } from './routes/analyze';
-import { authRouter } from './routes/auth';
-import { configRouter } from './routes/config';
-import { validationRouter } from './routes/validation';
-import { githubRouter } from './routes/github';
+import { analyzeRouter } from './routes/analyze.js';
+import { authRouter } from './routes/auth.js';
+import { configRouter } from './routes/config.js';
+import { validationRouter } from './routes/validation.js';
+import { githubRouter } from './routes/github.js';
+import { analysisRouter } from './routes/analysis.js';
 
 // Register API routes (all under /api/v4)
 app.use('/api/v4', analyzeRouter);
@@ -43,6 +49,7 @@ app.use('/api/v4', authRouter);
 app.use('/api/v4', configRouter);
 app.use('/api/v4', validationRouter);
 app.use('/api/v4', githubRouter);
+app.use('/api/v4', analysisRouter);
 
 // Fallback to serve index.html for client-side routing (SPA)
 app.get('*', (req: Request, res: Response) => {
