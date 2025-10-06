@@ -9,11 +9,12 @@
     "test:debug": "playwright test --debug",
     "browsers:install": "playwright install chromium",
     "dev": "vite",
-    "preview": "vite preview",
+    "preview": "vite preview --port 3000 --host",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prebuild": "node scripts/sync-static-files.js",
     "build": "vite build",
+    "clean": "rm -rf dist",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {

@@ -31,7 +31,9 @@ export default wrapHttp(async (req: any, _ctx: Context, requestId: string) => {
     }
     const baseUrl = getMergedValue(
         "TD_BACKEND_BASE_URL",
-        process.env.TD_BACKEND_BASE_URL || process.env.BACKEND_BASE_URL || "",
+        process.env.TD_BACKEND_BASE_URL || 
+        process.env.BACKEND_BASE_URL || 
+        process.env.API_BASE_URL || "",
     );
     const functionKey = getMergedValue(
         "TD_BACKEND_FUNCTION_KEY",

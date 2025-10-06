@@ -25,6 +25,34 @@
     <link rel="stylesheet" href="css/security-pill.css" />
     <link rel="stylesheet" href="css/error-codes.css" />
     <style>
+      /* Header navigation styles */
+      .header-nav {
+        display: flex;
+        gap: 20px;
+        align-items: center;
+      }
+      
+      .nav-link {
+        text-decoration: none;
+        color: #64748b;
+        font-weight: 500;
+        padding: 8px 16px;
+        border-radius: 8px;
+        transition: all 0.2s;
+        font-size: 14px;
+      }
+      
+      .nav-link:hover, .nav-link.active {
+        background: #3b82f6;
+        color: white;
+      }
+      
+      @media (max-width: 768px) {
+        .header-nav {
+          display: none;
+        }
+      }
+
       /* Inline styles for the product icon menu */
       .product-menu {
         width: 500px;
@@ -59,6 +87,11 @@
           <img src="assets/images/templatedoctor.svg" alt="Template Doctor Logo" />
           <h1>Template Doctor</h1>
         </div>
+        <nav class="header-nav">
+          <a href="/" class="nav-link active">Dashboard</a>
+          <a href="/leaderboards" class="nav-link">🏆 Leaderboards</a>
+          <a href="/setup" class="nav-link">⚙️ Setup</a>
+        </nav>
         <div id="user-info" class="user-info">
           <button id="login-button" class="login-button">
             <i class="fab fa-github"></i> Login with GitHub
@@ -252,8 +285,10 @@
           </div>
         </div>
         <div class="loading-container" id="loading-container" style="display: none">
-          <div class="loading-spinner"></div>
-          <p>Analyzing repository... This may take a moment.</p>
+                     <div class="loading-spinner-wrapper">
+                 <div class="loading-spinner"></div>
+                    <p>Analyzing repository... This may take a moment.</p>
+            </div>
         </div>
         <div id="results-container" class="results-container" style="display: none">
           <!-- Results will be populated by JavaScript -->

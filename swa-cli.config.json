@@ -6,11 +6,11 @@
       "apiLocation": "packages/api",
       "outputLocation": "dist",
       "apiLanguage": "node",
-      "apiVersion": "18",
+      "apiVersion": "20",
       "appBuildCommand": "npm run build",
-      "apiBuildCommand": "npm run build && npm ci --omit=dev",
-      "appName": "template-doctor-new",
-      "resourceGroup": "template-doctor-rg"
+      "apiBuildCommand": "npm run build",
+      "appName": "template-doctor-typescript",
+      "resourceGroup": "template-doctor-typescript-rg"
     }
   }
 }

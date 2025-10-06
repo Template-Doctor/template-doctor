@@ -100,6 +100,7 @@ async function analyzeSingleRepository(
     const token =
         process.env.GITHUB_TOKEN_ANALYZER ||
         process.env.GH_WORKFLOW_TOKEN ||
+        process.env.GITHUB_TOKEN ||
         undefined;
     const gh = createGitHubClient(token);
 
@@ -148,15 +149,21 @@ async function analyzeSingleRepository(
                 );
             } catch (forkErr: any) {
                 ctx.log(
-                    `Fork not found, will use upstream: ${forkErr?.message}`,
+                    `Fork not found, will try upstream: ${forkErr?.message}`,
                 );
-                // Fork doesn't exist, fall back to upstream
-                const repoMeta = await gh(`/repos/${owner}/${repo}`, userToken);
+                // Fork doesn't exist, try upstream
+                // Use SERVER token for org repos (it has SAML authorization)
+                // User OAuth tokens (gho_*) typically don't have SAML/SSO authorization
+                const fallbackToken = token || userToken;
+                ctx.log(`Accessing upstream with ${token ? 'server' : 'user'} token`);
+                const repoMeta = await gh(`/repos/${owner}/${repo}`, fallbackToken);
                 defaultBranch = repoMeta.default_branch;
             }
         } else {
             // No user token or user is the owner - access repo directly
-            const repoMeta = await gh(`/repos/${owner}/${repo}`, userToken);
+            const accessToken = userToken || token;
+            ctx.log(`Direct access with ${userToken ? 'user' : 'server'} token`);
+            const repoMeta = await gh(`/repos/${owner}/${repo}`, accessToken);
             defaultBranch = repoMeta.default_branch;
         }
     } catch (e: any) {
@@ -169,10 +176,19 @@ async function analyzeSingleRepository(
         };
     }
 
+    // Determine which token to use for content access
+    // If accessing a fork (owner != upstream), use userToken
+    // If accessing user's own repo or using server for public repos, use appropriate token
+    const upstreamInfo = extractRepoInfo(repoUrl);
+    const isAccessingFork = owner.toLowerCase() !== upstreamInfo.owner.toLowerCase();
+    const contentAccessToken = isAccessingFork ? userToken : (userToken || token);
+    
+    ctx.log(`Content access strategy: ${isAccessingFork ? 'fork' : 'direct'}, using ${contentAccessToken ? 'user' : 'server'} token`);
+
     // List files (bounded) & selectively fetch content
     let files: GitHubFile[] = [];
     try {
-        files = await listAllFilesFetch(gh, owner, repo, defaultBranch);
+        files = await listAllFilesFetch(gh, owner, repo, defaultBranch, "", contentAccessToken);
     } catch (e: any) {
         return {
             status: 502,
@@ -193,6 +209,7 @@ async function analyzeSingleRepository(
                     repo,
                     f.path,
                     defaultBranch,
+                    contentAccessToken,
                 );
             } catch {}
         }
@@ -346,11 +363,12 @@ function createGitHubClient(defaultToken?: string) {
 }
 
 async function listAllFilesFetch(
-    gh: (p: string) => Promise<any>,
+    gh: (p: string, token?: string) => Promise<any>,
     owner: string,
     repo: string,
     ref: string,
     path: string = "",
+    accessToken?: string,
 ): Promise<GitHubFile[]> {
     const apiPath =
         `/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}`.replace(
@@ -359,6 +377,7 @@ async function listAllFilesFetch(
         );
     const data = await gh(
         apiPath + (ref ? `?ref=${encodeURIComponent(ref)}` : ""),
+        accessToken,
     );
     const entries = Array.isArray(data) ? data : [data];
     let files: GitHubFile[] = [];
@@ -372,6 +391,7 @@ async function listAllFilesFetch(
                 repo,
                 ref,
                 entry.path,
+                accessToken,
             );
             files = files.concat(sub);
         }
@@ -380,11 +400,12 @@ async function listAllFilesFetch(
 }
 
 async function getFileContentFetch(
-    gh: (p: string) => Promise<any>,
+    gh: (p: string, token?: string) => Promise<any>,
     owner: string,
     repo: string,
     path: string,
     ref: string,
+    accessToken?: string,
 ): Promise<string> {
     const apiPath =
         `/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}`.replace(
@@ -393,6 +414,7 @@ async function getFileContentFetch(
         );
     const data = await gh(
         apiPath + (ref ? `?ref=${encodeURIComponent(ref)}` : ""),
+        accessToken,
     );
     if (data && data.type === "file" && data.content) {
         try {

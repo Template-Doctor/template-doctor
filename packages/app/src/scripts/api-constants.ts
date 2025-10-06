@@ -9,12 +9,21 @@
  * - Azure SWA: same-origin (uses /api prefix automatically)
  */
 export function getApiBase(): string {
-  const isLocalhost = window.location.hostname === 'localhost';
+  // Check for configured API base in TemplateDoctorConfig
+  const cfg = (window as any).TemplateDoctorConfig || {};
+  
+  // Use configured apiBase if available
+  if (cfg.apiBase) return cfg.apiBase.replace(/\/$/, '');
+  
+  // Check for backend.baseUrl configuration
+  if (cfg.backend?.baseUrl) return cfg.backend.baseUrl.replace(/\/$/, '');
+  
+  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
   
   if (isLocalhost) {
-    // Check for explicit override
-    const funcPort = (window as any).LOCAL_FUNCTIONS_PORT || 7071;
-    return `http://localhost:${funcPort}`;
+    // If served from same origin (e.g., Express serves both frontend and API), use same origin
+    // This handles Docker/Express setup on port 3000, or any other single-server deployment
+    return window.location.origin;
   }
   
   // Production: use same-origin (Azure SWA will route /api/* to Functions)

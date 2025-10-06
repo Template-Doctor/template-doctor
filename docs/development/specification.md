@@ -1,16 +1,25 @@
 # Template Doctor — Product Specification
 
-# Template Doctor — Product Specification
-
 ## Summary
 
-Template Doctor analyzes and validates samples and templates against organizational standards, including Azure Developer CLI (azd) templates, producing actionable reports and dashboards. It accepts the default [Definition of Done](https://github.com/Azure-Samples/azd-template-artifacts/blob/main/docs/development-guidelines/definition-of-done.md) as well as custom configurations referenced from a GitHub Gist. It ships as a static web frontend (SWA), an Azure Functions API, and GitHub integrations for automation. Core capabilities include single-template analysis, batch scanning with resume/cancel, rich in-app notifications (no native alerts), GitHub issue creation, and publishing results to GitHub Pages.
+Template Doctor analyzes and validates samples and templates against organizational standards, including Azure Developer CLI (azd) templates, producing actionable reports and dashboards. It accepts the default [Definition of Done](https://github.com/Azure-Samples/azd-template-artifacts/blob/main/docs/development-guidelines/definition-of-done.md) as well as custom configurations referenced from a GitHub Gist. It ships as a containerized application with a Vite-based frontend and Express backend, with GitHub integrations for automation. Core capabilities include single-template analysis, batch scanning with resume/cancel, rich in-app notifications (no native alerts), GitHub issue creation, and publishing results to GitHub Pages.
+
+## Architecture
+
+**Current (Express + Docker):**
+- Frontend: Vite SPA (TypeScript) served on port 3000 (preview) or 4000 (dev)
+- Backend: Express server (TypeScript) on port 3001
+- Deployment: Docker containers (multi-container via docker-compose, single-container via combined Dockerfile)
+
+**Legacy (Maintained in separate branch):**
+- Azure Functions (Node.js) on port 7071
+- Static Web App deployment
 
 ## Goals
 
 - Provide fast, reliable analysis of templates with clear guidance and actionable reports
 - Support batch scanning workflows with resumability and failure handling
-- Keep the frontend deployable as a static site with backend via Azure Functions
+- Maintain simple deployment via Docker containers
 - Enable GitHub-centric usage (Actions/Workflows) and publish reports to GitHub Pages
 - Maintain strong test coverage and contribution guardrails
 - Provide security analysis for infrastructure-as-code files
@@ -23,25 +32,44 @@ Template Doctor analyzes and validates samples and templates against organizatio
 
 ## Components
 
-### Frontend (Static Web App)
+### Frontend (Vite SPA)
 
 - Location: `packages/app/`
+- Technology: TypeScript + Vite
 - Responsibilities:
     - User interaction and batch scanning controls
     - Results viewing and dashboard rendering
     - Notifications UI
     - GitHub issue creation
-- Deployed to GitHub Pages via nightly workflow
+- Development: Port 4000 (dev server), Port 3000 (preview)
+- Deployment: Docker container or static hosting (GitHub Pages)
 
-### Azure Functions API
+### Express Backend API
 
-- Location: `packages/api/`
-- Key Functions:
-    - `validate-template`: Initiates GitHub workflow to validate templates
-    - `validation-status`: Checks the status of running validations
-    - `validation-callback`: Receives callbacks from workflow completions
-    - `github-oauth-token`: Handles GitHub authentication
-    - `archive-collection`: Archives metadata to central repository
+- Location: `packages/server/`
+- Technology: TypeScript + Express
+- Port: 3001 (configurable via `PORT` env var)
+- Key Endpoints:
+    - `/api/v4/analyze` - Template analysis with fork-first SAML strategy
+    - `/api/v4/github-oauth-token` - OAuth token exchange
+    - `/api/v4/client-settings` - Runtime configuration
+    - `/api/v4/validate-template` - Initiates GitHub workflow validations (pending migration)
+    - `/api/v4/validation-status` - Checks validation status (pending migration)
+    - `/api/v4/validation-callback` - Receives callbacks (pending migration)
+    - `/api/v4/archive-collection` - Archives metadata (pending migration)
+
+### Docker Deployment
+
+- **Multi-Container** (`docker-compose.yml`):
+    - Separate frontend and backend containers
+    - Internal networking between services
+    - Ideal for development and testing
+
+- **Single Container** (`Dockerfile.combined`):
+    - Nginx reverse proxy
+    - Frontend static files
+    - Backend Express server
+    - Production-optimized build
 
 ### GitHub Workflows
 

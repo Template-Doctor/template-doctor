@@ -8,7 +8,10 @@ interface ApiRouteBuildOptions {
 interface TemplateDoctorConfigShape {
   apiBase?: string;
   apiVersion?: string;
-  backend?: { apiVersion?: string };
+  backend?: { 
+    apiVersion?: string;
+    baseUrl?: string;
+  };
   [k: string]: any; // keep loose until full config typing pass
 }
 
@@ -25,22 +28,44 @@ interface ApiRoutesGlobal {
 
   function getApiBase(): string {
     const cfg: TemplateDoctorConfigShape = (window as any).TemplateDoctorConfig || {};
-    if (cfg.apiBase) return normalizeBase(cfg.apiBase);
-    const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-    if (isLocal) {
-      if (window.location.port === '7071') return 'http://localhost:7071';
-      return normalizeBase(window.location.origin);
+    
+    // SIMPLIFIED: Trust the config. Period.
+    // Runtime-config.ts and config-loader.ts handle all the complex logic.
+    // We just read the final answer.
+    console.log('[api-routes] getApiBase called, config:', {
+      hasConfig: !!cfg,
+      apiBase: cfg.apiBase,
+      backendBaseUrl: cfg.backend?.baseUrl,
+    });
+    
+    if (cfg.apiBase) {
+      console.log('[api-routes] Using cfg.apiBase:', cfg.apiBase);
+      return normalizeBase(cfg.apiBase);
     }
+    if (cfg.backend?.baseUrl) {
+      console.log('[api-routes] Using cfg.backend.baseUrl:', cfg.backend.baseUrl);
+      return normalizeBase(cfg.backend.baseUrl);
+    }
+    
+    // Emergency fallback only - this should never happen if config loaded properly
+    console.warn('[api-routes] No apiBase in config! Using window.location.origin as emergency fallback');
     return normalizeBase(window.location.origin);
   }
 
   function getVersionPrefix(path: string, version: string | undefined): string {
-    if (!version) return '/api';
+    // Always use v4 for now - simplify the logic
+    const defaultVersion = 'v4';
+    const effectiveVersion = version || defaultVersion;
+    
     const trimmed = path.replace(/^\//, '');
-    if (trimmed.startsWith(`api/${version}/`) || trimmed === `api/${version}`) {
+    
+    // If the path already includes the full API prefix, just return /api
+    if (trimmed.startsWith(`api/${effectiveVersion}/`)) {
       return '/api';
     }
-    return `/api/${version}`;
+    
+    // Otherwise, add the version prefix
+    return `/api/${effectiveVersion}`;
   }
 
   function build(path: string, options?: ApiRouteBuildOptions): string {

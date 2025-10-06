@@ -25,21 +25,14 @@ dirs.forEach(dir => {
   }
 });
 
-// Copy files
-const copyOps = [
-  // Root files
-  { src: 'robots.txt', dest: 'robots.txt' },
-  
-  // Config files
-  { src: 'config.json', dest: 'config.json' },
-  { src: 'config.json.example', dest: 'config.json.example' },
-  
-  // Config definitions
-  { src: 'configs/custom-config.json', dest: 'configs/custom-config.json' },
-  { src: 'configs/docs-config.json', dest: 'configs/docs-config.json' },
-  { src: 'configs/dod-config.json', dest: 'configs/dod-config.json' },
-  { src: 'configs/partner-config.json', dest: 'configs/partner-config.json' },
-];
+// Copy operations to perform
+const copyOps = [];
+
+// Copy HTML files
+copyOps.push({ src: 'index.html', dest: 'index.html' });
+copyOps.push({ src: 'callback.html', dest: 'callback.html' });
+copyOps.push({ src: 'setup.html', dest: 'setup.html' });
+copyOps.push({ src: 'leaderboards.html', dest: 'leaderboards.html' });
 
 // Copy assets/images directory
 const assetsImagesDir = path.join(rootDir, 'assets', 'images');
