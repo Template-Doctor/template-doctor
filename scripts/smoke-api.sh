@@ -239,8 +239,29 @@ ARTIFACTS_RESP=$(curl -s -w "\n%{http_code}" -X POST "$BASE/api/v4/workflow-run-
 ARTIFACTS_CODE=$(echo "$ARTIFACTS_RESP" | tail -n1)
 ok "workflow-run-artifacts HTTP $ARTIFACTS_CODE"
 
+section "17. Setup Configuration Overrides"
+# GET /api/v4/setup (should return empty if no config exists)
+SETUP_GET=$(curl_json setup-get "$BASE/api/v4/setup")
+ok "setup GET returned payload"
+if command -v jq >/dev/null; then
+  OVERRIDE_COUNT=$(echo "$SETUP_GET" | jq -r '.count // 0')
+  log "Current overrides count: $OVERRIDE_COUNT"
+fi
 
-section "17. Negative tests"
+# POST /api/v4/setup (will fail without authorization, which is expected)
+SETUP_POST_RESP=$(curl -s -w "\n%{http_code}" -X POST "$BASE/api/v4/setup" \
+  -H "Content-Type: application/json" \
+  -d '{"user":"smoke-test","overrides":{"test":"value"}}') || true
+SETUP_POST_CODE=$(echo "$SETUP_POST_RESP" | tail -n1)
+if [[ $SETUP_POST_CODE == 403 ]]; then
+  ok "setup POST correctly rejected unauthorized user (403)"
+elif [[ $SETUP_POST_CODE == 200 ]]; then
+  ok "setup POST accepted (user in SETUP_ALLOWED_USERS)"
+else
+  log "setup POST returned HTTP $SETUP_POST_CODE"
+fi
+
+section "18. Negative tests"
 PUT_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X PUT "$BASE/api/v4/client-settings" || true)
 if [[ $PUT_CODE == 405 || $PUT_CODE == 400 || $PUT_CODE == 404 ]]; then
   ok "negative PUT produced expected non-2xx ($PUT_CODE)"
@@ -253,7 +274,7 @@ UNKNOWN_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$BASE/api/v4/does-not-exi
 
 section "Summary"
 ok "Smoke script completed successfully!"
-echo -e "${COLOR_OK}✅ All 16 endpoint categories tested${COLOR_RST}"
+echo -e "${COLOR_OK}✅ All 17 endpoint categories tested (including setup)${COLOR_RST}"
 echo -e "${COLOR_DIM}Express server: $BASE${COLOR_RST}"
 echo -e "${COLOR_DIM}Test timestamp: $(date)${COLOR_RST}"
 

@@ -526,21 +526,241 @@ router.post('/issue-ai-proxy', async (req: Request, res: Response, next: NextFun
 });
 
 // ============================================================================
-// SETUP ENDPOINT
+// SETUP ENDPOINT - GitHub Gist Persistence
 // ============================================================================
 
+const CONFIG_GIST_ID = process.env.CONFIG_GIST_ID || ''; // Set in .env
+const CONFIG_GIST_FILENAME = 'template-doctor-config.csv';
+
+interface ConfigOverride {
+  key: string;
+  value: string;
+  updatedBy: string;
+  updatedAt: string;
+}
+
+// GET /api/v4/setup
+// Load current configuration overrides from GitHub Gist
+router.get('/setup', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const overrides = await loadOverridesFromGist();
+    
+    return res.status(200).json({
+      overrides: Object.fromEntries(overrides.map(o => [o.key, o.value])),
+      metadata: overrides,
+      count: overrides.length,
+      source: CONFIG_GIST_ID ? `gist:${CONFIG_GIST_ID}` : 'no gist configured',
+    });
+  } catch (err: any) {
+    if (err.status === 404 || !CONFIG_GIST_ID) {
+      return res.status(200).json({
+        overrides: {},
+        metadata: [],
+        count: 0,
+        message: 'No configuration overrides found',
+        hint: CONFIG_GIST_ID ? 'Gist exists but file not found' : 'Set CONFIG_GIST_ID environment variable',
+      });
+    }
+    next(err);
+  }
+});
+
 // POST /api/v4/setup
-// Legacy setup endpoint (minimal stub)
+// Save configuration overrides to GitHub Gist with authorization
 router.post('/setup', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const { overrides, user } = req.body || {};
+
+    // Authorization check
+    const allowedUsers = (process.env.SETUP_ALLOWED_USERS || '')
+      .split(',')
+      .map(u => u.trim())
+      .filter(Boolean);
+
+    if (!user || !allowedUsers.includes(user)) {
+      return res.status(403).json({
+        error: 'Unauthorized: user not in SETUP_ALLOWED_USERS',
+        requestedUser: user,
+      });
+    }
+
+    if (!overrides || typeof overrides !== 'object') {
+      return res.status(400).json({
+        error: 'Missing required field: overrides (object)',
+      });
+    }
+
+    if (!CONFIG_GIST_ID) {
+      return res.status(500).json({
+        error: 'CONFIG_GIST_ID not configured',
+        hint: 'Set CONFIG_GIST_ID environment variable to a GitHub Gist ID',
+      });
+    }
+
+    // Load existing overrides
+    let existing: ConfigOverride[] = [];
+    try {
+      existing = await loadOverridesFromGist();
+    } catch (err: any) {
+      if (err.status !== 404) throw err;
+    }
+
+    // Merge with new overrides
+    const timestamp = new Date().toISOString();
+    const existingMap = new Map(existing.map(o => [o.key, o]));
+
+    for (const [key, value] of Object.entries(overrides)) {
+      if (value === null || value === undefined) {
+        // Delete override
+        existingMap.delete(key);
+      } else {
+        // Update or add override
+        existingMap.set(key, {
+          key,
+          value: String(value),
+          updatedBy: user,
+          updatedAt: timestamp,
+        });
+      }
+    }
+
+    const updated = Array.from(existingMap.values());
+
+    // Save to Gist
+    const gistUrl = await saveOverridesToGist(updated, user, Object.keys(overrides));
+
     return res.status(200).json({
       ok: true,
-      message: 'Setup stub (no overrides applied)',
-      timestamp: new Date().toISOString(),
+      message: 'Configuration overrides saved to Gist',
+      applied: updated.length,
+      timestamp,
+      gist: {
+        id: CONFIG_GIST_ID,
+        url: gistUrl,
+        file: CONFIG_GIST_FILENAME,
+      },
     });
   } catch (err) {
     next(err);
   }
 });
+
+// Helper: Load overrides from GitHub Gist
+async function loadOverridesFromGist(): Promise<ConfigOverride[]> {
+  if (!CONFIG_GIST_ID) {
+    throw new Error('CONFIG_GIST_ID not configured');
+  }
+
+  const githubToken = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
+  if (!githubToken) {
+    throw new Error('GitHub token not configured');
+  }
+
+  const octokit = new Octokit({ auth: githubToken });
+  
+  const { data: gist } = await octokit.gists.get({
+    gist_id: CONFIG_GIST_ID,
+  });
+
+  const file = gist.files?.[CONFIG_GIST_FILENAME];
+  if (!file || !file.content) {
+    return [];
+  }
+
+  const lines = file.content.split('\n').filter(l => l.trim());
+  
+  if (lines.length === 0) return [];
+  
+  // Skip header if present
+  const dataLines = lines[0].startsWith('key,') ? lines.slice(1) : lines;
+  
+  return dataLines.map(line => {
+    const [key, value, updatedBy, updatedAt] = parseCsvLine(line);
+    return { key, value, updatedBy, updatedAt };
+  });
+}
+
+// Helper: Save overrides to GitHub Gist
+async function saveOverridesToGist(
+  overrides: ConfigOverride[],
+  user: string,
+  changedKeys: string[]
+): Promise<string> {
+  if (!CONFIG_GIST_ID) {
+    throw new Error('CONFIG_GIST_ID not configured');
+  }
+
+  const githubToken = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
+  if (!githubToken) {
+    throw new Error('GitHub token not configured');
+  }
+
+  const octokit = new Octokit({ auth: githubToken });
+
+  const header = 'key,value,updated_by,updated_at';
+  const rows = overrides.map(o => 
+    `${escapeCsv(o.key)},${escapeCsv(o.value)},${escapeCsv(o.updatedBy)},${escapeCsv(o.updatedAt)}`
+  );
+  
+  const content = [header, ...rows].join('\n') + '\n';
+
+  const description = `Template Doctor config updated by ${user} (${changedKeys.join(', ')})`;
+
+  const { data: gist } = await octokit.gists.update({
+    gist_id: CONFIG_GIST_ID,
+    description,
+    files: {
+      [CONFIG_GIST_FILENAME]: {
+        content,
+      },
+    },
+  });
+
+  console.log(`Config saved to Gist ${CONFIG_GIST_ID}: ${description}`);
+
+  return gist.html_url || `https://gist.github.com/${CONFIG_GIST_ID}`;
+}
+
+// Helper: Parse CSV line handling quotes and escapes
+function parseCsvLine(line: string): string[] {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    const next = line[i + 1];
+    
+    if (char === '"') {
+      if (inQuotes && next === '"') {
+        current += '"';
+        i++; // Skip next quote
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === ',' && !inQuotes) {
+      result.push(current);
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  
+  result.push(current);
+  return result;
+}
+
+// Helper: Escape CSV value
+function escapeCsv(value: string): string {
+  if (!value) return '""';
+  
+  const needsQuotes = value.includes(',') || value.includes('"') || value.includes('\n');
+  
+  if (needsQuotes) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  
+  return value;
+}
 
 export { router as miscRouter };
