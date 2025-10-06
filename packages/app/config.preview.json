@@ -1,9 +1,5 @@
 {
   "githubOAuth": {
-    "clientId": "Ov23li6IDVTv9Ml50OKi",
-    "redirectUri": "http://localhost:3000/callback.html"
-  },
-  "backend": {
-    "baseUrl": "http://localhost:3001"
+    "clientId": "Ov23li6IDVTv9Ml50OKi"
   }
 }

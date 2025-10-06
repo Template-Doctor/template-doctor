@@ -3,7 +3,8 @@ packages/app/js/analyzer.bundle.js
 packages/app/js/api-client.bundle.js
 node_modules
 .env
-.env.consolidated
+.env.
+.env.prod
 .env.bak
 
 dist/
