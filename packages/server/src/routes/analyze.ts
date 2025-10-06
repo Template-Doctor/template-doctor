@@ -87,7 +87,7 @@ analyzeRouter.post('/analyze-template', async (req: Request, res: Response) => {
   }
 });
 
-async function analyzeSingleRepository(
+export async function analyzeSingleRepository(
   req: Request,
   repoUrl: string,
   ruleSet: string,

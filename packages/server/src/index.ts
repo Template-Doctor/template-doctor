@@ -43,6 +43,7 @@ import { validationRouter } from './routes/validation.js';
 import { githubRouter } from './routes/github.js';
 import { analysisRouter } from './routes/analysis.js';
 import { actionsRouter } from './routes/actions.js';
+import { miscRouter } from './routes/misc.js';
 
 // Register API routes under /api/v4
 app.use('/api/v4', analyzeRouter);
@@ -52,6 +53,7 @@ app.use('/api/v4', validationRouter);
 app.use('/api/v4', githubRouter);
 app.use('/api/v4', analysisRouter);
 app.use('/api/v4', actionsRouter);
+app.use('/api/v4', miscRouter);
 
 // Fallback to serve index.html for client-side routing (SPA)
 app.get('*', (req: Request, res: Response) => {
