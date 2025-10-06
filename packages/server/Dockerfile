@@ -12,12 +12,16 @@ RUN npm install --omit=dev
 COPY packages/server/dist ./dist
 COPY packages/server/.env.example ./.env.example
 
-# Expose port (Express server uses 3001, not 7071 which is Azure Functions)
-EXPOSE 3001
+# Set configurable port (default 3001 for Express)
+ARG PORT=3001
+ENV PORT=$PORT
 
-# Health check (note: health endpoint is at /api/health)
+# Expose port
+EXPOSE $PORT
+
+# Health check (uses PORT environment variable)
 HEALTHCHECK --interval=10s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget --quiet --tries=1 --spider http://localhost:3001/api/health || exit 1
+  CMD wget --quiet --tries=1 --spider http://localhost:$PORT/api/health || exit 1
 
 # Start server
 CMD ["node", "dist/index.js"]
