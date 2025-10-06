@@ -595,6 +595,16 @@
     </div>
 
     <script>
+        // Check authentication - redirect to home if not logged in
+        (function checkAuth() {
+            const token = localStorage.getItem('github_access_token');
+            if (!token) {
+                console.log('Not authenticated, redirecting to home page');
+                window.location.href = '/';
+                return;
+            }
+        })();
+
         // Fake data
         const data = {
             topAnalyzersOverall: [

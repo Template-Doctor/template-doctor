@@ -523,14 +523,18 @@ class GitHubAuth {
 
       // Check setup access and show/hide setup link
       this.checkSetupAccess();
+
+      // Show leaderboards link when logged in
+      this.showLeaderboardsLink();
     } else {
       if (loginButton) loginButton.style.display = 'flex';
       if (userProfile) userProfile.style.display = 'none';
       if (searchSection) searchSection.style.display = 'none';
       if (welcomeSection) welcomeSection.style.display = 'block';
 
-      // Hide setup link when logged out
+      // Hide setup and leaderboards links when logged out
       this.hideSetupLink();
+      this.hideLeaderboardsLink();
 
       document.dispatchEvent(
         new CustomEvent('auth-state-changed', {
@@ -582,6 +586,24 @@ class GitHubAuth {
   private hideSetupLink(): void {
     const setupLinks = document.querySelectorAll('a[href="/setup"]');
     setupLinks.forEach(link => {
+      if (link instanceof HTMLElement) {
+        link.style.display = 'none';
+      }
+    });
+  }
+
+  private showLeaderboardsLink(): void {
+    const leaderboardLinks = document.querySelectorAll('a[href="/leaderboards"]');
+    leaderboardLinks.forEach(link => {
+      if (link instanceof HTMLElement) {
+        link.style.display = '';
+      }
+    });
+  }
+
+  private hideLeaderboardsLink(): void {
+    const leaderboardLinks = document.querySelectorAll('a[href="/leaderboards"]');
+    leaderboardLinks.forEach(link => {
       if (link instanceof HTMLElement) {
         link.style.display = 'none';
       }
