@@ -520,11 +520,18 @@ class GitHubAuth {
       if (!this.userInfo) {
         this.fetchUserInfo();
       }
+
+      // Check setup access and show/hide setup link
+      this.checkSetupAccess();
     } else {
       if (loginButton) loginButton.style.display = 'flex';
       if (userProfile) userProfile.style.display = 'none';
       if (searchSection) searchSection.style.display = 'none';
       if (welcomeSection) welcomeSection.style.display = 'block';
+
+      // Hide setup link when logged out
+      this.hideSetupLink();
+
       document.dispatchEvent(
         new CustomEvent('auth-state-changed', {
           detail: { authenticated: false },
@@ -534,6 +541,53 @@ class GitHubAuth {
       );
     }
   }
+
+  async checkSetupAccess(): Promise<void> {
+    const username = this.getUsername();
+    if (!username) {
+      this.hideSetupLink();
+      return;
+    }
+
+    try {
+      const apiUrl = buildApiUrl(`/setup/check-access?username=${encodeURIComponent(username)}`);
+      const response = await fetch(apiUrl);
+      
+      if (!response.ok) {
+        this.hideSetupLink();
+        return;
+      }
+
+      const data = await response.json();
+      if (data.hasAccess) {
+        this.showSetupLink();
+      } else {
+        this.hideSetupLink();
+      }
+    } catch (error) {
+      console.error('Error checking setup access:', error);
+      this.hideSetupLink();
+    }
+  }
+
+  private showSetupLink(): void {
+    const setupLinks = document.querySelectorAll('a[href="/setup"]');
+    setupLinks.forEach(link => {
+      if (link instanceof HTMLElement) {
+        link.style.display = '';
+      }
+    });
+  }
+
+  private hideSetupLink(): void {
+    const setupLinks = document.querySelectorAll('a[href="/setup"]');
+    setupLinks.forEach(link => {
+      if (link instanceof HTMLElement) {
+        link.style.display = 'none';
+      }
+    });
+  }
+
   async revokeToken(): Promise<void> {
     if (!this.accessToken) return Promise.resolve();
     try {

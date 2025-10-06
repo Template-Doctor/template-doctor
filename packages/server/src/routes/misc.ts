@@ -645,6 +645,30 @@ router.post('/setup', async (req: Request, res: Response, next: NextFunction) =>
   }
 });
 
+// GET /api/v4/setup/check-access
+// Check if a user has access to the setup endpoint
+router.get('/setup/check-access', (req: Request, res: Response) => {
+  const username = req.query.username as string;
+
+  if (!username) {
+    return res.status(400).json({
+      error: 'Missing required query parameter: username',
+    });
+  }
+
+  const allowedUsers = (process.env.SETUP_ALLOWED_USERS || '')
+    .split(',')
+    .map(u => u.trim())
+    .filter(Boolean);
+
+  const hasAccess = allowedUsers.includes(username);
+
+  return res.status(200).json({
+    hasAccess,
+    username,
+  });
+});
+
 // Helper: Load overrides from GitHub Gist
 async function loadOverridesFromGist(): Promise<ConfigOverride[]> {
   if (!CONFIG_GIST_ID) {
