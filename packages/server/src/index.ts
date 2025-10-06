@@ -42,14 +42,16 @@ import { configRouter } from './routes/config.js';
 import { validationRouter } from './routes/validation.js';
 import { githubRouter } from './routes/github.js';
 import { analysisRouter } from './routes/analysis.js';
+import { actionsRouter } from './routes/actions.js';
 
-// Register API routes (all under /api/v4)
+// Register API routes under /api/v4
 app.use('/api/v4', analyzeRouter);
 app.use('/api/v4', authRouter);
 app.use('/api/v4', configRouter);
 app.use('/api/v4', validationRouter);
 app.use('/api/v4', githubRouter);
 app.use('/api/v4', analysisRouter);
+app.use('/api/v4', actionsRouter);
 
 // Fallback to serve index.html for client-side routing (SPA)
 app.get('*', (req: Request, res: Response) => {

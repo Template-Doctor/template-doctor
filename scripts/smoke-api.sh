@@ -218,8 +218,29 @@ ARCHIVE_RESP=$(curl -s -w "\n%{http_code}" -X POST "$BASE/api/v4/archive-collect
 ARCHIVE_CODE=$(echo "$ARCHIVE_RESP" | tail -n1)
 ok "archive-collection HTTP $ARCHIVE_CODE"
 
+section "14. Workflow Trigger"
+TRIGGER_RESP=$(curl -s -w "\n%{http_code}" -X POST "$BASE/api/v4/workflow-trigger" \
+  -H "Content-Type: application/json" \
+  -d "{\"workflowOrgRep\":\"$GITHUB_OWNER/$GITHUB_REPO\",\"workflowId\":\"validate.yml\",\"workflowInput\":{\"testId\":\"smoke-$TIMESTAMP\"},\"runIdInputProperty\":\"testId\"}")
+TRIGGER_CODE=$(echo "$TRIGGER_RESP" | tail -n1)
+ok "workflow-trigger HTTP $TRIGGER_CODE"
 
-section "14. Negative tests"
+section "15. Workflow Run Status"
+STATUS_WF_RESP=$(curl -s -w "\n%{http_code}" -X POST "$BASE/api/v4/workflow-run-status" \
+  -H "Content-Type: application/json" \
+  -d "{\"workflowOrgRep\":\"$GITHUB_OWNER/$GITHUB_REPO\",\"workflowRunId\":\"12345\"}")
+STATUS_WF_CODE=$(echo "$STATUS_WF_RESP" | tail -n1)
+ok "workflow-run-status HTTP $STATUS_WF_CODE"
+
+section "16. Workflow Run Artifacts"
+ARTIFACTS_RESP=$(curl -s -w "\n%{http_code}" -X POST "$BASE/api/v4/workflow-run-artifacts" \
+  -H "Content-Type: application/json" \
+  -d "{\"workflowOrgRep\":\"$GITHUB_OWNER/$GITHUB_REPO\",\"workflowRunId\":\"12345\"}")
+ARTIFACTS_CODE=$(echo "$ARTIFACTS_RESP" | tail -n1)
+ok "workflow-run-artifacts HTTP $ARTIFACTS_CODE"
+
+
+section "17. Negative tests"
 PUT_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X PUT "$BASE/api/v4/client-settings" || true)
 if [[ $PUT_CODE == 405 || $PUT_CODE == 400 || $PUT_CODE == 404 ]]; then
   ok "negative PUT produced expected non-2xx ($PUT_CODE)"
@@ -232,7 +253,7 @@ UNKNOWN_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$BASE/api/v4/does-not-exi
 
 section "Summary"
 ok "Smoke script completed successfully!"
-echo -e "${COLOR_OK}✅ All 13 endpoint categories tested${COLOR_RST}"
+echo -e "${COLOR_OK}✅ All 16 endpoint categories tested${COLOR_RST}"
 echo -e "${COLOR_DIM}Express server: $BASE${COLOR_RST}"
 echo -e "${COLOR_DIM}Test timestamp: $(date)${COLOR_RST}"
 

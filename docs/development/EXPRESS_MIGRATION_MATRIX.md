@@ -35,9 +35,9 @@ This document tracks the migration from Azure Functions to Express endpoints. Th
 
 | Azure Function | Express Route | Status | Dependencies | Notes |
 |----------------|---------------|--------|--------------|-------|
-| `action-trigger` | `/api/v4/action-trigger` | ⏳ Pending | GitHub API client | Triggers GitHub Actions workflows |
-| `action-run-status` | `/api/v4/action-run-status` | ⏳ Pending | action-trigger | Polls GitHub Actions run status |
-| `action-run-artifacts` | `/api/v4/action-run-artifacts` | ⏳ Pending | action-trigger | Retrieves workflow artifacts |
+| `action-trigger` | `/api/v4/workflow-trigger` | ✅ Migrated | GitHub API client | Triggers GitHub Actions workflows | 2025-01-06 |
+| `action-run-status` | `/api/v4/workflow-run-status` | ✅ Migrated | action-trigger | Polls GitHub Actions run status | 2025-01-06 |
+| `action-run-artifacts` | `/api/v4/workflow-run-artifacts` | ✅ Migrated | action-trigger | Retrieves workflow artifacts | 2025-01-06 |
 
 ## Analysis & Submission (Priority 3)
 
