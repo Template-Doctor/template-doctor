@@ -30,12 +30,16 @@ COPY --from=builder /app/server/dist ./dist
 # Copy frontend build to be served by Express
 COPY --from=builder /app/app/dist ./app/dist
 
-# Expose single port
-EXPOSE 3001
+# Set configurable port (default 3001 for Express)
+ARG PORT=3001
+ENV PORT=$PORT
 
-# Health check
+# Expose port
+EXPOSE $PORT
+
+# Health check (uses PORT environment variable)
 HEALTHCHECK --interval=10s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget --quiet --tries=1 --spider http://localhost:3001/api/health || exit 1
+  CMD wget --quiet --tries=1 --spider http://localhost:$PORT/api/health || exit 1
 
 # Start Express server (which now also serves frontend)
 CMD ["node", "dist/index.js"]
