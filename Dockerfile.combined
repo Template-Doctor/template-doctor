@@ -30,9 +30,12 @@ COPY --from=builder /app/server/dist ./dist
 # Copy frontend build to be served by Express
 COPY --from=builder /app/app/dist ./app/dist
 
-# Set configurable port (default 3001 for Express)
-ARG PORT=3001
+# Set configurable port (default 3000 for OAuth compatibility)
+ARG PORT=3000
 ENV PORT=$PORT
+
+# Set frontend static files path for Express
+ENV FRONTEND_DIST_PATH=/app/app/dist
 
 # Expose port
 EXPOSE $PORT

@@ -12,14 +12,15 @@ const __dirname = path.dirname(__filename);
 dotenv.config();
 
 const app: Express = express();
-const port = process.env.PORT || 3001; // Express server port (7071 is reserved for Azure Functions)
+const port = process.env.PORT || 3000; // Default to 3000 for OAuth compatibility
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
 // Serve static files from frontend build (if available)
-const staticPath = path.join(__dirname, '../../app/dist');
+// Use FRONTEND_DIST_PATH env var if set (for Docker), otherwise calculate relative path
+const staticPath = process.env.FRONTEND_DIST_PATH || path.join(__dirname, '../../app/dist');
 app.use(express.static(staticPath));
 
 // Health check

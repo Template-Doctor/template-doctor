@@ -12,8 +12,8 @@ RUN npm install --omit=dev
 COPY packages/server/dist ./dist
 COPY packages/server/.env.example ./.env.example
 
-# Set configurable port (default 3001 for Express)
-ARG PORT=3001
+# Set configurable port (default 3000 for OAuth compatibility)
+ARG PORT=3000
 ENV PORT=$PORT
 
 # Expose port
