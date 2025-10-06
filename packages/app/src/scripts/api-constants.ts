@@ -21,9 +21,9 @@ export function getApiBase(): string {
   const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
   
   if (isLocalhost) {
-    // Check for explicit override
-    const funcPort = (window as any).LOCAL_FUNCTIONS_PORT || 7071;
-    return `http://localhost:${funcPort}`;
+    // If served from same origin (e.g., Express serves both frontend and API), use same origin
+    // This handles Docker/Express setup on port 3000, or any other single-server deployment
+    return window.location.origin;
   }
   
   // Production: use same-origin (Azure SWA will route /api/* to Functions)
