@@ -87,8 +87,43 @@ router.post('/validation-template', async (req: Request, res: Response, next: Ne
       });
     }
 
+    // After successful dispatch, try to get the workflow run ID
+    // Wait a bit for GitHub to create the run
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    let workflowRunId: number | null = null;
+    let githubRunUrl: string | null = null;
+    
+    try {
+      const runsUrl = `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${encodeURIComponent(workflowFile)}/runs?per_page=10`;
+      const runsResponse = await fetch(runsUrl, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github+json',
+          'X-GitHub-Api-Version': '2022-11-28',
+        },
+      });
+
+      if (runsResponse.ok) {
+        const runsData = await runsResponse.json();
+        // Find the run that was just created (most recent one)
+        const recentRun = runsData.workflow_runs?.[0];
+        if (recentRun) {
+          workflowRunId = recentRun.id;
+          githubRunUrl = recentRun.html_url;
+          console.log('validation-template found workflow run', { requestId, workflowRunId, githubRunUrl });
+        }
+      }
+    } catch (err) {
+      console.error('validation-template failed to get workflow run ID', { requestId, error: err });
+      // Non-fatal, continue without workflow run ID
+    }
+
     res.json({
       runId,
+      workflowRunId,
+      githubRunUrl,
+      workflowOrgRepo: `${owner}/${repo}`,
       message: 'Workflow triggered',
       requestId,
     });
@@ -280,47 +315,64 @@ router.post('/validation-ossf', async (req: Request, res: Response, next: NextFu
 /**
  * GET /api/v4/validation-status
  * Checks the status of a validation workflow run
+ * Accepts either workflowRunId (numeric GitHub run ID) or runId (UUID for lookup)
  */
 router.get('/validation-status', async (req: Request, res: Response, next: NextFunction) => {
   const requestId = `req-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   
   try {
-    const { workflowOrgRepo, workflowRunId } = req.query;
+    const { workflowOrgRepo, workflowRunId, runId: uuidRunId } = req.query;
 
-    // Validate workflowOrgRepo parameter
-    if (!workflowOrgRepo || typeof workflowOrgRepo !== 'string') {
+    // Derive owner/repo from parameter or environment
+    let owner: string;
+    let repo: string;
+
+    if (workflowOrgRepo && typeof workflowOrgRepo === 'string') {
+      const parts = workflowOrgRepo.split('/');
+      if (parts.length !== 2 || !parts[0] || !parts[1]) {
+        return res.status(400).json({
+          error: 'workflowOrgRepo must be in owner/repo format',
+          errorType: 'INVALID_FORMAT',
+          requestId,
+        });
+      }
+      [owner, repo] = parts;
+    } else {
+      // Fallback to environment
+      owner = process.env.GITHUB_REPO_OWNER || '';
+      repo = process.env.GITHUB_REPO_NAME || '';
+      
+      if (!owner || !repo) {
+        const slug = process.env.GITHUB_REPOSITORY || 'Template-Doctor/template-doctor';
+        [owner, repo] = slug.split('/');
+      }
+    }
+
+    // Accept either workflowRunId (numeric) or runId (UUID)
+    let runIdToCheck: number;
+
+    if (workflowRunId) {
+      runIdToCheck = parseInt(workflowRunId as string, 10);
+      if (!Number.isFinite(runIdToCheck)) {
+        return res.status(400).json({
+          error: 'workflowRunId must be numeric',
+          errorType: 'INVALID_FORMAT',
+          requestId,
+        });
+      }
+    } else if (uuidRunId && typeof uuidRunId === 'string') {
+      // UUID provided - need to find corresponding GitHub workflow run
+      // This is a fallback for legacy clients that only send UUID
       return res.status(400).json({
-        error: 'workflowOrgRepo is required',
+        error: 'Please provide workflowRunId (numeric GitHub run ID) instead of runId (UUID)',
+        errorType: 'DEPRECATED_PARAMETER',
+        hint: 'The validation-template endpoint now returns workflowRunId - use that value',
+        requestId,
+      });
+    } else {
+      return res.status(400).json({
+        error: 'Either workflowRunId or runId is required',
         errorType: 'MISSING_PARAMETER',
-        requestId,
-      });
-    }
-
-    const parts = workflowOrgRepo.split('/');
-    if (parts.length !== 2 || !parts[0] || !parts[1]) {
-      return res.status(400).json({
-        error: 'workflowOrgRepo must be in owner/repo format',
-        errorType: 'INVALID_FORMAT',
-        requestId,
-      });
-    }
-
-    const [owner, repo] = parts;
-
-    // Validate workflowRunId parameter
-    if (!workflowRunId) {
-      return res.status(400).json({
-        error: 'workflowRunId is required',
-        errorType: 'MISSING_PARAMETER',
-        requestId,
-      });
-    }
-
-    const runId = parseInt(workflowRunId as string, 10);
-    if (!Number.isFinite(runId)) {
-      return res.status(400).json({
-        error: 'workflowRunId must be numeric',
-        errorType: 'INVALID_FORMAT',
         requestId,
       });
     }
@@ -334,9 +386,9 @@ router.get('/validation-status', async (req: Request, res: Response, next: NextF
     }
 
     // Fetch workflow run status from GitHub API
-    const ghUrl = `https://api.github.com/repos/${owner}/${repo}/actions/runs/${runId}`;
+    const ghUrl = `https://api.github.com/repos/${owner}/${repo}/actions/runs/${runIdToCheck}`;
     
-    console.log('validation-status check', { requestId, ghUrl, runId });
+    console.log('validation-status check', { requestId, ghUrl, workflowRunId: runIdToCheck });
 
     const response = await fetch(ghUrl, {
       method: 'GET',
@@ -364,12 +416,76 @@ router.get('/validation-status', async (req: Request, res: Response, next: NextF
 
     const data = await response.json();
 
+    // Fetch jobs for this workflow run to get detailed error information
+    let jobs: any[] = [];
+    let failedJobs: any[] = [];
+    let errorSummary = '';
+
+    if (data.status === 'completed' && data.conclusion === 'failure') {
+      try {
+        const jobsUrl = `https://api.github.com/repos/${owner}/${repo}/actions/runs/${runIdToCheck}/jobs`;
+        const jobsResponse = await fetch(jobsUrl, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/vnd.github+json',
+            'X-GitHub-Api-Version': '2022-11-28',
+          },
+        });
+
+        if (jobsResponse.ok) {
+          const jobsData = await jobsResponse.json();
+          jobs = jobsData.jobs || [];
+          failedJobs = jobs.filter((job: any) => job.conclusion === 'failure');
+          
+          // Build error summary from failed job steps
+          if (failedJobs.length > 0) {
+            const errorLines: string[] = [];
+            failedJobs.forEach((job: any) => {
+              errorLines.push(`Job: ${job.name} - ${job.conclusion}`);
+              const failedSteps = (job.steps || []).filter((step: any) => step.conclusion === 'failure');
+              failedSteps.forEach((step: any) => {
+                errorLines.push(`  Step: ${step.name} - Failed`);
+              });
+            });
+            errorSummary = errorLines.join('\n');
+          }
+        }
+      } catch (err) {
+        console.error('validation-status failed to fetch jobs', { requestId, error: err });
+        // Non-fatal, continue without job details
+      }
+    }
+
     res.json({
       status: data.status,
       conclusion: data.conclusion,
       html_url: data.html_url,
       created_at: data.created_at,
       updated_at: data.updated_at,
+      jobs: jobs.map((job: any) => ({
+        id: job.id,
+        name: job.name,
+        status: job.status,
+        conclusion: job.conclusion,
+        html_url: job.html_url,
+        started_at: job.started_at,
+        completed_at: job.completed_at,
+      })),
+      failedJobs: failedJobs.map((job: any) => ({
+        id: job.id,
+        name: job.name,
+        conclusion: job.conclusion,
+        html_url: job.html_url,
+        failedSteps: (job.steps || [])
+          .filter((step: any) => step.conclusion === 'failure')
+          .map((step: any) => ({
+            name: step.name,
+            conclusion: step.conclusion,
+            number: step.number,
+          })),
+      })),
+      errorSummary,
       requestId,
     });
 
