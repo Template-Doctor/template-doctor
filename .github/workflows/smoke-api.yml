@@ -52,10 +52,32 @@ jobs:
                   chmod +x scripts/smoke-api.sh
                   DRY_RUN=1 BASE=http://localhost:3001 ./scripts/smoke-api.sh
 
+            - name: Create .env for Express server
+              run: |
+                  echo "PORT=3001" > packages/server/.env
+                  echo "GITHUB_CLIENT_ID=test-client-id" >> packages/server/.env
+                  echo "GITHUB_CLIENT_SECRET=test-secret" >> packages/server/.env
+
             - name: Start Express server
               run: |
-                  (npm run -w packages/server start &) 
-                  n=0; until curl -sf http://localhost:3001/api/v4/client-settings > /dev/null || [ $n -ge 20 ]; do n=$((n+1)); sleep 1; done
+                  cd packages/server
+                  npm run start &
+                  SERVER_PID=$!
+                  echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
+                  cd ../..
+                  # Wait for server to be ready (up to 30 seconds)
+                  echo "Waiting for Express server to start..."
+                  for i in {1..30}; do
+                    if curl -sf http://localhost:3001/api/v4/client-settings > /dev/null 2>&1; then
+                      echo "✓ Express server is ready!"
+                      break
+                    fi
+                    if [ $i -eq 30 ]; then
+                      echo "✗ Server failed to start after 30 seconds"
+                      exit 1
+                    fi
+                    sleep 1
+                  done
 
             - name: Run smoke script
               env:
