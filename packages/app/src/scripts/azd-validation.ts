@@ -688,6 +688,108 @@ function startStatusPolling(apiBase: string, runId: string) {
             controlsContainer.appendChild(errorDiv);
           }
 
+          // Add troubleshooting tips section (always visible)
+          if (!document.getElementById('azd-troubleshooting-tips')) {
+            const troubleshootingSection = document.createElement('div');
+            troubleshootingSection.id = 'azd-troubleshooting-tips';
+            troubleshootingSection.style.cssText = `
+              margin: 15px 0;
+              display: flex;
+              flex-direction: column;
+              gap: 12px;
+            `;
+
+            // Check for UnmatchedPrincipalType error for conditional styling
+            const errorText = azdResults?.errorReason || status.errorSummary || '';
+            const hasUnmatchedPrincipalError = /UnmatchedPrincipalType[\s\S]*has type[\s\S]*ServicePrincipal[\s\S]*different from[\s\S]*PrinciaplType[\s\S]*User/i.test(errorText);
+
+            // Tip 1: Region Availability
+            const tip1 = document.createElement('div');
+            tip1.style.cssText = `
+              background: #f0f9ff;
+              border: 1px solid #0078d4;
+              border-radius: 8px;
+              padding: 12px 15px;
+              display: flex;
+              gap: 12px;
+              align-items: start;
+            `;
+            tip1.innerHTML = `
+              <span style="font-size: 20px; flex-shrink: 0;">💡</span>
+              <div style="flex: 1;">
+                <strong style="color: #0078d4; font-size: 14px; display: block; margin-bottom: 6px;">Tip 1: Region Availability</strong>
+                <p style="margin: 0 0 8px 0; color: #555; font-size: 13px; line-height: 1.5;">
+                  Models are available in certain regions only. If you encounter a Region Availability error, check the troubleshooting guide and update your template's README.md to reflect available regions for used models.
+                </p>
+                <a href="https://github.com/Azure-Samples/azd-template-artifacts/blob/main/docs/development-guidelines/trouble-shooting.md#region-availability" 
+                   target="_blank" 
+                   style="color: #0078d4; text-decoration: none; font-size: 13px; font-weight: 500;">
+                  📖 View Region Availability Guide →
+                </a>
+              </div>
+            `;
+
+            // Tip 2: UnmatchedPrincipalType Error (highlight if detected)
+            const tip2 = document.createElement('div');
+            tip2.style.cssText = `
+              background: ${hasUnmatchedPrincipalError ? '#fff8e1' : '#f0f9ff'};
+              border: 2px solid ${hasUnmatchedPrincipalError ? '#ff9800' : '#0078d4'};
+              border-radius: 8px;
+              padding: 12px 15px;
+              display: flex;
+              gap: 12px;
+              align-items: start;
+            `;
+            tip2.innerHTML = `
+              <span style="font-size: 20px; flex-shrink: 0;">💡</span>
+              <div style="flex: 1;">
+                <strong style="color: ${hasUnmatchedPrincipalError ? '#e65100' : '#0078d4'}; font-size: 14px; display: block; margin-bottom: 6px;">
+                  Tip 2: UnmatchedPrincipalType Error${hasUnmatchedPrincipalError ? ' ⚠️ DETECTED' : ''}
+                </strong>
+                <p style="margin: 0 0 4px 0; color: #555; font-size: 13px; line-height: 1.5;">
+                  <strong>Error:</strong> UnmatchedPrincipalType: The PrincipalId has type 'ServicePrincipal', which is different from specified PrincipalType 'User'.
+                </p>
+                <p style="margin: 0 0 8px 0; color: #555; font-size: 13px; line-height: 1.5;">
+                  <strong>Solution:</strong> Create a flag to avoid assigning the principal type to service, and create it for the current user instead.
+                </p>
+                <a href="https://github.com/Azure-Samples/azure-openai-assistant-javascript/pull/18/files" 
+                   target="_blank" 
+                   style="color: #0078d4; text-decoration: none; font-size: 13px; font-weight: 500;">
+                  📖 View Example Fix →
+                </a>
+              </div>
+            `;
+
+            // Tip 3: BCP332 maxLength Error
+            const tip3 = document.createElement('div');
+            tip3.style.cssText = `
+              background: #f0f9ff;
+              border: 1px solid #0078d4;
+              border-radius: 8px;
+              padding: 12px 15px;
+              display: flex;
+              gap: 12px;
+              align-items: start;
+            `;
+            tip3.innerHTML = `
+              <span style="font-size: 20px; flex-shrink: 0;">💡</span>
+              <div style="flex: 1;">
+                <strong style="color: #0078d4; font-size: 14px; display: block; margin-bottom: 6px;">Tip 3: BCP332 maxLength Error</strong>
+                <p style="margin: 0 0 4px 0; color: #555; font-size: 13px; line-height: 1.5;">
+                  <strong>Error:</strong> BCP332: The provided value (whose length will always be greater than or equal to 15) is too long to assign to a target for which the maximum allowable length is 10.
+                </p>
+                <p style="margin: 0 0 8px 0; color: #555; font-size: 13px; line-height: 1.5;">
+                  <strong>Solution:</strong> The maxLength property defined for a parameter in main.bicep is too small. Increase the maxLength value to accommodate longer inputs.
+                </p>
+              </div>
+            `;
+
+            troubleshootingSection.appendChild(tip1);
+            troubleshootingSection.appendChild(tip2);
+            troubleshootingSection.appendChild(tip3);
+            controlsContainer.appendChild(troubleshootingSection);
+          }
+
           // Check for UnmatchedPrincipalType error (ServicePrincipal vs User mismatch)
           const errorText = azdResults?.errorReason || status.errorSummary || '';
           const hasUnmatchedPrincipalError = /UnmatchedPrincipalType[\s\S]*has type[\s\S]*ServicePrincipal[\s\S]*different from[\s\S]*PrinciaplType[\s\S]*User/i.test(errorText);
