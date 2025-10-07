@@ -503,7 +503,7 @@ function startStatusPolling(apiBase: string, runId: string) {
 
           // Check for UnmatchedPrincipalType error (ServicePrincipal vs User mismatch)
           const errorText = status.errorSummary || '';
-          const hasUnmatchedPrincipalError = /UnmatchedPrincipalType.*has type.*ServicePrincipal.*different from.*PrinciaplType.*User/i.test(errorText);
+          const hasUnmatchedPrincipalError = /UnmatchedPrincipalType[\s\S]*has type[\s\S]*ServicePrincipal[\s\S]*different from[\s\S]*PrinciaplType[\s\S]*User/i.test(errorText);
 
           if (hasUnmatchedPrincipalError) {
             // Show specific guidance for UnmatchedPrincipalType error
@@ -639,7 +639,7 @@ function createValidationIssue(status: any) {
 
   // Check for UnmatchedPrincipalType error
   const errorText = status.errorSummary || '';
-  const hasUnmatchedPrincipalError = /UnmatchedPrincipalType.*has type.*ServicePrincipal.*different from.*PrinciaplType.*User/i.test(errorText);
+  const hasUnmatchedPrincipalError = /UnmatchedPrincipalType[\s\S]*has type[\s\S]*ServicePrincipal[\s\S]*different from[\s\S]*PrinciaplType[\s\S]*User/i.test(errorText);
 
   // Build issue title
   const title = hasUnmatchedPrincipalError
