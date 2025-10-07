@@ -117,10 +117,12 @@ Results live under `packages/app/results/`:
     ```
 
 5. **Access the application**:
-    - Frontend: http://localhost:3000
-    - Backend API: http://localhost:3001
+    - Frontend + Backend: http://localhost:3000
 
-## Manual Development Setup
+> [!IMPORTANT]
+> **OAuth Requirement**: Both frontend and backend run on port 3000 in Docker. This matches the GitHub OAuth callback URL. The Docker setup handles this automatically - both services are accessible at http://localhost:3000.
+
+## Manual Development Setup (Not Recommended for OAuth)
 
 If you prefer running services without Docker:
 
@@ -147,6 +149,9 @@ If you prefer running services without Docker:
     ```
 
 4. **Access the application**: http://localhost:4000
+
+> [!WARNING]
+> **OAuth Limitation**: This manual setup runs frontend (port 4000) and backend (port 3001) on different ports. OAuth authentication will NOT work correctly unless you create a separate GitHub OAuth app configured for port 4000. For OAuth functionality, use the Docker Compose setup instead (port 3000 for both services).
 
 > [!IMPORTANT]
 > The Express backend MUST be running before using OAuth login or analysis features.
