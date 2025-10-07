@@ -11,6 +11,63 @@ let logElement: HTMLPreElement | null = null;
 let stopButton: HTMLButtonElement | null = null;
 let isValidationRunning = false;
 
+// AZD validation results
+interface AzdValidationResult {
+  azdUpSuccess: boolean;
+  azdUpTime: string | null;
+  azdDownSuccess: boolean;
+  azdDownTime: string | null;
+  workflowSuccess: boolean;
+  errorReason: string | null;
+}
+
+/**
+ * Parse the workflow logs to extract AZD Up and Down results
+ */
+function parseAzdResults(logs: string): AzdValidationResult {
+  const result: AzdValidationResult = {
+    azdUpSuccess: false,
+    azdUpTime: null,
+    azdDownSuccess: false,
+    azdDownTime: null,
+    workflowSuccess: false,
+    errorReason: null,
+  };
+
+  // Check for AZD Up success: "SUCCESS: Your up workflow to provision and deploy to Azure completed in X minutes Y seconds"
+  const azdUpMatch = logs.match(/SUCCESS:\s*Your up workflow to provision and deploy to Azure completed in ([\d\s\w]+)/i);
+  if (azdUpMatch) {
+    result.azdUpSuccess = true;
+    result.azdUpTime = azdUpMatch[1].trim();
+  }
+
+  // Check for AZD Down success: "SUCCESS: Your application was removed from Azure in X minutes Y seconds"
+  const azdDownMatch = logs.match(/SUCCESS:\s*Your application was removed from Azure in ([\d\s\w]+)/i);
+  if (azdDownMatch) {
+    result.azdDownSuccess = true;
+    result.azdDownTime = azdDownMatch[1].trim();
+  }
+
+  // Check for errors
+  if (!result.azdUpSuccess) {
+    const upErrorMatch = logs.match(/Deploying services.*?\n(.*?ERROR.*?)(?=\n\n|\n[A-Z]|$)/is);
+    if (upErrorMatch) {
+      result.errorReason = `AZD Up failed: ${upErrorMatch[1].trim()}`;
+    }
+  }
+
+  if (!result.azdDownSuccess) {
+    const downErrorMatch = logs.match(/azd down.*?\n(.*?ERROR.*?)(?=\n\n|\n[A-Z]|$)/is);
+    if (downErrorMatch) {
+      result.errorReason = result.errorReason 
+        ? `${result.errorReason}\nAZD Down failed: ${downErrorMatch[1].trim()}`
+        : `AZD Down failed: ${downErrorMatch[1].trim()}`;
+    }
+  }
+
+  return result;
+}
+
 function notify() {
   return (window as any).NotificationSystem || (window as any).Notifications;
 }
@@ -303,12 +360,12 @@ async function runValidation(templateUrl: string) {
         const linkDiv = document.createElement('div');
         linkDiv.id = 'azd-gh-run-link';
         linkDiv.style.cssText =
-          'margin: 0 0 15px 0; padding: 8px; background: #1a1b1c; border-left: 3px solid #0078d4; border-radius: 6px;';
+          'margin: 0 0 15px 0; padding: 12px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 6px;';
 
         const linkButton = document.createElement('button');
         linkButton.textContent = '🔗 View GitHub Actions Run';
         linkButton.style.cssText =
-          'background: #0078d4; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px;';
+          'background: #0078d4; color: white; border: none; padding: 10px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;';
         linkButton.onclick = () => window.open(currentGithubRunUrl!, '_blank');
 
         linkDiv.appendChild(linkButton);
@@ -494,8 +551,8 @@ function startStatusPolling(apiBase: string, runId: string) {
           const linkDiv = document.createElement('div');
           linkDiv.id = 'azd-logs-archive-link';
           linkDiv.style.cssText =
-            'margin: 0 0 15px 0; padding: 8px; background: #1a1b1c; border-left: 3px solid #28a745; border-radius: 6px;';
-          linkDiv.innerHTML = `<a href="${status.logsArchiveUrl}" target="_blank" style="color: #4fc3f7; text-decoration: none;">📥 Download Logs Archive</a>`;
+            'margin: 0 0 15px 0; padding: 12px; background: #f0f9ff; border: 1px solid #0078d4; border-radius: 6px;';
+          linkDiv.innerHTML = `<a href="${status.logsArchiveUrl}" target="_blank" style="color: #0078d4; text-decoration: none; font-weight: 500;">📥 Download Logs Archive</a>`;
           controlsContainer.appendChild(linkDiv);
         }
       }
@@ -503,92 +560,136 @@ function startStatusPolling(apiBase: string, runId: string) {
       // Check if workflow is complete
       if (status.status === 'completed' || status.conclusion) {
         stopPolling();
-
-        // Clear running flag
         isValidationRunning = false;
 
-        if (status.conclusion === 'success') {
+        // Fetch the full workflow logs to parse AZD results
+        let azdResults: AzdValidationResult | null = null;
+        try {
+          const logsResponse = await fetch(`${apiBase}/api/v4/validation-status?workflowRunId=${currentGithubRunId}&workflowOrgRepo=${currentWorkflowOrgRepo}&includeLogs=true`);
+          if (logsResponse.ok) {
+            const logsData = await logsResponse.json();
+            const fullLogs = logsData.logs || '';
+            azdResults = parseAzdResults(fullLogs);
+            azdResults.workflowSuccess = status.conclusion === 'success';
+          }
+        } catch (err) {
+          console.error('[azd-validation] Failed to fetch logs for parsing:', err);
+        }
+
+        const controlsContainer = document.getElementById('azd-provision-controls');
+        if (!controlsContainer) {
+          console.error('[azd-validation] Controls container not found!');
+          return;
+        }
+
+        // Determine overall validation status
+        let validationStatus: 'success' | 'warning' | 'failure' = 'failure';
+        if (azdResults) {
+          if (azdResults.azdUpSuccess && azdResults.azdDownSuccess) {
+            validationStatus = azdResults.workflowSuccess ? 'success' : 'warning';
+          }
+        } else if (status.conclusion === 'success') {
+          validationStatus = 'success';
+        }
+
+        // Display results based on status
+        if (validationStatus === 'success' && !document.getElementById('azd-success-tile')) {
           appendLog(logElement!, '✓ Validation completed successfully!');
 
-          // Show celebratory success tile in controls (not logs)
-          const controlsContainer = document.getElementById('azd-provision-controls');
-          if (controlsContainer && !document.getElementById('azd-success-tile')) {
-            const successTile = document.createElement('div');
-            successTile.id = 'azd-success-tile';
-            successTile.style.cssText =
-              'margin: 0 0 15px 0; padding: 20px; background: linear-gradient(135deg, #1e4620 0%, #2d5a2e 100%); border-left: 4px solid #4caf50; border-radius: 8px; box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);';
-            successTile.innerHTML = `
-              <div style="display: flex; align-items: center; gap: 15px;">
-                <div style="font-size: 48px;">🏆</div>
-                <div style="flex: 1;">
-                  <h3 style="margin: 0 0 8px 0; color: #4caf50; font-size: 20px; font-weight: bold;">Validation Passed!</h3>
-                  <p style="margin: 0; color: #a5d6a7; font-size: 14px;">All checks completed successfully. Your template meets all requirements! 🎉</p>
-                </div>
+          const successTile = document.createElement('div');
+          successTile.id = 'azd-success-tile';
+          successTile.style.cssText =
+            'margin: 0 0 15px 0; padding: 20px; background: #f0f9ff; border: 2px solid #4caf50; border-radius: 8px;';
+          successTile.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 15px;">
+              <div style="font-size: 48px;">✅</div>
+              <div style="flex: 1;">
+                <h3 style="margin: 0 0 8px 0; color: #2e7d32; font-size: 20px; font-weight: bold;">Validation Passed!</h3>
+                ${azdResults?.azdUpTime ? `<p style="margin: 4px 0; color: #1976d2; font-size: 14px;">🚀 AZD Up completed in ${azdResults.azdUpTime}</p>` : ''}
+                ${azdResults?.azdDownTime ? `<p style="margin: 4px 0; color: #1976d2; font-size: 14px;">🧹 AZD Down completed in ${azdResults.azdDownTime}</p>` : ''}
+                <p style="margin: 4px 0 0 0; color: #666; font-size: 13px;">Your template meets all requirements! 🎉</p>
               </div>
-            `;
-            controlsContainer.appendChild(successTile);
-          }
-
+            </div>
+          `;
+          controlsContainer.appendChild(successTile);
           showSuccess('Validation Complete', 'Template validation passed!');
-        } else if (status.conclusion === 'failure') {
+        } else if (validationStatus === 'warning' && !document.getElementById('azd-warning-tile')) {
+          appendLog(logElement!, '⚠️ AZD operations succeeded but workflow had issues');
+
+          const warningTile = document.createElement('div');
+          warningTile.id = 'azd-warning-tile';
+          warningTile.style.cssText =
+            'margin: 0 0 15px 0; padding: 20px; background: #fffbf0; border: 2px solid #ff9800; border-radius: 8px;';
+          warningTile.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 15px;">
+              <div style="font-size: 48px;">⚠️</div>
+              <div style="flex: 1;">
+                <h3 style="margin: 0 0 8px 0; color: #f57c00; font-size: 20px; font-weight: bold;">AZD Succeeded, Workflow Failed</h3>
+                ${azdResults?.azdUpTime ? `<p style="margin: 4px 0; color: #2e7d32; font-size: 14px;">✅ AZD Up completed in ${azdResults.azdUpTime}</p>` : ''}
+                ${azdResults?.azdDownTime ? `<p style="margin: 4px 0; color: #2e7d32; font-size: 14px;">✅ AZD Down completed in ${azdResults.azdDownTime}</p>` : ''}
+                <p style="margin: 8px 0 0 0; color: #f57c00; font-size: 13px;">⚠️ Workflow completed with errors - check logs for details</p>
+              </div>
+            </div>
+          `;
+          controlsContainer.appendChild(warningTile);
+          
+          // Still show issue button for workflow errors
+          if (currentGithubRunUrl && !document.getElementById('azd-issue-section')) {
+            const issueSection = document.createElement('div');
+            issueSection.id = 'azd-issue-section';
+            issueSection.style.cssText =
+              'margin: 0 0 15px 0; padding: 15px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 8px;';
+            
+            const issueButton = document.createElement('button');
+            issueButton.textContent = '🐛 Report Workflow Issue';
+            issueButton.style.cssText =
+              'width: 100%; background: #ff9800; color: white; border: none; padding: 12px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;';
+            issueButton.onclick = () => createValidationIssue(status, azdResults);
+
+            issueSection.appendChild(issueButton);
+            controlsContainer.appendChild(issueSection);
+          }
+        } else if (validationStatus === 'failure') {
           appendLog(logElement!, '✗ Validation failed');
 
-          // Calculate elapsed time
-          const startTime = status.started_at ? new Date(status.started_at) : null;
-          const endTime = status.completed_at ? new Date(status.completed_at) : new Date();
-          const elapsedMs = startTime ? endTime.getTime() - startTime.getTime() : 0;
-          const elapsedMin = Math.floor(elapsedMs / 60000);
-          const elapsedSec = Math.floor((elapsedMs % 60000) / 1000);
-          const elapsedTime = `${elapsedMin}m ${elapsedSec}s`;
-
-          console.log('[DEBUG] Elapsed time calculation:', { startTime, endTime, elapsedMs, elapsedTime });
-
-          // Get controls container to append action buttons
-          const controlsContainer = document.getElementById('azd-provision-controls');
-          console.log('[azd-validation] Controls container found:', controlsContainer);
-          console.log('[azd-validation] Controls container HTML:', controlsContainer?.outerHTML);
-          if (!controlsContainer) {
-            console.error('[azd-validation] Controls container not found!');
-            return;
-          }
-
-          // Create status bar in controls (only if it doesn't exist)
+          // Create status bar with light styling
           if (!document.getElementById('azd-status-bar')) {
             const statusBar = document.createElement('div');
             statusBar.id = 'azd-status-bar';
             statusBar.style.cssText =
-              'margin: 0 0 15px 0; padding: 15px; background: linear-gradient(135deg, #1a1b1c 0%, #2d1f1f 100%); border-radius: 8px; border: 1px solid #f44336;';
+              'margin: 0 0 15px 0; padding: 20px; background: #fff3f3; border: 2px solid #f44336; border-radius: 8px;';
             statusBar.innerHTML = `
-              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                  <div style="font-size: 32px;">❌</div>
-                  <div>
-                    <h3 style="margin: 0; color: #f44336; font-size: 18px;">Validation Failed</h3>
-                    <div style="display: flex; gap: 20px; margin-top: 4px;">
-                      <span style="color: #999; font-size: 13px;">⏱️ ${elapsedTime}</span>
-                      <span style="color: #999; font-size: 13px;">📋 Failed Jobs: ${status.failedJobs?.length || 0}</span>
-                    </div>
-                  </div>
+              <div style="display: flex; align-items: center; gap: 15px;">
+                <div style="font-size: 48px;">❌</div>
+                <div style="flex: 1;">
+                  <h3 style="margin: 0 0 8px 0; color: #d32f2f; font-size: 20px; font-weight: bold;">Validation Failed</h3>
+                  ${!azdResults?.azdUpSuccess ? '<p style="margin: 4px 0; color: #d32f2f; font-size: 14px;">❌ AZD Up failed</p>' : ''}
+                  ${azdResults?.azdUpSuccess && azdResults?.azdUpTime ? `<p style="margin: 4px 0; color: #2e7d32; font-size: 14px;">✅ AZD Up completed in ${azdResults.azdUpTime}</p>` : ''}
+                  ${!azdResults?.azdDownSuccess && azdResults?.azdUpSuccess ? '<p style="margin: 4px 0; color: #d32f2f; font-size: 14px;">❌ AZD Down failed</p>' : ''}
+                  ${azdResults?.azdDownSuccess && azdResults?.azdDownTime ? `<p style="margin: 4px 0; color: #2e7d32; font-size: 14px;">✅ AZD Down completed in ${azdResults.azdDownTime}</p>` : ''}
                 </div>
                 ${
                   currentGithubRunUrl
-                    ? `<a href="${currentGithubRunUrl}" target="_blank" style="padding: 8px 16px; background: #0078d4; color: white; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: 500;">🔗 View GitHub Run</a>`
+                    ? `<a href="${currentGithubRunUrl}" target="_blank" style="padding: 10px 16px; background: #0078d4; color: white; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: 500;">🔗 View Run</a>`
                     : ''
                 }
               </div>
             `;
-
-            // Append to controls container
-            console.log('[azd-validation] Appending status bar to controls');
-            console.log('[DEBUG] controlsContainer:', controlsContainer);
-            console.log('[DEBUG] controlsContainer.parentElement:', controlsContainer.parentElement);
-            debugger; // STOP HERE TO INSPECT
             controlsContainer.appendChild(statusBar);
-            console.log('[azd-validation] Status bar appended. Controls HTML:', controlsContainer.outerHTML.substring(0, 200));
+          }
+
+          // Show error details if available
+          if (azdResults?.errorReason && !document.getElementById('azd-error-details')) {
+            const errorDiv = document.createElement('div');
+            errorDiv.id = 'azd-error-details';
+            errorDiv.style.cssText =
+              'margin: 0 0 15px 0; padding: 12px; background: #fff; border: 1px solid #f44336; border-left: 4px solid #f44336; font-family: monospace; font-size: 12px; white-space: pre-wrap; border-radius: 6px;';
+            errorDiv.innerHTML = `<strong style="color: #d32f2f;">Error Details:</strong>\n${azdResults.errorReason}`;
+            controlsContainer.appendChild(errorDiv);
           }
 
           // Check for UnmatchedPrincipalType error (ServicePrincipal vs User mismatch)
-          const errorText = status.errorSummary || '';
+          const errorText = azdResults?.errorReason || status.errorSummary || '';
           const hasUnmatchedPrincipalError = /UnmatchedPrincipalType[\s\S]*has type[\s\S]*ServicePrincipal[\s\S]*different from[\s\S]*PrinciaplType[\s\S]*User/i.test(errorText);
 
           if (hasUnmatchedPrincipalError && !document.getElementById('azd-principal-error')) {
@@ -596,20 +697,20 @@ function startStatusPolling(apiBase: string, runId: string) {
             const principalErrorDiv = document.createElement('div');
             principalErrorDiv.id = 'azd-principal-error';
             principalErrorDiv.style.cssText =
-              'margin: 0 0 15px 0; padding: 15px; background: linear-gradient(135deg, #2d1f1f 0%, #3d2f1f 100%); border-left: 4px solid #ff9800; border-radius: 8px; flex: 1;';
+              'margin: 0 0 15px 0; padding: 15px; background: #fff8e1; border: 2px solid #ff9800; border-radius: 8px;';
             principalErrorDiv.innerHTML = `
               <div style="display: flex; align-items: start; gap: 12px;">
                 <div style="font-size: 32px;">⚠️</div>
                 <div style="flex: 1;">
-                  <h4 style="margin: 0 0 10px 0; color: #ff9800; font-size: 16px;">Detected: Principal Type Mismatch</h4>
-                  <p style="margin: 0 0 10px 0; color: #ffa726; font-size: 14px; line-height: 1.5;">
+                  <h4 style="margin: 0 0 10px 0; color: #f57c00; font-size: 16px;">Detected: Principal Type Mismatch</h4>
+                  <p style="margin: 0 0 10px 0; color: #666; font-size: 14px; line-height: 1.5;">
                     Your template is trying to assign a <strong>Service Principal</strong> to a role that expects a <strong>User</strong>.
                     This happens when GitHub Actions runs with a Service Principal but your Bicep files expect a user principal.
                   </p>
-                  <div style="background: #1a1b1c; padding: 10px; border-radius: 4px; margin: 10px 0;">
-                    <p style="margin: 0 0 8px 0; color: #4fc3f7; font-size: 13px; font-weight: bold;">✨ Solution:</p>
-                    <p style="margin: 0; color: #ccc; font-size: 12px; line-height: 1.6;">
-                      Add a <code style="background: #2d1f1f; padding: 2px 6px; border-radius: 3px; color: #4fc3f7;">createRoleForUser</code> flag to your <code style="background: #2d1f1f; padding: 2px 6px; border-radius: 3px;">main.bicep</code> file to conditionally create role assignments based on the principal type.
+                  <div style="background: #f5f5f5; padding: 10px; border-radius: 4px; margin: 10px 0; border-left: 3px solid #0078d4;">
+                    <p style="margin: 0 0 8px 0; color: #0078d4; font-size: 13px; font-weight: bold;">✨ Solution:</p>
+                    <p style="margin: 0; color: #666; font-size: 12px; line-height: 1.6;">
+                      Add a <code style="background: #e3f2fd; padding: 2px 6px; border-radius: 3px; color: #1976d2;">createRoleForUser</code> flag to your <code style="background: #e3f2fd; padding: 2px 6px; border-radius: 3px;">main.bicep</code> file to conditionally create role assignments based on the principal type.
                     </p>
                   </div>
                   <a href="https://github.com/Azure-Samples/azd-template-artifacts/blob/main/docs/development-guidelines/trouble-shooting.md#error-unmatchedprincipaltype-the-principalid-id-has-type-serviceprincipal--which-is-different-from-specified-princiapltype-user" 
@@ -620,34 +721,26 @@ function startStatusPolling(apiBase: string, runId: string) {
                 </div>
               </div>
             `;
-            // Append to controls container
             controlsContainer.appendChild(principalErrorDiv);
           }
 
           // Add "Create Issue" button in controls (only if it doesn't exist)
-          if (status.html_url && !document.getElementById('azd-issue-section')) {
+          if (currentGithubRunUrl && !document.getElementById('azd-issue-section')) {
             const issueSection = document.createElement('div');
             issueSection.id = 'azd-issue-section';
             issueSection.style.cssText =
-              'margin: 0 0 15px 0; padding: 15px; background: linear-gradient(135deg, #1a1b1c 0%, #1f2c3d 100%); border-radius: 8px; border: 1px solid #0078d4;';
+              'margin: 0 0 15px 0; padding: 15px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 8px;';
             
             const issueButton = document.createElement('button');
             issueButton.textContent = '🐛 Create GitHub Issue with Fix Guidance';
             issueButton.style.cssText =
-              'width: 100%; background: #0078d4; color: white; border: none; padding: 12px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; transition: background 0.2s;';
+              'width: 100%; background: #0078d4; color: white; border: none; padding: 12px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;';
             issueButton.onmouseover = () => (issueButton.style.background = '#005a9e');
             issueButton.onmouseout = () => (issueButton.style.background = '#0078d4');
-            issueButton.onclick = () => createValidationIssue(status);
+            issueButton.onclick = () => createValidationIssue(status, azdResults);
 
             issueSection.appendChild(issueButton);
-            // Append to controls container
-            console.log('[azd-validation] Appending issue section to controls');
-            console.log('[DEBUG ISSUE] controlsContainer:', controlsContainer);
-            console.log('[DEBUG ISSUE] controlsContainer.parentElement:', controlsContainer.parentElement);
-            console.log('[DEBUG ISSUE] controlsContainer in DOM?', document.contains(controlsContainer));
-            debugger; // STOP HERE TO INSPECT ISSUE BUTTON
             controlsContainer.appendChild(issueSection);
-            console.log('[azd-validation] Issue section appended. Controls children count:', controlsContainer.children.length);
           }
 
           // Show error details if available - move to controls
@@ -719,7 +812,7 @@ function stopPolling() {
 /**
  * Create a GitHub issue for validation failures
  */
-function createValidationIssue(status: any) {
+function createValidationIssue(status: any, azdResults?: AzdValidationResult | null) {
   // Use the stored template URL from the current validation
   const targetRepoUrl = currentTemplateUrl || '';
 
@@ -737,21 +830,28 @@ function createValidationIssue(status: any) {
 
   const [, owner, repo] = match;
 
+  // Build issue body with AZD-specific information
+  let body = `## AZD Validation Report\n\n`;
+  body += `**Repository:** ${targetRepoUrl}\n`;
+  body += `**Validation Run:** ${status.html_url || currentGithubRunUrl || 'N/A'}\n`;
+  body += `**Date:** ${new Date().toISOString()}\n\n`;
+
+  // Add AZD operation results
+  if (azdResults) {
+    body += `### AZD Operations\n\n`;
+    body += `- **AZD Up:** ${azdResults.azdUpSuccess ? `✅ Success (${azdResults.azdUpTime})` : '❌ Failed'}\n`;
+    body += `- **AZD Down:** ${azdResults.azdDownSuccess ? `✅ Success (${azdResults.azdDownTime})` : '❌ Failed'}\n`;
+    body += `- **Workflow:** ${azdResults.workflowSuccess ? '✅ Success' : '❌ Failed'}\n\n`;
+  }
+
   // Check for UnmatchedPrincipalType error
-  const errorText = status.errorSummary || '';
+  const errorText = azdResults?.errorReason || status.errorSummary || '';
   const hasUnmatchedPrincipalError = /UnmatchedPrincipalType[\s\S]*has type[\s\S]*ServicePrincipal[\s\S]*different from[\s\S]*PrinciaplType[\s\S]*User/i.test(errorText);
 
   // Build issue title
   const title = hasUnmatchedPrincipalError
     ? `[Template Doctor] Fix: Principal Type Mismatch in Role Assignment`
     : `[Template Doctor] AZD Validation Failed`;
-
-  // Build issue body
-  let body = `## AZD Validation Failure Report\n\n`;
-  body += `**Repository:** ${targetRepoUrl}\n`;
-  body += `**Validation Run:** ${status.html_url || 'N/A'}\n`;
-  body += `**Status:** ${status.status} (${status.conclusion})\n`;
-  body += `**Date:** ${new Date().toISOString()}\n\n`;
 
   // Add specific guidance for UnmatchedPrincipalType error
   if (hasUnmatchedPrincipalError) {
@@ -779,7 +879,10 @@ function createValidationIssue(status: any) {
     body += `**Example PR:** [azure-openai-assistant-javascript#18](https://github.com/Azure-Samples/azure-openai-assistant-javascript/pull/18/files)\n\n`;
   }
 
-  if (status.errorSummary) {
+  // Add error details
+  if (azdResults?.errorReason) {
+    body += `### Error Details\n\n\`\`\`\n${azdResults.errorReason}\n\`\`\`\n\n`;
+  } else if (status.errorSummary) {
     body += `### Error Summary\n\n\`\`\`\n${status.errorSummary}\n\`\`\`\n\n`;
   }
 
