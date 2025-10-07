@@ -71,6 +71,12 @@ function createLogContainer(): HTMLPreElement {
   if (existingErrorDetails) existingErrorDetails.remove();
   const existingFailedJobs = document.getElementById('azd-failed-jobs');
   if (existingFailedJobs) existingFailedJobs.remove();
+  const existingGhRunLink = document.getElementById('azd-gh-run-link');
+  if (existingGhRunLink) existingGhRunLink.remove();
+  const existingLogsArchive = document.getElementById('azd-logs-archive-link');
+  if (existingLogsArchive) existingLogsArchive.remove();
+  const existingSuccessTile = document.getElementById('azd-success-tile');
+  if (existingSuccessTile) existingSuccessTile.remove();
 
   // Create or get validation section container
   let validationSection = document.getElementById('validation-section') as HTMLElement | null;
@@ -291,19 +297,23 @@ async function runValidation(templateUrl: string) {
     if (currentGithubRunUrl) {
       appendLog(logElement, `GitHub Run URL: ${currentGithubRunUrl}`);
 
-      // Add clickable button (not auto-open)
-      const linkDiv = document.createElement('div');
-      linkDiv.style.cssText =
-        'margin: 10px 0; padding: 8px; background: #1a1b1c; border-left: 3px solid #0078d4;';
+      // Add clickable button in controls (not logs)
+      const controlsContainer = document.getElementById('azd-provision-controls');
+      if (controlsContainer && !document.getElementById('azd-gh-run-link')) {
+        const linkDiv = document.createElement('div');
+        linkDiv.id = 'azd-gh-run-link';
+        linkDiv.style.cssText =
+          'margin: 0 0 15px 0; padding: 8px; background: #1a1b1c; border-left: 3px solid #0078d4; border-radius: 6px;';
 
-      const linkButton = document.createElement('button');
-      linkButton.textContent = '🔗 View GitHub Actions Run';
-      linkButton.style.cssText =
-        'background: #0078d4; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px;';
-      linkButton.onclick = () => window.open(currentGithubRunUrl!, '_blank');
+        const linkButton = document.createElement('button');
+        linkButton.textContent = '🔗 View GitHub Actions Run';
+        linkButton.style.cssText =
+          'background: #0078d4; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px;';
+        linkButton.onclick = () => window.open(currentGithubRunUrl!, '_blank');
 
-      linkDiv.appendChild(linkButton);
-      logElement.appendChild(linkDiv);
+        linkDiv.appendChild(linkButton);
+        controlsContainer.appendChild(linkDiv);
+      }
     }
 
     // Store in localStorage for correlation
@@ -477,14 +487,17 @@ function startStatusPolling(apiBase: string, runId: string) {
         appendLog(logElement!, `[status] ${statusMsg}`);
       }
 
-      // Check for logs archive URL
-      if (status.logsArchiveUrl && !document.getElementById('gh-logs-archive-link')) {
-        const linkDiv = document.createElement('div');
-        linkDiv.id = 'gh-logs-archive-link';
-        linkDiv.style.cssText =
-          'margin: 10px 0; padding: 8px; background: #1a1b1c; border-left: 3px solid #28a745;';
-        linkDiv.innerHTML = `<a href="${status.logsArchiveUrl}" target="_blank" style="color: #4fc3f7; text-decoration: none;">📥 Download Logs Archive</a>`;
-        logElement!.appendChild(linkDiv);
+      // Check for logs archive URL - move to controls
+      if (status.logsArchiveUrl && !document.getElementById('azd-logs-archive-link')) {
+        const controlsContainer = document.getElementById('azd-provision-controls');
+        if (controlsContainer) {
+          const linkDiv = document.createElement('div');
+          linkDiv.id = 'azd-logs-archive-link';
+          linkDiv.style.cssText =
+            'margin: 0 0 15px 0; padding: 8px; background: #1a1b1c; border-left: 3px solid #28a745; border-radius: 6px;';
+          linkDiv.innerHTML = `<a href="${status.logsArchiveUrl}" target="_blank" style="color: #4fc3f7; text-decoration: none;">📥 Download Logs Archive</a>`;
+          controlsContainer.appendChild(linkDiv);
+        }
       }
 
       // Check if workflow is complete
@@ -497,20 +510,24 @@ function startStatusPolling(apiBase: string, runId: string) {
         if (status.conclusion === 'success') {
           appendLog(logElement!, '✓ Validation completed successfully!');
 
-          // Show celebratory success tile
-          const successTile = document.createElement('div');
-          successTile.style.cssText =
-            'margin: 15px 0; padding: 20px; background: linear-gradient(135deg, #1e4620 0%, #2d5a2e 100%); border-left: 4px solid #4caf50; border-radius: 8px; box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);';
-          successTile.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 15px;">
-              <div style="font-size: 48px;">🏆</div>
-              <div style="flex: 1;">
-                <h3 style="margin: 0 0 8px 0; color: #4caf50; font-size: 20px; font-weight: bold;">Validation Passed!</h3>
-                <p style="margin: 0; color: #a5d6a7; font-size: 14px;">All checks completed successfully. Your template meets all requirements! 🎉</p>
+          // Show celebratory success tile in controls (not logs)
+          const controlsContainer = document.getElementById('azd-provision-controls');
+          if (controlsContainer && !document.getElementById('azd-success-tile')) {
+            const successTile = document.createElement('div');
+            successTile.id = 'azd-success-tile';
+            successTile.style.cssText =
+              'margin: 0 0 15px 0; padding: 20px; background: linear-gradient(135deg, #1e4620 0%, #2d5a2e 100%); border-left: 4px solid #4caf50; border-radius: 8px; box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);';
+            successTile.innerHTML = `
+              <div style="display: flex; align-items: center; gap: 15px;">
+                <div style="font-size: 48px;">🏆</div>
+                <div style="flex: 1;">
+                  <h3 style="margin: 0 0 8px 0; color: #4caf50; font-size: 20px; font-weight: bold;">Validation Passed!</h3>
+                  <p style="margin: 0; color: #a5d6a7; font-size: 14px;">All checks completed successfully. Your template meets all requirements! 🎉</p>
+                </div>
               </div>
-            </div>
-          `;
-          logElement!.appendChild(successTile);
+            `;
+            controlsContainer.appendChild(successTile);
+          }
 
           showSuccess('Validation Complete', 'Template validation passed!');
         } else if (status.conclusion === 'failure') {
