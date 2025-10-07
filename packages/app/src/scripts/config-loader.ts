@@ -48,13 +48,9 @@ async function loadEnvironmentVariables(): Promise<EnvironmentVariablesShape> {
   try {
     const isLocalhost = window.location.hostname === 'localhost';
 
-    // Simplified for local dev: skip server endpoint, rely on config.json
-    if (isLocalhost) {
-      console.log(
-        '[config-loader] localhost - skipping client-settings endpoint, using config.json only',
-      );
-      return {} as EnvironmentVariablesShape;
-    }
+    // REMOVED: Don't skip server endpoint on localhost anymore
+    // The Docker/Express setup serves both frontend and backend on same port
+    // We need to call /api/v4/client-settings to get GITHUB_CLIENT_ID
 
     // Detect if the caller explicitly requested a Functions port (query param or global var).
     // We keep a separate flag so the mere DEFAULT value (7071) does not bias ordering when running
