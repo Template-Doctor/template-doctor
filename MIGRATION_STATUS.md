@@ -16,6 +16,7 @@
 ### ✅ Full ES Module Migration
 
 The entire Express server has been converted from CommonJS to ES Modules (ESM):
+
 - Modern JavaScript module system
 - Better compatibility with current npm packages
 - Type-safe imports with `.js` extensions
@@ -30,59 +31,67 @@ Created `scripts/smoke-api.sh` with 14 test categories covering all migrated end
 ## 📊 Endpoint Migration Status
 
 ### Core API Endpoints (3/3) ✅ COMPLETE
-| Endpoint | Route | Status | Notes |
-|----------|-------|--------|-------|
-| github-oauth-token | POST /api/v4/github-oauth-token | ✅ Migrated | OAuth token exchange with GitHub |
-| runtime-config | GET /api/v4/client-settings | ✅ Migrated | Frontend configuration endpoint |
-| analyze-template | POST /api/v4/analyze-template | ✅ Migrated | Template analysis with fork-first SAML strategy |
+
+| Endpoint           | Route                           | Status      | Notes                                           |
+| ------------------ | ------------------------------- | ----------- | ----------------------------------------------- |
+| github-oauth-token | POST /api/v4/github-oauth-token | ✅ Migrated | OAuth token exchange with GitHub                |
+| runtime-config     | GET /api/v4/client-settings     | ✅ Migrated | Frontend configuration endpoint                 |
+| analyze-template   | POST /api/v4/analyze-template   | ✅ Migrated | Template analysis with fork-first SAML strategy |
 
 ### Validation Workflow (6/6) ✅ COMPLETE
-| Endpoint | Route | Status | Notes |
-|----------|-------|--------|-------|
-| validate-template | POST /api/v4/validation-template | ✅ Migrated | Triggers GitHub workflow dispatch |
-| validation-docker-image | POST /api/v4/validation-docker-image | ✅ Migrated | Docker image validation workflow |
-| validation-ossf | POST /api/v4/validation-ossf | ✅ Migrated | OSSF Scorecard validation |
-| validation-status | GET /api/v4/validation-status | ✅ Migrated | Polls GitHub workflow run status |
-| validation-callback | POST /api/v4/validation-callback | ✅ Migrated | Webhook callback handler |
-| validation-cancel | POST /api/v4/validation-cancel | ✅ Migrated | Cancels running validation workflow |
+
+| Endpoint                | Route                                | Status      | Notes                               |
+| ----------------------- | ------------------------------------ | ----------- | ----------------------------------- |
+| validate-template       | POST /api/v4/validation-template     | ✅ Migrated | Triggers GitHub workflow dispatch   |
+| validation-docker-image | POST /api/v4/validation-docker-image | ✅ Migrated | Docker image validation workflow    |
+| validation-ossf         | POST /api/v4/validation-ossf         | ✅ Migrated | OSSF Scorecard validation           |
+| validation-status       | GET /api/v4/validation-status        | ✅ Migrated | Polls GitHub workflow run status    |
+| validation-callback     | POST /api/v4/validation-callback     | ✅ Migrated | Webhook callback handler            |
+| validation-cancel       | POST /api/v4/validation-cancel       | ✅ Migrated | Cancels running validation workflow |
 
 ### GitHub Integration (1/1) ✅ COMPLETE
-| Endpoint | Route | Status | Notes |
-|----------|-------|--------|-------|
+
+| Endpoint     | Route                     | Status      | Notes                                                        |
+| ------------ | ------------------------- | ----------- | ------------------------------------------------------------ |
 | issue-create | POST /api/v4/issue-create | ✅ Migrated | Creates issues with labels, child issues, Copilot assignment |
 
 ### Analysis & Submission (3/3) ✅ COMPLETE
-| Endpoint | Route | Status | Notes |
-|----------|-------|--------|-------|
-| submit-analysis-dispatch | POST /api/v4/submit-analysis-dispatch | ✅ Migrated | Dispatches repository_dispatch event |
-| add-template-pr | POST /api/v4/add-template-pr | ✅ Migrated | Creates PR with dashboard files |
-| archive-collection | POST /api/v4/archive-collection | ✅ Migrated | Archives to centralized collections repo |
+
+| Endpoint                 | Route                                 | Status      | Notes                                    |
+| ------------------------ | ------------------------------------- | ----------- | ---------------------------------------- |
+| submit-analysis-dispatch | POST /api/v4/submit-analysis-dispatch | ✅ Migrated | Dispatches repository_dispatch event     |
+| add-template-pr          | POST /api/v4/add-template-pr          | ✅ Migrated | Creates PR with dashboard files          |
+| archive-collection       | POST /api/v4/archive-collection       | ✅ Migrated | Archives to centralized collections repo |
 
 ### GitHub Actions (3/3) ✅ COMPLETE
-| Endpoint | Route | Status | Notes |
-|----------|-------|--------|-------|
-| action-trigger | POST /api/v4/workflow-trigger | ✅ Migrated | Triggers GitHub Actions workflows |
-| action-run-status | POST /api/v4/workflow-run-status | ✅ Migrated | Gets workflow run status |
-| action-run-artifacts | POST /api/v4/workflow-run-artifacts | ✅ Migrated | Lists workflow artifacts |
+
+| Endpoint             | Route                               | Status      | Notes                             |
+| -------------------- | ----------------------------------- | ----------- | --------------------------------- |
+| action-trigger       | POST /api/v4/workflow-trigger       | ✅ Migrated | Triggers GitHub Actions workflows |
+| action-run-status    | POST /api/v4/workflow-run-status    | ✅ Migrated | Gets workflow run status          |
+| action-run-artifacts | POST /api/v4/workflow-run-artifacts | ✅ Migrated | Lists workflow artifacts          |
 
 ### Repository Management (2/2) ✅ COMPLETE
-| Endpoint | Route | Status | Notes |
-|----------|-------|--------|-------|
-| repo-fork | POST /api/v4/repo-fork | ✅ Migrated | Fork repository with SAML detection |
-| batch-scan-start | POST /api/v4/batch-scan-start | ✅ Migrated | Initiate batch scan of multiple repos |
-| batch-scan-status | GET /api/v4/batch-scan-status | ✅ Migrated | Check batch scan status |
+
+| Endpoint          | Route                         | Status      | Notes                                 |
+| ----------------- | ----------------------------- | ----------- | ------------------------------------- |
+| repo-fork         | POST /api/v4/repo-fork        | ✅ Migrated | Fork repository with SAML detection   |
+| batch-scan-start  | POST /api/v4/batch-scan-start | ✅ Migrated | Initiate batch scan of multiple repos |
+| batch-scan-status | GET /api/v4/batch-scan-status | ✅ Migrated | Check batch scan status               |
 
 ### AI & Setup (2/2) ✅ COMPLETE
-| Endpoint | Route | Status | Notes |
-|----------|-------|--------|-------|
+
+| Endpoint       | Route                       | Status      | Notes                                                    |
+| -------------- | --------------------------- | ----------- | -------------------------------------------------------- |
 | issue-ai-proxy | POST /api/v4/issue-ai-proxy | ✅ Migrated | AI-enhanced issue rewriting (GitHub Models/Azure OpenAI) |
-| setup | POST /api/v4/setup | ✅ Migrated | Configuration override stub |
+| setup          | POST /api/v4/setup          | ✅ Migrated | Configuration override stub                              |
 
 ---
 
 ## 🏗️ Architecture Overview
 
 ### Current Stack
+
 ```
 Frontend (Vite + TypeScript)
 ├── Port: 3000 (preview), 4000 (dev)
@@ -107,6 +116,7 @@ Legacy (Preserved)
 ```
 
 ### Server Structure
+
 ```
 packages/server/
 ├── src/
@@ -175,6 +185,7 @@ Test timestamp: 2025-10-06 11:05:45
 ```
 
 **Known Test Behavior:**
+
 - OAuth endpoint returns 404 for invalid codes (expected)
 - Analysis may return 400/403 for SAML-protected repos (expected, triggers fork-first strategy in production)
 - All validation endpoints return 502 when GH_WORKFLOW_TOKEN is missing (expected)
@@ -186,12 +197,14 @@ Test timestamp: 2025-10-06 11:05:45
 ### ES Module Migration
 
 **Why ESM?**
+
 - Modern standard for JavaScript modules
 - Better tree-shaking and bundling
 - Native browser support
 - Required by modern npm packages (uuid, etc.)
 
 **Key Changes:**
+
 1. Added `"type": "module"` to package.json
 2. Updated tsconfig: `"module": "ESNext"`
 3. Added `.js` extensions to all relative imports
@@ -199,16 +212,17 @@ Test timestamp: 2025-10-06 11:05:45
 5. Updated all route imports to use `.js` extensions
 
 **Example:**
+
 ```typescript
 // Before (CommonJS)
-const express = require('express');
-const path = require('path');
+const express = require("express");
+const path = require("path");
 const __dirname = path.dirname(__filename);
 
 // After (ESM)
-import express from 'express';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import express from "express";
+import path from "path";
+import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 ```
 
@@ -222,6 +236,7 @@ All endpoints that interact with GitHub repositories implement the fork-first st
 4. **Transparent to User:** Error messages include clear instructions
 
 **Implemented in:**
+
 - Template analysis (`analyze.ts`)
 - Add template PR (`analysis.ts`)
 - Archive collection (`analysis.ts`)
@@ -229,6 +244,7 @@ All endpoints that interact with GitHub repositories implement the fork-first st
 ### Error Handling
 
 All endpoints include:
+
 - Proper HTTP status codes (400, 401, 403, 404, 500, 502)
 - Structured error responses with `errorType` and `details`
 - Request IDs for tracing
@@ -240,6 +256,7 @@ All endpoints include:
 ## 📁 Key Files Modified
 
 ### New Files
+
 - `packages/server/src/routes/validation.ts` (6 endpoints)
 - `packages/server/src/routes/github.ts` (1 endpoint)
 - `packages/server/src/routes/analysis.ts` (3 endpoints)
@@ -248,6 +265,7 @@ All endpoints include:
 - `docs/development/EXPRESS_MIGRATION_PLAN.md` (planning)
 
 ### Updated Files
+
 - `packages/server/package.json` (added `"type": "module"`)
 - `packages/server/tsconfig.json` (ESNext modules)
 - `packages/server/src/index.ts` (ESM imports, routes)
@@ -263,15 +281,18 @@ All endpoints include:
 ### Remaining Work (7 endpoints, ~35%)
 
 **Priority 2: GitHub Actions Integration (3 endpoints)** - Estimated: 1-2 days
+
 - `action-trigger` - Trigger GitHub Actions workflows
 - `action-run-status` - Poll workflow run status
 - `action-run-artifacts` - Download workflow artifacts
 
 **Priority 4: Repository Management (2 endpoints)** - Estimated: 1 day
+
 - `repo-fork` - Handle repository forking with SAML support
 - `batch-scan-start` - Initiate batch scanning operations
 
 **Priority 5: AI & Setup (2 endpoints)** - Estimated: 1-2 days
+
 - `issue-ai-proxy` - Proxy AI enrichment requests
 - `setup` - Initial configuration and override endpoint
 
@@ -299,12 +320,14 @@ All endpoints include:
 - ⏳ Production deployment (pending completion)
 
 ### Phase 2 Plan: Full Migration
+
 1. All traffic directed to Express endpoints
 2. Azure Functions kept for emergency rollback
 3. 2-week monitoring period
 4. Performance validation
 
 ### Phase 3 Plan: Decommission
+
 1. Archive Azure Functions to `legacy/azure-functions` branch
 2. Remove Functions code from main branch
 3. Update all documentation
@@ -315,21 +338,24 @@ All endpoints include:
 ## 📝 Breaking Changes
 
 ### Route Name Changes
+
 - `/api/runtime-config` → `/api/v4/client-settings`
 - All routes now under `/api/v4` prefix
 
 ### Migration Guide for Clients
 
 **Frontend Updates Required:**
+
 ```javascript
 // Before
-const config = await fetch('/api/runtime-config');
+const config = await fetch("/api/runtime-config");
 
 // After
-const config = await fetch('/api/v4/client-settings');
+const config = await fetch("/api/v4/client-settings");
 ```
 
 **No breaking changes for:**
+
 - OAuth flow
 - Template analysis
 - Validation workflows
@@ -340,15 +366,18 @@ const config = await fetch('/api/v4/client-settings');
 ## 🔐 Security & Compliance
 
 ### Authentication
+
 - ✅ GitHub OAuth token exchange (PKCE-compatible)
 - ✅ Bearer token validation for protected endpoints
 - ✅ SAML/SSO detection and handling
 
 ### CORS
+
 - ✅ Enabled for all origins (development)
 - 🔄 Configure for production domains
 
 ### Secrets Management
+
 - ✅ Environment variables via `.env`
 - ✅ Docker secrets support
 - ✅ No hardcoded credentials
@@ -358,6 +387,7 @@ const config = await fetch('/api/v4/client-settings');
 ## 📚 Documentation
 
 ### Updated Documentation
+
 - ✅ `docs/development/architecture.md` - Express architecture
 - ✅ `docs/development/ENVIRONMENT_VARIABLES.md` - All env vars documented
 - ✅ `docs/development/EXPRESS_MIGRATION_MATRIX.md` - Progress tracking
@@ -365,6 +395,7 @@ const config = await fetch('/api/v4/client-settings');
 - ✅ `AGENTS.md` - AI agent development guide
 
 ### Pending Documentation
+
 - ⏳ API endpoint reference (OpenAPI/Swagger)
 - ⏳ Deployment runbook
 - ⏳ Performance benchmarks
@@ -377,6 +408,7 @@ const config = await fetch('/api/v4/client-settings');
 ### None Currently
 
 All migrated endpoints are:
+
 - ✅ Functionally equivalent to Azure Functions
 - ✅ Properly handling errors
 - ✅ Passing smoke tests
@@ -387,24 +419,24 @@ All migrated endpoints are:
 ## 🎓 Lessons Learned
 
 1. **ESM Migration is Worth It**
-   - Modern packages increasingly require ESM
-   - Better long-term compatibility
-   - Cleaner import syntax
+    - Modern packages increasingly require ESM
+    - Better long-term compatibility
+    - Cleaner import syntax
 
 2. **Fork-First Strategy is Critical**
-   - Many organizations use SAML/SSO
-   - Auto-forking provides seamless UX
-   - Clear error messages prevent confusion
+    - Many organizations use SAML/SSO
+    - Auto-forking provides seamless UX
+    - Clear error messages prevent confusion
 
 3. **Comprehensive Smoke Tests Save Time**
-   - Catch integration issues early
-   - Validate CORS, auth, error handling
-   - Document expected behavior
+    - Catch integration issues early
+    - Validate CORS, auth, error handling
+    - Document expected behavior
 
 4. **TypeScript + Express + ESM Works Great**
-   - Type safety throughout
-   - Modern module system
-   - Excellent developer experience
+    - Type safety throughout
+    - Modern module system
+    - Excellent developer experience
 
 ---
 

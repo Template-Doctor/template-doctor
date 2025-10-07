@@ -902,16 +902,16 @@ class TemplateAnalyzer {
               }),
             );
           } catch (_) {}
-          
+
           // User-friendly SAML/SSO error message
           throw new Error(
             `GitHub organization requires SSO authorization (403 Forbidden). ` +
-            `To fix this: ` +
-            `1. Go to https://github.com/settings/tokens ` +
-            `2. Find your personal access token ` +
-            `3. Click "Configure SSO" next to the organization ` +
-            `4. Click "Authorize" for the organization that owns this repository ` +
-            `5. Try your analysis again`
+              `To fix this: ` +
+              `1. Go to https://github.com/settings/tokens ` +
+              `2. Find your personal access token ` +
+              `3. Click "Configure SSO" next to the organization ` +
+              `4. Click "Authorize" for the organization that owns this repository ` +
+              `5. Try your analysis again`,
           );
         }
         // If backend not present (static server), SimpleHTTPServer returns 501 for POST; also allow 404.
@@ -953,17 +953,17 @@ class TemplateAnalyzer {
       return result;
     } catch (error) {
       console.error('Error in server-side analysis:', error);
-      
+
       // Check if this is a network error (backend not running)
       if (error.message && error.message.includes('Failed to fetch')) {
         const cfg = (window as any).TemplateDoctorConfig || {};
         const apiBase = cfg.apiBase || window.location.origin;
         throw new Error(
           `Cannot connect to backend server at ${apiBase}. Make sure the Express server is running. ` +
-          `Run: cd packages/server && npm run dev`
+            `Run: cd packages/server && npm run dev`,
         );
       }
-      
+
       throw new Error(`Server-side analysis failed: ${error.message}`);
     }
   }

@@ -155,14 +155,21 @@ async function analyzeSingleRepository(
                 // Use SERVER token for org repos (it has SAML authorization)
                 // User OAuth tokens (gho_*) typically don't have SAML/SSO authorization
                 const fallbackToken = token || userToken;
-                ctx.log(`Accessing upstream with ${token ? 'server' : 'user'} token`);
-                const repoMeta = await gh(`/repos/${owner}/${repo}`, fallbackToken);
+                ctx.log(
+                    `Accessing upstream with ${token ? "server" : "user"} token`,
+                );
+                const repoMeta = await gh(
+                    `/repos/${owner}/${repo}`,
+                    fallbackToken,
+                );
                 defaultBranch = repoMeta.default_branch;
             }
         } else {
             // No user token or user is the owner - access repo directly
             const accessToken = userToken || token;
-            ctx.log(`Direct access with ${userToken ? 'user' : 'server'} token`);
+            ctx.log(
+                `Direct access with ${userToken ? "user" : "server"} token`,
+            );
             const repoMeta = await gh(`/repos/${owner}/${repo}`, accessToken);
             defaultBranch = repoMeta.default_branch;
         }
@@ -180,15 +187,25 @@ async function analyzeSingleRepository(
     // If accessing a fork (owner != upstream), use userToken
     // If accessing user's own repo or using server for public repos, use appropriate token
     const upstreamInfo = extractRepoInfo(repoUrl);
-    const isAccessingFork = owner.toLowerCase() !== upstreamInfo.owner.toLowerCase();
-    const contentAccessToken = isAccessingFork ? userToken : (userToken || token);
-    
-    ctx.log(`Content access strategy: ${isAccessingFork ? 'fork' : 'direct'}, using ${contentAccessToken ? 'user' : 'server'} token`);
+    const isAccessingFork =
+        owner.toLowerCase() !== upstreamInfo.owner.toLowerCase();
+    const contentAccessToken = isAccessingFork ? userToken : userToken || token;
+
+    ctx.log(
+        `Content access strategy: ${isAccessingFork ? "fork" : "direct"}, using ${contentAccessToken ? "user" : "server"} token`,
+    );
 
     // List files (bounded) & selectively fetch content
     let files: GitHubFile[] = [];
     try {
-        files = await listAllFilesFetch(gh, owner, repo, defaultBranch, "", contentAccessToken);
+        files = await listAllFilesFetch(
+            gh,
+            owner,
+            repo,
+            defaultBranch,
+            "",
+            contentAccessToken,
+        );
     } catch (e: any) {
         return {
             status: 502,

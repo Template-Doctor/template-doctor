@@ -7,11 +7,13 @@ Template Doctor analyzes and validates samples and templates against organizatio
 ## Architecture
 
 **Current (Express + Docker):**
+
 - Frontend: Vite SPA (TypeScript) served on port 3000 (preview) or 4000 (dev)
 - Backend: Express server (TypeScript) on port 3001
 - Deployment: Docker containers (multi-container via docker-compose, single-container via combined Dockerfile)
 
 **Legacy (Maintained in separate branch):**
+
 - Azure Functions (Node.js) on port 7071
 - Static Web App deployment
 

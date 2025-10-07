@@ -528,7 +528,7 @@ window.showRulesetModal = showRulesetModal;
     console.log('[AnalyzeRepoIntegr] showResults - hiding spinner, showing results');
     containers.loadingContainer.style.display = 'none';
     containers.resultsContainer.style.display = 'block';
-    
+
     // Add back to search button if not already present
     const header = containers.section.querySelector('.analysis-header');
     if (header && !header.querySelector('.back-to-search')) {
@@ -538,7 +538,10 @@ window.showRulesetModal = showRulesetModal;
       backButton.onclick = () => {
         console.log('[AnalyzeRepoIntegr] Back to search clicked');
         // Hide the analysis section and show search
-        if ((window as any).UIController && typeof (window as any).UIController.showSection === 'function') {
+        if (
+          (window as any).UIController &&
+          typeof (window as any).UIController.showSection === 'function'
+        ) {
           (window as any).UIController.showSection('search');
         } else {
           // Fallback: manually toggle sections
@@ -550,7 +553,7 @@ window.showRulesetModal = showRulesetModal;
       };
       header.insertBefore(backButton, header.firstChild);
     }
-    
+
     console.log('[AnalyzeRepoIntegr] ✓ Results container visible');
   }
 
@@ -634,10 +637,10 @@ window.showRulesetModal = showRulesetModal;
     } catch (error: any) {
       console.error('[AnalyzeRepoIntegr] ✗ FAILED:', error);
       console.log('═══════════════════════════════════════════════════════');
-      
+
       // Enhanced error message for common issues
       let errorMessage = error.message || 'Analysis failed';
-      
+
       // Check for specific error types and provide helpful guidance
       if (errorMessage.includes('Cannot connect to backend')) {
         errorMessage = '❌ Backend Server Not Running\n\n' + errorMessage;
@@ -646,7 +649,7 @@ window.showRulesetModal = showRulesetModal;
       } else if (errorMessage.includes('404')) {
         errorMessage = '⚠️ Repository Not Found\n\n' + errorMessage;
       }
-      
+
       showError(containers, errorMessage);
       showNotification('error', `Failed: ${error.message || 'Unknown error'}`);
       throw error;

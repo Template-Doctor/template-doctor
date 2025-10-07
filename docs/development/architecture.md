@@ -208,18 +208,21 @@ graph TB
 **Two-Terminal Approach (Recommended):**
 
 Terminal 1 - Express Backend:
+
 ```bash
 cd packages/server
 npm run dev  # Runs on port 3001
 ```
 
 Terminal 2 - Vite Frontend:
+
 ```bash
 cd packages/app
 npm run dev  # Runs on port 4000
 ```
 
 **Production Preview:**
+
 ```bash
 cd packages/app
 npm run preview  # Runs on port 3000
@@ -228,6 +231,7 @@ npm run preview  # Runs on port 3000
 ### Docker Deployment
 
 **Multi-Container (Development):**
+
 ```bash
 docker-compose up
 ```
@@ -236,6 +240,7 @@ docker-compose up
 - Backend: http://localhost:3001
 
 **Single Container (Production):**
+
 ```bash
 docker build -f Dockerfile.combined -t template-doctor .
 docker run -p 80:80 template-doctor
@@ -245,24 +250,26 @@ docker run -p 80:80 template-doctor
 
 ### Port Allocation
 
-| Service | Development | Preview | Docker (Multi) | Docker (Single) |
-|---------|-------------|---------|----------------|-----------------|
-| Vite Dev Server | 4000 | - | - | - |
-| Vite Preview | - | 3000 | 3000 | - |
-| Express Backend | 3001 | 3001 | 3001 | - |
-| Nginx (Combined) | - | - | - | 80 |
-| Azure Functions (Legacy) | 7071 | 7071 | - | - |
+| Service                  | Development | Preview | Docker (Multi) | Docker (Single) |
+| ------------------------ | ----------- | ------- | -------------- | --------------- |
+| Vite Dev Server          | 4000        | -       | -              | -               |
+| Vite Preview             | -           | 3000    | 3000           | -               |
+| Express Backend          | 3001        | 3001    | 3001           | -               |
+| Nginx (Combined)         | -           | -       | -              | 80              |
+| Azure Functions (Legacy) | 7071        | 7071    | -              | -               |
 
 ## Migration Status
 
 ### Completed Migrations
 
 ✅ **Core API Endpoints:**
+
 - `/api/v4/analyze` - Template analysis with fork-first SAML strategy
 - `/api/v4/github-oauth-token` - OAuth token exchange
 - `/api/v4/client-settings` - Runtime configuration
 
 ✅ **Infrastructure:**
+
 - Docker Compose configuration for multi-container deployment
 - Combined Dockerfile for single-container production deployment
 - Environment variable consolidation
@@ -273,6 +280,7 @@ docker run -p 80:80 template-doctor
 The following Azure Functions remain to be migrated to Express endpoints:
 
 **Validation Workflow:**
+
 - `validate-template` → `/api/v4/validate-template`
 - `validation-status` → `/api/v4/validation-status`
 - `validation-callback` → `/api/v4/validation-callback`
@@ -281,27 +289,35 @@ The following Azure Functions remain to be migrated to Express endpoints:
 - `validation-ossf` → `/api/v4/validation-ossf`
 
 **GitHub Actions:**
+
 - `action-trigger` → `/api/v4/action-trigger`
 - `action-run-status` → `/api/v4/action-run-status`
 - `action-run-artifacts` → `/api/v4/action-run-artifacts`
 
 **Analysis & Submission:**
+
 - `submit-analysis-dispatch` → `/api/v4/submit-analysis-dispatch`
 - `add-template-pr` → `/api/v4/add-template-pr`
 - `archive-collection` → `/api/v4/archive-collection` ✅ (migrated)
 
 **Repository Management:**
+
 - `repo-fork` → `/api/v4/repo-fork`
 - `batch-scan-start` → `/api/v4/batch-scan-start`
 
 **Issue Management:**
+
 - `issue-create` → `/api/v4/issue-create`
 - `issue-ai-proxy` → `/api/v4/issue-ai-proxy`
 
 **Setup:**
+
 - `setup` → `/api/v4/setup`
 
 ### Legacy Branch
 
 Azure Functions code is maintained in the `legacy/azure-functions` branch for reference and potential rollback scenarios.
+
+```
+
 ```

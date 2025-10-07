@@ -8,7 +8,7 @@ interface ApiRouteBuildOptions {
 interface TemplateDoctorConfigShape {
   apiBase?: string;
   apiVersion?: string;
-  backend?: { 
+  backend?: {
     apiVersion?: string;
     baseUrl?: string;
   };
@@ -28,7 +28,7 @@ interface ApiRoutesGlobal {
 
   function getApiBase(): string {
     const cfg: TemplateDoctorConfigShape = (window as any).TemplateDoctorConfig || {};
-    
+
     // SIMPLIFIED: Trust the config. Period.
     // Runtime-config.ts and config-loader.ts handle all the complex logic.
     // We just read the final answer.
@@ -37,7 +37,7 @@ interface ApiRoutesGlobal {
       apiBase: cfg.apiBase,
       backendBaseUrl: cfg.backend?.baseUrl,
     });
-    
+
     if (cfg.apiBase) {
       console.log('[api-routes] Using cfg.apiBase:', cfg.apiBase);
       return normalizeBase(cfg.apiBase);
@@ -46,9 +46,11 @@ interface ApiRoutesGlobal {
       console.log('[api-routes] Using cfg.backend.baseUrl:', cfg.backend.baseUrl);
       return normalizeBase(cfg.backend.baseUrl);
     }
-    
+
     // Emergency fallback only - this should never happen if config loaded properly
-    console.warn('[api-routes] No apiBase in config! Using window.location.origin as emergency fallback');
+    console.warn(
+      '[api-routes] No apiBase in config! Using window.location.origin as emergency fallback',
+    );
     return normalizeBase(window.location.origin);
   }
 
@@ -56,14 +58,14 @@ interface ApiRoutesGlobal {
     // Always use v4 for now - simplify the logic
     const defaultVersion = 'v4';
     const effectiveVersion = version || defaultVersion;
-    
+
     const trimmed = path.replace(/^\//, '');
-    
+
     // If the path already includes the full API prefix, just return /api
     if (trimmed.startsWith(`api/${effectiveVersion}/`)) {
       return '/api';
     }
-    
+
     // Otherwise, add the version prefix
     return `/api/${effectiveVersion}`;
   }

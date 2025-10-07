@@ -10,6 +10,7 @@ This document verifies 1:1 parity between the original Azure Functions code and 
 ## ✅ 1. GitHub OAuth Token Exchange
 
 ### Azure Functions (`packages/api/github-oauth-token.ts`)
+
 ```typescript
 export default wrapHttp(async (req: any, ctx: Context, requestId: string) => {
     const env = loadEnv();
@@ -21,76 +22,182 @@ export default wrapHttp(async (req: any, ctx: Context, requestId: string) => {
     const clientId = env.GITHUB_CLIENT_ID;
     const clientSecret = env.GITHUB_CLIENT_SECRET;
     if (!clientId || !clientSecret) {
-        return { status: 500, body: { error: "Server not configured for GitHub OAuth", requestId } };
+        return {
+            status: 500,
+            body: {
+                error: "Server not configured for GitHub OAuth",
+                requestId,
+            },
+        };
     }
     try {
-        const ghRes = await fetch("https://github.com/login/oauth/access_token", {
-            method: "POST",
-            headers: { Accept: "application/json", "Content-Type": "application/json" },
-            body: JSON.stringify({ client_id: clientId, client_secret: clientSecret, code }),
-        });
+        const ghRes = await fetch(
+            "https://github.com/login/oauth/access_token",
+            {
+                method: "POST",
+                headers: {
+                    Accept: "application/json",
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    client_id: clientId,
+                    client_secret: clientSecret,
+                    code,
+                }),
+            },
+        );
         const data = await ghRes.json();
-        ctx.log("GitHub OAuth response", { requestId, status: ghRes.status, hasError: !!data.error });
+        ctx.log("GitHub OAuth response", {
+            requestId,
+            status: ghRes.status,
+            hasError: !!data.error,
+        });
         if (!ghRes.ok) {
-            return { status: ghRes.status, body: { error: data.error_description || data.error || "OAuth exchange failed", requestId } };
+            return {
+                status: ghRes.status,
+                body: {
+                    error:
+                        data.error_description ||
+                        data.error ||
+                        "OAuth exchange failed",
+                    requestId,
+                },
+            };
         }
         if (data.error) {
-            return { status: 400, body: { error: data.error_description || data.error, requestId } };
+            return {
+                status: 400,
+                body: {
+                    error: data.error_description || data.error,
+                    requestId,
+                },
+            };
         }
         if (!data.access_token) {
-            return { status: 502, body: { error: "No access_token in GitHub response", requestId } };
+            return {
+                status: 502,
+                body: {
+                    error: "No access_token in GitHub response",
+                    requestId,
+                },
+            };
         }
-        return { status: 200, body: { access_token: data.access_token, scope: data.scope || null, token_type: data.token_type || "bearer", requestId } };
+        return {
+            status: 200,
+            body: {
+                access_token: data.access_token,
+                scope: data.scope || null,
+                token_type: data.token_type || "bearer",
+                requestId,
+            },
+        };
     } catch (err: any) {
-        ctx.log.error("GitHub OAuth exchange exception", { requestId, error: err?.message });
-        return { status: 500, body: { error: "Internal error during token exchange", requestId } };
+        ctx.log.error("GitHub OAuth exchange exception", {
+            requestId,
+            error: err?.message,
+        });
+        return {
+            status: 500,
+            body: { error: "Internal error during token exchange", requestId },
+        };
     }
 });
 ```
 
 ### Express (`packages/server/src/routes/auth.ts`)
+
 ```typescript
-authRouter.post('/github-oauth-token', async (req: Request, res: Response) => {
-  const requestId = uuidv4();
-  try {
-    const body = req.body && typeof req.body === 'object' ? req.body : {};
-    const code = body.code;
-    if (!code) {
-      return res.status(400).json({ error: 'Missing code', requestId });
+authRouter.post("/github-oauth-token", async (req: Request, res: Response) => {
+    const requestId = uuidv4();
+    try {
+        const body = req.body && typeof req.body === "object" ? req.body : {};
+        const code = body.code;
+        if (!code) {
+            return res.status(400).json({ error: "Missing code", requestId });
+        }
+        const clientId = process.env.GITHUB_CLIENT_ID;
+        const clientSecret = process.env.GITHUB_CLIENT_SECRET;
+        if (!clientId || !clientSecret) {
+            return res
+                .status(500)
+                .json({
+                    error: "Server not configured for GitHub OAuth",
+                    requestId,
+                });
+        }
+        const ghRes = await fetch(
+            "https://github.com/login/oauth/access_token",
+            {
+                method: "POST",
+                headers: {
+                    Accept: "application/json",
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    client_id: clientId,
+                    client_secret: clientSecret,
+                    code,
+                }),
+            },
+        );
+        const data = await ghRes.json();
+        console.log("GitHub OAuth response", {
+            requestId,
+            status: ghRes.status,
+            hasError: !!data.error,
+        });
+        if (!ghRes.ok) {
+            return res
+                .status(ghRes.status)
+                .json({
+                    error:
+                        data.error_description ||
+                        data.error ||
+                        "OAuth exchange failed",
+                    requestId,
+                });
+        }
+        if (data.error) {
+            return res
+                .status(400)
+                .json({
+                    error: data.error_description || data.error,
+                    requestId,
+                });
+        }
+        if (!data.access_token) {
+            return res
+                .status(502)
+                .json({
+                    error: "No access_token in GitHub response",
+                    requestId,
+                });
+        }
+        return res
+            .status(200)
+            .json({
+                access_token: data.access_token,
+                scope: data.scope || null,
+                token_type: data.token_type || "bearer",
+                requestId,
+            });
+    } catch (err: any) {
+        console.error("GitHub OAuth exchange exception", {
+            requestId,
+            error: err?.message,
+        });
+        return res
+            .status(500)
+            .json({ error: "Internal error during token exchange", requestId });
     }
-    const clientId = process.env.GITHUB_CLIENT_ID;
-    const clientSecret = process.env.GITHUB_CLIENT_SECRET;
-    if (!clientId || !clientSecret) {
-      return res.status(500).json({ error: 'Server not configured for GitHub OAuth', requestId });
-    }
-    const ghRes = await fetch('https://github.com/login/oauth/access_token', {
-      method: 'POST',
-      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ client_id: clientId, client_secret: clientSecret, code }),
-    });
-    const data = await ghRes.json();
-    console.log('GitHub OAuth response', { requestId, status: ghRes.status, hasError: !!data.error });
-    if (!ghRes.ok) {
-      return res.status(ghRes.status).json({ error: data.error_description || data.error || 'OAuth exchange failed', requestId });
-    }
-    if (data.error) {
-      return res.status(400).json({ error: data.error_description || data.error, requestId });
-    }
-    if (!data.access_token) {
-      return res.status(502).json({ error: 'No access_token in GitHub response', requestId });
-    }
-    return res.status(200).json({ access_token: data.access_token, scope: data.scope || null, token_type: data.token_type || 'bearer', requestId });
-  } catch (err: any) {
-    console.error('GitHub OAuth exchange exception', { requestId, error: err?.message });
-    return res.status(500).json({ error: 'Internal error during token exchange', requestId });
-  }
 });
 ```
 
 **Parity Status**: ✅ **EXACT MATCH**
+
 - ✅ Request ID generation (Azure: from wrapHttp, Express: from uuidv4)
 - ✅ Request body validation (same object check and code extraction)
-- ✅ Environment variable access (Azure: loadEnv(), Express: process.env.*)
+- ✅ Environment variable access (Azure: loadEnv(), Express: process.env.\*)
 - ✅ Same error status codes (400, 500, 502)
 - ✅ Same error messages
 - ✅ Same response structure with requestId
@@ -104,17 +211,42 @@ authRouter.post('/github-oauth-token', async (req: Request, res: Response) => {
 ## ✅ 2. Runtime Config (Client Settings)
 
 ### Azure Functions (`packages/api/runtime-config.ts`)
+
 ```typescript
 export default wrapHttp(async (req: any, _ctx: Context, requestId: string) => {
-    if (req.method === "OPTIONS") { return { status: 204 }; }
-    if (req.method !== "GET") { return { status: 405, body: { error: "Method Not Allowed", requestId } }; }
-    const baseUrl = getMergedValue("TD_BACKEND_BASE_URL", process.env.TD_BACKEND_BASE_URL || process.env.BACKEND_BASE_URL || process.env.API_BASE_URL || "");
-    const functionKey = getMergedValue("TD_BACKEND_FUNCTION_KEY", process.env.TD_BACKEND_FUNCTION_KEY || process.env.BACKEND_FUNCTION_KEY || "");
-    const githubClientId = getMergedValue("GITHUB_CLIENT_ID", process.env.GITHUB_CLIENT_ID || "");
+    if (req.method === "OPTIONS") {
+        return { status: 204 };
+    }
+    if (req.method !== "GET") {
+        return {
+            status: 405,
+            body: { error: "Method Not Allowed", requestId },
+        };
+    }
+    const baseUrl = getMergedValue(
+        "TD_BACKEND_BASE_URL",
+        process.env.TD_BACKEND_BASE_URL ||
+            process.env.BACKEND_BASE_URL ||
+            process.env.API_BASE_URL ||
+            "",
+    );
+    const functionKey = getMergedValue(
+        "TD_BACKEND_FUNCTION_KEY",
+        process.env.TD_BACKEND_FUNCTION_KEY ||
+            process.env.BACKEND_FUNCTION_KEY ||
+            "",
+    );
+    const githubClientId = getMergedValue(
+        "GITHUB_CLIENT_ID",
+        process.env.GITHUB_CLIENT_ID || "",
+    );
     // ... (same pattern for all config values)
     const payload: PublicConfig = {
         GITHUB_CLIENT_ID: githubClientId,
-        backend: { ...(baseUrl ? { baseUrl } : {}), ...(functionKey ? { functionKey } : {}) } as any,
+        backend: {
+            ...(baseUrl ? { baseUrl } : {}),
+            ...(functionKey ? { functionKey } : {}),
+        } as any,
         DISPATCH_TARGET_REPO: dispatchTargetRepo,
         DEFAULT_RULE_SET: defaultRuleSet,
         REQUIRE_AUTH_FOR_RESULTS: requireAuthForResults,
@@ -129,32 +261,55 @@ export default wrapHttp(async (req: any, _ctx: Context, requestId: string) => {
 ```
 
 ### Express (`packages/server/src/routes/config.ts`)
+
 ```typescript
-configRouter.get('/client-settings', (req: Request, res: Response) => {
-  const requestId = uuidv4();
-  if (req.method === 'OPTIONS') { return res.status(204).send(); }
-  if (req.method !== 'GET') { return res.status(405).json({ error: 'Method Not Allowed', requestId }); }
-  const baseUrl = getMergedValue('TD_BACKEND_BASE_URL', process.env.TD_BACKEND_BASE_URL || process.env.BACKEND_BASE_URL || process.env.API_BASE_URL || '');
-  const functionKey = getMergedValue('TD_BACKEND_FUNCTION_KEY', process.env.TD_BACKEND_FUNCTION_KEY || process.env.BACKEND_FUNCTION_KEY || '');
-  const githubClientId = getMergedValue('GITHUB_CLIENT_ID', process.env.GITHUB_CLIENT_ID || '');
-  // ... (exact same pattern for all config values)
-  const payload: PublicConfig = {
-    GITHUB_CLIENT_ID: githubClientId,
-    backend: { ...(baseUrl ? { baseUrl } : {}), ...(functionKey ? { functionKey } : {}) } as any,
-    DISPATCH_TARGET_REPO: dispatchTargetRepo,
-    DEFAULT_RULE_SET: defaultRuleSet,
-    REQUIRE_AUTH_FOR_RESULTS: requireAuthForResults,
-    AUTO_SAVE_RESULTS: autoSaveResults,
-    ARCHIVE_ENABLED: archiveEnabled,
-    ARCHIVE_COLLECTION: archiveCollection,
-    ISSUE_AI_ENABLED: issueAIEnabled,
-    overrides: listOverrides(),
-  };
-  return res.status(200).json(payload);
+configRouter.get("/client-settings", (req: Request, res: Response) => {
+    const requestId = uuidv4();
+    if (req.method === "OPTIONS") {
+        return res.status(204).send();
+    }
+    if (req.method !== "GET") {
+        return res.status(405).json({ error: "Method Not Allowed", requestId });
+    }
+    const baseUrl = getMergedValue(
+        "TD_BACKEND_BASE_URL",
+        process.env.TD_BACKEND_BASE_URL ||
+            process.env.BACKEND_BASE_URL ||
+            process.env.API_BASE_URL ||
+            "",
+    );
+    const functionKey = getMergedValue(
+        "TD_BACKEND_FUNCTION_KEY",
+        process.env.TD_BACKEND_FUNCTION_KEY ||
+            process.env.BACKEND_FUNCTION_KEY ||
+            "",
+    );
+    const githubClientId = getMergedValue(
+        "GITHUB_CLIENT_ID",
+        process.env.GITHUB_CLIENT_ID || "",
+    );
+    // ... (exact same pattern for all config values)
+    const payload: PublicConfig = {
+        GITHUB_CLIENT_ID: githubClientId,
+        backend: {
+            ...(baseUrl ? { baseUrl } : {}),
+            ...(functionKey ? { functionKey } : {}),
+        } as any,
+        DISPATCH_TARGET_REPO: dispatchTargetRepo,
+        DEFAULT_RULE_SET: defaultRuleSet,
+        REQUIRE_AUTH_FOR_RESULTS: requireAuthForResults,
+        AUTO_SAVE_RESULTS: autoSaveResults,
+        ARCHIVE_ENABLED: archiveEnabled,
+        ARCHIVE_COLLECTION: archiveCollection,
+        ISSUE_AI_ENABLED: issueAIEnabled,
+        overrides: listOverrides(),
+    };
+    return res.status(200).json(payload);
 });
 ```
 
 **Parity Status**: ✅ **EXACT MATCH**
+
 - ✅ OPTIONS method handling (204 response)
 - ✅ Method validation (405 for non-GET)
 - ✅ Same `getMergedValue()` function from config-overrides
@@ -171,7 +326,9 @@ configRouter.get('/client-settings', (req: Request, res: Response) => {
 ## ✅ 3. Template Analysis
 
 ### Azure Functions (`packages/api/analyze-template.ts`)
+
 **Key Features**:
+
 - POST-only endpoint
 - Single repo analysis (`repoUrl`)
 - Batch analysis (`repos[]`)
@@ -184,7 +341,9 @@ configRouter.get('/client-settings', (req: Request, res: Response) => {
 - Batch processing with sequential analysis
 
 ### Express (`packages/server/src/routes/analyze.ts`)
+
 **Key Features**:
+
 - POST-only endpoint
 - Single repo analysis (`repoUrl`)
 - Batch analysis (`repos[]`)
@@ -197,6 +356,7 @@ configRouter.get('/client-settings', (req: Request, res: Response) => {
 - Batch processing with sequential analysis
 
 **Parity Status**: ✅ **EXACT MATCH**
+
 - ✅ Same request validation (POST required, repoUrl or repos)
 - ✅ Same token priority logic (server token for SAML, user token for forks)
 - ✅ Same fork-first strategy implementation
@@ -213,29 +373,31 @@ configRouter.get('/client-settings', (req: Request, res: Response) => {
 
 **Code Comparison**:
 Both implementations use:
+
 1. **Same helper functions** (copied verbatim):
-   - `extractRepoInfo(url)` - parse GitHub URL
-   - `createGitHubClient(token)` - GitHub API wrapper
-   - `listAllFilesFetch(...)` - recursive directory listing
-   - `getFileContentFetch(...)` - base64 content decode
+    - `extractRepoInfo(url)` - parse GitHub URL
+    - `createGitHubClient(token)` - GitHub API wrapper
+    - `listAllFilesFetch(...)` - recursive directory listing
+    - `getFileContentFetch(...)` - base64 content decode
 
 2. **Same analysis flow**:
-   - Parse request body
-   - Validate repoUrl or repos
-   - Get server/user tokens
-   - Determine fork strategy
-   - Fetch repo metadata
-   - List files recursively
-   - Fetch content for relevant files
-   - Call `runAnalyzer()` with same options
-   - Return results
+    - Parse request body
+    - Validate repoUrl or repos
+    - Get server/user tokens
+    - Determine fork strategy
+    - Fetch repo metadata
+    - List files recursively
+    - Fetch content for relevant files
+    - Call `runAnalyzer()` with same options
+    - Return results
 
 3. **Same error handling**:
-   - 400: Invalid repo URL or missing params
-   - 502: Failed to list files
-   - 500: Analyzer execution failed
+    - 400: Invalid repo URL or missing params
+    - 502: Failed to list files
+    - 500: Analyzer execution failed
 
-**Differences**: 
+**Differences**:
+
 - Logging: `ctx.log()` → `console.log()` (semantic equivalent)
 - HTTP wrapper: `wrapHttp()` → native Express `res.status().json()` (framework-specific)
 
@@ -244,6 +406,7 @@ Both implementations use:
 ## Migration Translation Patterns
 
 ### Pattern 1: HTTP Response
+
 ```typescript
 // Azure Functions
 return { status: 200, body: { data } };
@@ -253,6 +416,7 @@ return res.status(200).json({ data });
 ```
 
 ### Pattern 2: Logging
+
 ```typescript
 // Azure Functions
 ctx.log("Message", { metadata });
@@ -264,16 +428,18 @@ console.error("Error", { error });
 ```
 
 ### Pattern 3: Environment Variables
+
 ```typescript
 // Azure Functions
 const env = loadEnv();
 const value = env.VAR_NAME;
 
-// Express  
+// Express
 const value = process.env.VAR_NAME;
 ```
 
 ### Pattern 4: Request ID
+
 ```typescript
 // Azure Functions
 // Provided by wrapHttp(async (req, ctx, requestId) => ...)
@@ -289,19 +455,23 @@ const requestId = uuidv4();
 Both implementations use the **same exact code** for:
 
 ### Analyzer Core
+
 - `runAnalyzer()` function from `packages/*/analyzer-core/`
 - Same analysis options interface
 - Same result structure
 
 ### GitHub Client
+
 - `classifyGitHubError()` from `packages/*/github/`
 - Error classification logic
 
 ### Platform Abstractions
+
 - `createPlatformClient()` from `packages/*/platform/`
 - Environment detection
 
 ### Shared Utilities
+
 - `wrapHttp()` wrapper (Azure only)
 - HTTP helpers (both)
 - Config overrides (`getMergedValue`, `listOverrides`)
@@ -313,6 +483,7 @@ Both implementations use the **same exact code** for:
 ## Test Parity Checklist
 
 ### OAuth Token Exchange
+
 - [ ] Valid code → returns access_token
 - [ ] Missing code → 400 error
 - [ ] Invalid code → GitHub error forwarded
@@ -321,6 +492,7 @@ Both implementations use the **same exact code** for:
 - [ ] requestId in all responses
 
 ### Runtime Config
+
 - [ ] GET returns full config object
 - [ ] OPTIONS returns 204
 - [ ] Non-GET methods return 405
@@ -330,6 +502,7 @@ Both implementations use the **same exact code** for:
 - [ ] Overrides list exposed
 
 ### Template Analysis
+
 - [ ] Single repo analysis works
 - [ ] Batch repo analysis works
 - [ ] Fork-first strategy for authenticated user
@@ -360,7 +533,7 @@ The only differences are framework-specific (Express vs Azure Functions APIs), w
 The following functions **have not been migrated yet** and need parity verification once migrated:
 
 - validation-template
-- validation-status  
+- validation-status
 - validation-callback
 - validation-cancel
 - validation-docker-image

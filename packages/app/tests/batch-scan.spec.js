@@ -92,10 +92,12 @@ test.describe('Batch Scan', () => {
       '\n',
     );
     await page.fill('#batch-urls', urls);
-    
+
     // Mock confirm to avoid resume dialog
-    await page.evaluate(() => { window.confirm = () => false; });
-    
+    await page.evaluate(() => {
+      window.confirm = () => false;
+    });
+
     await page.click('#batch-scan-button');
 
     // Wait for batch items to be created and processed
@@ -114,7 +116,9 @@ test.describe('Batch Scan', () => {
     // Already enabled in beforeEach
 
     // Mock confirm to avoid resume dialog
-    await page.evaluate(() => { window.confirm = () => false; });
+    await page.evaluate(() => {
+      window.confirm = () => false;
+    });
 
     // Override analyzer to be flaky for a specific URL
     await page.evaluate(() => {
@@ -149,7 +153,9 @@ test.describe('Batch Scan', () => {
     });
 
     // After retry, both success and progress updated
-    await expect(page.locator('#batch-items .batch-item.success')).toHaveCount(2, { timeout: 10000 });
+    await expect(page.locator('#batch-items .batch-item.success')).toHaveCount(2, {
+      timeout: 10000,
+    });
     await expect(page.locator('#batch-progress-text')).toHaveText(/2\s*\/\s*2\s*Completed/);
   });
 });

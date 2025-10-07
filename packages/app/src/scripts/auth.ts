@@ -295,17 +295,17 @@ class GitHubAuth {
     debug('exchangeCodeForToken', 'Starting token exchange with code', code);
     debug('exchangeCodeForToken', 'Sending request to Azure Function');
     sessionStorage.setItem('last_auth_code', code);
-    
+
     // CRITICAL: Wait for config to load before making API calls
     if ((window as any).TemplateDoctorConfigReady) {
       debug('exchangeCodeForToken', 'Waiting for config to load...');
       await (window as any).TemplateDoctorConfigReady;
       debug('exchangeCodeForToken', 'Config loaded, proceeding with API call');
     }
-    
+
     // Use centralized API configuration
     const apiUrl = buildApiUrl(API_ENDPOINTS.GITHUB_OAUTH_TOKEN);
-    
+
     debug('exchangeCodeForToken', `API URL: ${apiUrl}`);
     return fetch(apiUrl, {
       method: 'POST',
@@ -556,7 +556,7 @@ class GitHubAuth {
     try {
       const apiUrl = buildApiUrl(`/setup/check-access?username=${encodeURIComponent(username)}`);
       const response = await fetch(apiUrl);
-      
+
       if (!response.ok) {
         this.hideSetupLink();
         return;
@@ -576,7 +576,7 @@ class GitHubAuth {
 
   private showSetupLink(): void {
     const setupLinks = document.querySelectorAll('a[href="/setup"]');
-    setupLinks.forEach(link => {
+    setupLinks.forEach((link) => {
       if (link instanceof HTMLElement) {
         link.style.display = '';
       }
@@ -585,7 +585,7 @@ class GitHubAuth {
 
   private hideSetupLink(): void {
     const setupLinks = document.querySelectorAll('a[href="/setup"]');
-    setupLinks.forEach(link => {
+    setupLinks.forEach((link) => {
       if (link instanceof HTMLElement) {
         link.style.display = 'none';
       }
@@ -594,7 +594,7 @@ class GitHubAuth {
 
   private showLeaderboardsLink(): void {
     const leaderboardLinks = document.querySelectorAll('a[href="/leaderboards"]');
-    leaderboardLinks.forEach(link => {
+    leaderboardLinks.forEach((link) => {
       if (link instanceof HTMLElement) {
         link.style.display = '';
       }
@@ -603,7 +603,7 @@ class GitHubAuth {
 
   private hideLeaderboardsLink(): void {
     const leaderboardLinks = document.querySelectorAll('a[href="/leaderboards"]');
-    leaderboardLinks.forEach(link => {
+    leaderboardLinks.forEach((link) => {
       if (link instanceof HTMLElement) {
         link.style.display = 'none';
       }

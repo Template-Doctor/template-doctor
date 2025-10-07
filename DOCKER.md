@@ -16,6 +16,7 @@ Run Template Doctor in Docker containers for local testing or production deploym
 ```
 
 This will:
+
 - Build the Express server
 - Build the Vite frontend
 - Start both containers
@@ -34,6 +35,7 @@ This will:
 ```
 
 Or with cleanup:
+
 ```bash
 ./docker-stop.sh --clean
 ```
@@ -132,6 +134,7 @@ docker-compose up -d --build
 Environment variables are read from `.env` and passed to containers:
 
 **Backend (server)**:
+
 - `GITHUB_CLIENT_ID` - OAuth app client ID
 - `GITHUB_CLIENT_SECRET` - OAuth app secret
 - `GITHUB_TOKEN` - PAT for GitHub API
@@ -142,6 +145,7 @@ Environment variables are read from `.env` and passed to containers:
 - etc. (see `docker-compose.yml`)
 
 **Frontend (app)**:
+
 - `VITE_API_BASE_URL` - Backend URL (set to http://localhost:7071)
 
 ---
@@ -151,17 +155,20 @@ Environment variables are read from `.env` and passed to containers:
 ### Containers Won't Start
 
 **Check Docker is running:**
+
 ```bash
 docker ps
 ```
 
 **Check for port conflicts:**
+
 ```bash
 lsof -ti :4000 | xargs kill -9  # Kill process on 4000
 lsof -ti :7071 | xargs kill -9  # Kill process on 7071
 ```
 
 **View container logs:**
+
 ```bash
 docker-compose logs server
 docker-compose logs app
@@ -183,6 +190,7 @@ docker-compose restart server
 ### Frontend Can't Connect to Backend
 
 **Check network:**
+
 ```bash
 docker-compose ps
 docker network inspect template-doctor_template-doctor
@@ -194,6 +202,7 @@ The frontend should connect to `http://localhost:7071` (not the container name).
 ### Build Failures
 
 **Clean rebuild:**
+
 ```bash
 ./docker-stop.sh --clean
 npm run clean -w packages/server
@@ -202,6 +211,7 @@ npm run clean -w packages/app
 ```
 
 **Check disk space:**
+
 ```bash
 docker system df
 docker system prune  # Clean up if needed
@@ -283,6 +293,7 @@ npm run dev
 ```
 
 Docker is for:
+
 - Testing the production build locally
 - Validating deployment configuration
 - Running integration tests
@@ -291,6 +302,7 @@ Docker is for:
 ### When to Use Docker
 
 ✅ **Use Docker when:**
+
 - Testing production builds
 - Validating environment variables
 - Testing container deployment
@@ -298,6 +310,7 @@ Docker is for:
 - Demonstrating to stakeholders
 
 ❌ **Don't use Docker when:**
+
 - Actively coding (slow rebuild cycle)
 - Debugging (harder to attach debugger)
 - Running unit tests (slower)
@@ -310,18 +323,21 @@ Docker is for:
 ### Image Sizes
 
 Current approximate sizes:
+
 - **Backend**: ~150MB (Node 20 Alpine + dependencies)
 - **Frontend**: ~80MB (Static files + serve)
 
 ### Build Performance
 
 **Speed up builds:**
+
 1. Use `.dockerignore` to exclude unnecessary files
 2. Leverage Docker layer caching
 3. Use multi-stage builds (already implemented)
 4. Build locally before `docker-compose up`
 
 **Cached layers:**
+
 - Base image (node:20-alpine)
 - Dependencies (package.json + npm ci)
 - Build output (only rebuilt when source changes)
@@ -382,6 +398,7 @@ docker-compose top
 5. ⏳ Configure production secrets
 
 For more information:
+
 - Express server: `packages/server/README.md`
 - Frontend app: `packages/app/README.md`
 - Migration status: `packages/server/MIGRATION_STATUS.md`

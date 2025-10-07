@@ -92,12 +92,12 @@ If you prefer running services without Docker:
 
 ### Port Allocation
 
-| Service | Development | Preview | Docker | Legacy (Functions) |
-|---------|-------------|---------|--------|-------------------|
-| Vite Dev Server | 4000 | - | - | 4000 |
-| Vite Preview | - | 3000 | 3000 | - |
-| Express Backend | 3001 | 3001 | 3001 | - |
-| Azure Functions (Legacy) | - | - | - | 7071 |
+| Service                  | Development | Preview | Docker | Legacy (Functions) |
+| ------------------------ | ----------- | ------- | ------ | ------------------ |
+| Vite Dev Server          | 4000        | -       | -      | 4000               |
+| Vite Preview             | -           | 3000    | 3000   | -                  |
+| Express Backend          | 3001        | 3001    | 3001   | -                  |
+| Azure Functions (Legacy) | -           | -       | -      | 7071               |
 
 ### Critical Local Development Requirements
 

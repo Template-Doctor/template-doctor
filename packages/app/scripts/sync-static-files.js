@@ -11,14 +11,9 @@ const rootDir = __dirname.replace(/scripts$/, '');
 const publicDir = path.join(rootDir, 'public');
 
 // Create public directory structure
-const dirs = [
-  'assets/images',
-  'configs',
-  'css',
-  'results'
-];
+const dirs = ['assets/images', 'configs', 'css', 'results'];
 
-dirs.forEach(dir => {
+dirs.forEach((dir) => {
   const targetDir = path.join(publicDir, dir);
   if (!fs.existsSync(targetDir)) {
     fs.mkdirSync(targetDir, { recursive: true });
@@ -38,7 +33,7 @@ copyOps.push({ src: 'leaderboards.html', dest: 'leaderboards.html' });
 const assetsImagesDir = path.join(rootDir, 'assets', 'images');
 if (fs.existsSync(assetsImagesDir)) {
   const imageFiles = fs.readdirSync(assetsImagesDir);
-  imageFiles.forEach(file => {
+  imageFiles.forEach((file) => {
     copyOps.push({ src: `assets/images/${file}`, dest: `assets/images/${file}` });
   });
 }
@@ -46,8 +41,8 @@ if (fs.existsSync(assetsImagesDir)) {
 // Copy CSS files
 const cssDir = path.join(rootDir, 'css');
 if (fs.existsSync(cssDir)) {
-  const cssFiles = fs.readdirSync(cssDir).filter(f => f.endsWith('.css'));
-  cssFiles.forEach(file => {
+  const cssFiles = fs.readdirSync(cssDir).filter((f) => f.endsWith('.css'));
+  cssFiles.forEach((file) => {
     copyOps.push({ src: `css/${file}`, dest: `css/${file}` });
   });
 }
@@ -59,12 +54,12 @@ if (fs.existsSync(resultsDir)) {
     if (!fs.existsSync(dest)) {
       fs.mkdirSync(dest, { recursive: true });
     }
-    
+
     const entries = fs.readdirSync(src, { withFileTypes: true });
     for (const entry of entries) {
       const srcPath = path.join(src, entry.name);
       const destPath = path.join(dest, entry.name);
-      
+
       if (entry.isDirectory()) {
         copyDirRecursive(srcPath, destPath);
       } else {
@@ -72,7 +67,7 @@ if (fs.existsSync(resultsDir)) {
       }
     }
   };
-  
+
   copyDirRecursive(resultsDir, path.join(publicDir, 'results'));
   console.log('✓ Copied results/ directory');
 }
@@ -81,7 +76,7 @@ if (fs.existsSync(resultsDir)) {
 copyOps.forEach(({ src, dest }) => {
   const srcPath = path.join(rootDir, src);
   const destPath = path.join(publicDir, dest);
-  
+
   if (fs.existsSync(srcPath)) {
     fs.copyFileSync(srcPath, destPath);
   } else {

@@ -1,6 +1,7 @@
 ---
-applyTo: '**'
+applyTo: "**"
 ---
+
 Provide project context and coding guidelines that AI should follow when generating code, answering questions, or reviewing changes.
 
 # Template-Doctor Project Context and Coding Guidelines
@@ -12,6 +13,7 @@ This document provides context about the Template-Doctor project, its architectu
 **Template-Doctor is a PRODUCTION-GRADE, MISSION-CRITICAL application used by Microsoft teams and the Azure community.**
 
 ### STRICTLY FORBIDDEN - Zero Tolerance Policy:
+
 - ❌ **NO MOCKS** - Never generate mock implementations
 - ❌ **NO STUBS** - Never create stub functions that don't implement full logic
 - ❌ **NO PLACEHOLDERS** - Never use placeholder code, comments like "TODO", or incomplete implementations
@@ -21,6 +23,7 @@ This document provides context about the Template-Doctor project, its architectu
 - ❌ **NO HALF-IMPLEMENTATIONS** - Every function must be complete and production-ready
 
 ### Production Code Requirements:
+
 - ✅ **FULL IMPLEMENTATIONS ONLY** - Every function must be complete, tested, and production-ready
 - ✅ **REAL INTEGRATIONS** - All external service integrations must be fully functional
 - ✅ **COMPLETE ERROR HANDLING** - Robust error handling with proper logging and user feedback
@@ -29,6 +32,7 @@ This document provides context about the Template-Doctor project, its architectu
 - ✅ **FULLY TESTED** - All code must have comprehensive tests before deployment
 
 **Rationale**: This application is used by real teams to validate production templates. Mock implementations or stubs could lead to:
+
 - Incorrect validation results affecting production deployments
 - Security vulnerabilities in production templates
 - Loss of trust from the community
@@ -50,6 +54,7 @@ Template-Doctor is an open-source tool designed to help developers validate, ana
 - **CI/CD**: Integrated with GitHub Actions for continuous integration and deployment.
 
 For detailed architecture information, migration status, and development patterns, refer to:
+
 - [AGENTS.md](/AGENTS.md) - Primary AI agent guide
 - [docs/development/architecture.md](/docs/development/architecture.md) - Detailed architecture
 - [docs/development/EXPRESS_MIGRATION_MATRIX.md](/docs/development/EXPRESS_MIGRATION_MATRIX.md) - Migration tracking
@@ -76,12 +81,14 @@ For detailed architecture information, migration status, and development pattern
 ## Critical Workflows
 
 ### Before Making Changes:
+
 1. Read [AGENTS.md](/AGENTS.md) for current project state and context
 2. Check migration status and active work in progress
 3. Verify no conflicts with ongoing migrations
 4. Ensure all dependencies are properly configured
 
 ### Code Quality Checklist:
+
 - [ ] Full implementation (no mocks/stubs/placeholders)
 - [ ] Comprehensive error handling using the Notification system in place (no alerts, etc)
 - [ ] Security best practices applied

@@ -4,19 +4,19 @@
 
 ### Port Allocation for OAuth Testing
 
-| Service | Port | OAuth Callback URL |
-|---------|------|-------------------|
-| **Vite Preview** | `3000` | `http://localhost:3000/callback.html` |
-| **Express Backend** | `3001` | N/A (API server) |
+| Service             | Port   | OAuth Callback URL                    |
+| ------------------- | ------ | ------------------------------------- |
+| **Vite Preview**    | `3000` | `http://localhost:3000/callback.html` |
+| **Express Backend** | `3001` | N/A (API server)                      |
 
 ## Step 1: Create GitHub OAuth App (Port 3000)
 
 1. Go to https://github.com/settings/developers
 2. Click "New OAuth App"
 3. Fill in:
-   - **Application name**: `Template Doctor Local (Port 3000)`
-   - **Homepage URL**: `http://localhost:3000`
-   - **Authorization callback URL**: `http://localhost:3000/callback.html`
+    - **Application name**: `Template Doctor Local (Port 3000)`
+    - **Homepage URL**: `http://localhost:3000`
+    - **Authorization callback URL**: `http://localhost:3000/callback.html`
 4. Click "Register application"
 5. Copy the **Client ID** (starts with `Ov23...`)
 6. Generate a **Client Secret** and copy it
@@ -24,6 +24,7 @@
 ## Step 2: Update Configuration
 
 ### Update `.env` in repo root:
+
 ```bash
 # GitHub OAuth (Port 3000 app)
 GITHUB_CLIENT_ID=.YourClientID
@@ -36,19 +37,21 @@ GITHUB_TOKEN_ANALYZER=ghp_your_analyzer_token
 ```
 
 ### Update `packages/app/config.preview.json`:
+
 ```json
 {
-  "githubOAuth": {
-    "clientId": ".YourClientID",
-    "redirectUri": "http://localhost:3000/callback.html"
-  },
-  "backend": {
-    "baseUrl": "http://localhost:3001"
-  }
+    "githubOAuth": {
+        "clientId": ".YourClientID",
+        "redirectUri": "http://localhost:3000/callback.html"
+    },
+    "backend": {
+        "baseUrl": "http://localhost:3001"
+    }
 }
 ```
 
 ### Update `packages/server/.env`:
+
 ```bash
 PORT=3001
 GITHUB_CLIENT_ID=.YourClientID
@@ -58,12 +61,14 @@ GITHUB_CLIENT_SECRET=your_secret_here
 ## Step 3: Start Both Servers
 
 ### Terminal 1: Start Express Backend
+
 ```bash
 cd packages/server
 npm run dev
 ```
 
 You should see:
+
 ```
 🚀 Template Doctor server running on port 3001
 📊 Health check: http://localhost:3001/api/health
@@ -71,11 +76,13 @@ You should see:
 ```
 
 ### Terminal 2: Start Frontend Preview
+
 ```bash
 ./preview.sh
 ```
 
 Or manually:
+
 ```bash
 cd packages/app
 npm run build
@@ -83,6 +90,7 @@ npm run preview
 ```
 
 You should see:
+
 ```
 🚀 Starting preview server on port 3000...
   🖥️  Frontend: http://localhost:3000
@@ -133,21 +141,25 @@ You should see:
 ## Troubleshooting
 
 ### "OAuth redirect URI mismatch"
+
 - **Problem**: GitHub OAuth app callback URL doesn't match
 - **Solution**: Verify callback URL in GitHub settings is exactly `http://localhost:3000/callback.html`
 
 ### "Backend not configured for GitHub OAuth"
+
 - **Problem**: Express server missing CLIENT_ID or CLIENT_SECRET
 - **Solution**: Check `packages/server/.env` has both values set
 
 ### "Failed to exchange token"
+
 - **Problem**: Backend can't reach GitHub or wrong client credentials
-- **Solution**: 
-  1. Check internet connection
-  2. Verify CLIENT_ID and CLIENT_SECRET match GitHub app
-  3. Check backend logs: `docker logs template-doctor-server`
+- **Solution**:
+    1. Check internet connection
+    2. Verify CLIENT_ID and CLIENT_SECRET match GitHub app
+    3. Check backend logs: `docker logs template-doctor-server`
 
 ### Port already in use
+
 ```bash
 # Kill process on port 3000
 lsof -ti :3000 | xargs kill -9
@@ -157,6 +169,7 @@ lsof -ti :3001 | xargs kill -9
 ```
 
 ### Frontend can't reach backend
+
 - **Problem**: CORS or wrong backend URL
 - **Solution**: Check `config.preview.json` has `"baseUrl": "http://localhost:3001"`
 
@@ -164,11 +177,11 @@ lsof -ti :3001 | xargs kill -9
 
 If you want to test multiple environments:
 
-| Environment | Port | OAuth App Name | Callback URL |
-|-------------|------|----------------|--------------|
-| **Development** | `4000` | Template Doctor Dev | `http://localhost:4000/callback.html` |
-| **Preview** | `3000` | Template Doctor Preview | `http://localhost:3000/callback.html` |
-| **Production** | `443` | Template Doctor Prod | `https://your-domain.com/callback.html` |
+| Environment     | Port   | OAuth App Name          | Callback URL                            |
+| --------------- | ------ | ----------------------- | --------------------------------------- |
+| **Development** | `4000` | Template Doctor Dev     | `http://localhost:4000/callback.html`   |
+| **Preview**     | `3000` | Template Doctor Preview | `http://localhost:3000/callback.html`   |
+| **Production**  | `443`  | Template Doctor Prod    | `https://your-domain.com/callback.html` |
 
 Each needs its own GitHub OAuth app with matching callback URLs.
 
@@ -207,28 +220,30 @@ curl -X POST http://localhost:3001/api/v4/github-oauth-token
 ## Config Files Summary
 
 ### `packages/app/config.preview.json` (Port 3000)
+
 ```json
 {
-  "githubOAuth": {
-    "clientId": "Ov23li6IDVTv9Ml50OKi",
-    "redirectUri": "http://localhost:3000/callback.html"
-  },
-  "backend": {
-    "baseUrl": "http://localhost:3001"
-  }
+    "githubOAuth": {
+        "clientId": "Ov23li6IDVTv9Ml50OKi",
+        "redirectUri": "http://localhost:3000/callback.html"
+    },
+    "backend": {
+        "baseUrl": "http://localhost:3001"
+    }
 }
 ```
 
 ### `packages/app/config.local.json` (Port 4000 - Dev)
+
 ```json
 {
-  "githubOAuth": {
-    "clientId": "Ov23li6IDVTv9Ml50OKi",
-    "redirectUri": "http://localhost:4000/callback.html"
-  },
-  "backend": {
-    "baseUrl": "http://localhost:3001"
-  }
+    "githubOAuth": {
+        "clientId": "Ov23li6IDVTv9Ml50OKi",
+        "redirectUri": "http://localhost:4000/callback.html"
+    },
+    "backend": {
+        "baseUrl": "http://localhost:3001"
+    }
 }
 ```
 

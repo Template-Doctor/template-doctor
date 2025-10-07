@@ -1,9 +1,11 @@
 # Leaderboards Data Aggregation Implementation Plan
 
 ## Overview
+
 This document outlines the implementation plan for converting the current mock leaderboards dashboard into a functional system that aggregates real data from Template Doctor analysis results.
 
 ## Current State
+
 - **Static Mock Data**: Leaderboards currently display hardcoded fake data for demonstration purposes
 - **Beautiful UI**: Complete dashboard with D3.js visualizations (pie charts, bar charts, heatmaps)
 - **Real Template Names**: Using actual Azure Sample repository names from batch scan URLs
@@ -12,10 +14,12 @@ This document outlines the implementation plan for converting the current mock l
 ## Data Sources to Implement
 
 ### 1. Analysis Results Database
+
 **Current**: Stored as JS files in `packages/app/results/`
 **Need**: Database or structured storage system
 
 **Required Tables/Collections**:
+
 ```sql
 -- Analysis Results
 CREATE TABLE analysis_results (
@@ -70,9 +74,11 @@ CREATE TABLE user_analytics (
 ```
 
 ### 2. GitHub API Integration
+
 **Purpose**: Fetch real repository metadata (stars, forks, activity)
 
 **Implementation**:
+
 ```typescript
 // packages/api/src/github-metrics/
 class GitHubMetricsService {
@@ -80,7 +86,7 @@ class GitHubMetricsService {
         // Fetch stars, forks, recent commits, contributors
         // Cache results to avoid rate limits
     }
-    
+
     async getTemplateActivity(templates: string[]) {
         // Batch fetch activity metrics for multiple templates
         // Return activity scores based on commits, PRs, issues
@@ -89,14 +95,17 @@ class GitHubMetricsService {
 ```
 
 ### 3. AZD Deployment Analytics
+
 **Purpose**: Track successful deployments by service type
 
 **Data Collection Points**:
+
 - Azure Developer CLI telemetry (if available)
 - Analysis of azd configuration files success rates
 - Deployment target detection (ACA, AKS, Azure Functions)
 
 **Implementation**:
+
 ```typescript
 // packages/analyzer-core/src/azd-analyzer/
 class AzdDeploymentAnalyzer {
@@ -105,7 +114,7 @@ class AzdDeploymentAnalyzer {
         // Determine deployment targets
         // Assess configuration completeness
     }
-    
+
     calculateDeploymentScore(template: any) {
         // Score based on config completeness, best practices
         // Return success probability
@@ -114,9 +123,11 @@ class AzdDeploymentAnalyzer {
 ```
 
 ### 4. AI Model Success Tracking
+
 **Purpose**: Track which AI models perform best for different languages/scenarios
 
 **Implementation**:
+
 ```typescript
 // Track model usage and success rates
 interface ModelUsage {
@@ -133,41 +144,58 @@ interface ModelUsage {
 ## API Endpoints to Implement
 
 ### Backend Functions (Azure Functions)
+
 ```typescript
 // packages/api/src/leaderboards/
 
 // GET /api/v4/leaderboards/top-analyzers
-export async function getTopAnalyzers(req: HttpRequest, context: InvocationContext) {
+export async function getTopAnalyzers(
+    req: HttpRequest,
+    context: InvocationContext,
+) {
     // Query analysis_results, group by analyzer_user
     // Return top users by analysis count
 }
 
 // GET /api/v4/leaderboards/template-issues
-export async function getTemplateIssues(req: HttpRequest, context: InvocationContext) {
+export async function getTemplateIssues(
+    req: HttpRequest,
+    context: InvocationContext,
+) {
     // Query issues, group by template
     // Return templates with highest issue counts
 }
 
 // GET /api/v4/leaderboards/prevalent-issues
-export async function getPrevalentIssues(req: HttpRequest, context: InvocationContext) {
+export async function getPrevalentIssues(
+    req: HttpRequest,
+    context: InvocationContext,
+) {
     // Query issues, group by category
     // Return aggregated issue counts for pie chart
 }
 
 // GET /api/v4/leaderboards/model-success
-export async function getModelSuccess(req: HttpRequest, context: InvocationContext) {
+export async function getModelSuccess(
+    req: HttpRequest,
+    context: InvocationContext,
+) {
     // Query analysis_results, group by model_used
     // Calculate success rates by model and language
 }
 
 // GET /api/v4/leaderboards/azd-deployments
-export async function getAzdDeployments(req: HttpRequest, context: InvocationContext) {
+export async function getAzdDeployments(
+    req: HttpRequest,
+    context: InvocationContext,
+) {
     // Query successful deployments by service type
     // Return deployment counts and success rates
 }
 ```
 
 ### Frontend Data Loading
+
 ```typescript
 // packages/app/src/scripts/leaderboards-data.ts
 class LeaderboardsDataLoader {
@@ -177,21 +205,21 @@ class LeaderboardsDataLoader {
             templateIssues,
             prevalentIssues,
             modelSuccess,
-            azdDeployments
+            azdDeployments,
         ] = await Promise.all([
-            this.api.get('/leaderboards/top-analyzers'),
-            this.api.get('/leaderboards/template-issues'),
-            this.api.get('/leaderboards/prevalent-issues'),
-            this.api.get('/leaderboards/model-success'),
-            this.api.get('/leaderboards/azd-deployments')
+            this.api.get("/leaderboards/top-analyzers"),
+            this.api.get("/leaderboards/template-issues"),
+            this.api.get("/leaderboards/prevalent-issues"),
+            this.api.get("/leaderboards/model-success"),
+            this.api.get("/leaderboards/azd-deployments"),
         ]);
-        
+
         return {
             topAnalyzers,
             templateIssues,
             prevalentIssues,
             modelSuccess,
-            azdDeployments
+            azdDeployments,
         };
     }
 }
@@ -200,6 +228,7 @@ class LeaderboardsDataLoader {
 ## Data Processing Pipeline
 
 ### 1. Real-time Updates
+
 ```typescript
 // When analysis completes, update leaderboards
 class LeaderboardUpdater {
@@ -213,6 +242,7 @@ class LeaderboardUpdater {
 ```
 
 ### 2. Batch Processing
+
 ```typescript
 // Nightly aggregation job
 class LeaderboardAggregator {
@@ -226,37 +256,42 @@ class LeaderboardAggregator {
 ```
 
 ### 3. Caching Strategy
+
 ```typescript
 // Cache leaderboard data for performance
 interface CacheConfig {
-    topAnalyzers: { ttl: '1 hour' },
-    templateIssues: { ttl: '30 minutes' },
-    prevalentIssues: { ttl: '2 hours' },
-    modelSuccess: { ttl: '4 hours' }
+    topAnalyzers: { ttl: "1 hour" };
+    templateIssues: { ttl: "30 minutes" };
+    prevalentIssues: { ttl: "2 hours" };
+    modelSuccess: { ttl: "4 hours" };
 }
 ```
 
 ## Migration Strategy
 
 ### Phase 1: Database Setup
+
 1. Choose database (Azure SQL, Cosmos DB, or PostgreSQL)
 2. Create schema/collections for analysis results
 3. Implement data migration from existing JS result files
 4. Set up data access layer
 
 ### Phase 2: API Implementation
+
 1. Create leaderboard API endpoints
 2. Implement data aggregation queries
 3. Add caching layer
 4. Test with existing result data
 
 ### Phase 3: Frontend Integration
+
 1. Replace mock data with API calls
 2. Add loading states and error handling
 3. Implement real-time updates
 4. Add data refresh mechanisms
 
 ### Phase 4: Advanced Features
+
 1. Historical trending analysis
 2. Comparative analytics
 3. User-specific leaderboards
@@ -265,16 +300,19 @@ interface CacheConfig {
 ## Performance Considerations
 
 ### Database Optimization
+
 - Index on frequently queried columns (user, template, timestamp)
 - Partitioning for large datasets
 - Read replicas for leaderboard queries
 
 ### Caching
+
 - Redis cache for aggregated results
 - CDN caching for static leaderboard data
 - Browser caching with appropriate TTLs
 
 ### API Rate Limits
+
 - GitHub API rate limiting considerations
 - Batch processing for external API calls
 - Graceful degradation when APIs unavailable
@@ -282,11 +320,13 @@ interface CacheConfig {
 ## Security & Privacy
 
 ### Data Privacy
+
 - Anonymize user data in public leaderboards
 - Implement opt-out mechanisms
 - GDPR compliance for EU users
 
 ### Access Control
+
 - Admin-only access to detailed analytics
 - Public vs private leaderboard sections
 - Rate limiting on leaderboard APIs
@@ -294,12 +334,14 @@ interface CacheConfig {
 ## Monitoring & Analytics
 
 ### Metrics to Track
+
 - Leaderboard page views and engagement
 - Data freshness and update frequency
 - API performance and error rates
 - Cache hit rates and effectiveness
 
 ### Alerts
+
 - Data pipeline failures
 - Stale data detection
 - API rate limit approaching
@@ -308,16 +350,19 @@ interface CacheConfig {
 ## Testing Strategy
 
 ### Unit Tests
+
 - Data aggregation logic
 - Chart rendering functions
 - API endpoint responses
 
 ### Integration Tests
+
 - End-to-end leaderboard loading
 - Data consistency checks
 - Performance benchmarks
 
 ### Load Testing
+
 - High-traffic leaderboard access
 - Database query performance
 - Cache effectiveness under load
@@ -325,12 +370,14 @@ interface CacheConfig {
 ## Documentation
 
 ### Developer Documentation
+
 - API endpoint documentation
 - Database schema documentation
 - Data pipeline architecture
 - Deployment procedures
 
 ### User Documentation
+
 - Leaderboard metrics explanation
 - How rankings are calculated
 - Data update frequency

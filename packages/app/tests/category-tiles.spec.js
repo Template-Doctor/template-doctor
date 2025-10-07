@@ -11,7 +11,7 @@ async function renderDashboard(page, mockResult) {
       container.style.display = 'block';
       document.body.appendChild(container);
     }
-    
+
     if (window.DashboardRenderer && typeof window.DashboardRenderer.render === 'function') {
       await window.DashboardRenderer.render(result, container);
     }

@@ -129,7 +129,7 @@ test.describe('Batch resume and cancel', () => {
 
     // Wait for at least one batch item to start processing
     await expect(page.locator('#batch-items .batch-item')).toHaveCount(3, { timeout: 5000 });
-    
+
     // Give the first scan a moment to start
     await page.waitForTimeout(100);
 
@@ -150,7 +150,7 @@ test.describe('Batch resume and cancel', () => {
     const successCount = await page.locator('#batch-items .batch-item.success').count();
     const errorCount = await page.locator('#batch-items .batch-item.error').count();
     const totalProcessed = successCount + errorCount;
-    
+
     // With 3 URLs and 200ms delay each, cancelling should stop some from completing
     expect(totalProcessed).toBeLessThan(3);
   });

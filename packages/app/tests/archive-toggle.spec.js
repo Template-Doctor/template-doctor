@@ -29,7 +29,7 @@ async function openRulesetModal(page, { archiveEnabledGlobal }) {
 
 async function submitWithIntercept(page) {
   const requests = [];
-  
+
   // Set up the route intercept FIRST before triggering submission
   await page.route('**/repos/Template-Doctor/template-doctor/dispatches', async (route) => {
     const req = route.request();

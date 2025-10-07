@@ -276,18 +276,18 @@ async function runValidation(templateUrl: string) {
 
     if (currentGithubRunUrl) {
       appendLog(logElement, `GitHub Run URL: ${currentGithubRunUrl}`);
-      
+
       // Add clickable button (not auto-open)
       const linkDiv = document.createElement('div');
       linkDiv.style.cssText =
         'margin: 10px 0; padding: 8px; background: #1a1b1c; border-left: 3px solid #0078d4;';
-      
+
       const linkButton = document.createElement('button');
       linkButton.textContent = '🔗 View GitHub Actions Run';
       linkButton.style.cssText =
         'background: #0078d4; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px;';
       linkButton.onclick = () => window.open(currentGithubRunUrl!, '_blank');
-      
+
       linkDiv.appendChild(linkButton);
       logElement.appendChild(linkDiv);
     }
@@ -431,7 +431,10 @@ function startStatusPolling(apiBase: string, runId: string) {
         url.searchParams.set('workflowRunId', currentGithubRunId);
       } else {
         // Fallback to runId if workflowRunId not available (shouldn't happen)
-        console.warn('Fallback: workflowRunId not available, using runId instead. This should not happen.', { runId, currentGithubRunId });
+        console.warn(
+          'Fallback: workflowRunId not available, using runId instead. This should not happen.',
+          { runId, currentGithubRunId },
+        );
         url.searchParams.set('runId', runId);
       }
       if (currentWorkflowOrgRepo) {
@@ -478,7 +481,7 @@ function startStatusPolling(apiBase: string, runId: string) {
 
         if (status.conclusion === 'success') {
           appendLog(logElement!, '✓ Validation completed successfully!');
-          
+
           // Show celebratory success tile
           const successTile = document.createElement('div');
           successTile.style.cssText =
@@ -493,11 +496,11 @@ function startStatusPolling(apiBase: string, runId: string) {
             </div>
           `;
           logElement!.appendChild(successTile);
-          
+
           showSuccess('Validation Complete', 'Template validation passed!');
         } else if (status.conclusion === 'failure') {
           appendLog(logElement!, '✗ Validation failed');
-          
+
           // Show error details if available
           if (status.errorSummary) {
             const errorDiv = document.createElement('div');
@@ -506,13 +509,13 @@ function startStatusPolling(apiBase: string, runId: string) {
             errorDiv.innerHTML = `<strong style="color: #f44336;">Error Details:</strong>\n${status.errorSummary}`;
             logElement!.appendChild(errorDiv);
           }
-          
+
           // Add links to failed jobs
           if (status.failedJobs && status.failedJobs.length > 0) {
             const jobsDiv = document.createElement('div');
             jobsDiv.style.cssText =
               'margin: 10px 0; padding: 12px; background: #1a1b1c; border-left: 3px solid #ff9800;';
-            
+
             let jobsHtml = '<strong style="color: #ff9800;">Failed Jobs:</strong><br>';
             status.failedJobs.forEach((job: any) => {
               jobsHtml += `<a href="${job.html_url}" target="_blank" style="color: #4fc3f7; text-decoration: none; display: block; margin: 5px 0;">📋 ${job.name}</a>`;
@@ -527,23 +530,23 @@ function startStatusPolling(apiBase: string, runId: string) {
             jobsDiv.innerHTML = jobsHtml;
             logElement!.appendChild(jobsDiv);
           }
-          
+
           // Add "Create Issue" button
           if (status.html_url) {
             const issueDiv = document.createElement('div');
             issueDiv.style.cssText =
               'margin: 10px 0; padding: 12px; background: #1a1b1c; border-left: 3px solid #0078d4;';
-            
+
             const issueButton = document.createElement('button');
             issueButton.textContent = '🐛 Create GitHub Issue';
             issueButton.style.cssText =
               'background: #0078d4; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px;';
             issueButton.onclick = () => createValidationIssue(status);
-            
+
             issueDiv.appendChild(issueButton);
             logElement!.appendChild(issueDiv);
           }
-          
+
           showError('Validation Failed', 'Template validation encountered errors');
         } else if (status.conclusion === 'cancelled') {
           appendLog(logElement!, '⚠ Validation cancelled');
@@ -584,35 +587,35 @@ function stopPolling() {
 function createValidationIssue(status: any) {
   const targetRepoInput = document.getElementById('targetRepoUrl') as HTMLInputElement;
   const targetRepoUrl = targetRepoInput?.value || '';
-  
+
   if (!targetRepoUrl) {
     showError('Missing Information', 'Cannot determine target repository');
     return;
   }
-  
+
   // Extract owner/repo from URL
   const match = targetRepoUrl.match(/https?:\/\/github\.com\/([^\/]+)\/([^\/]+)/);
   if (!match) {
     showError('Invalid URL', 'Could not parse repository from URL');
     return;
   }
-  
+
   const [, owner, repo] = match;
-  
+
   // Build issue title
   const title = `[Template Doctor] AZD Validation Failed`;
-  
+
   // Build issue body
   let body = `## AZD Validation Failure Report\n\n`;
   body += `**Repository:** ${targetRepoUrl}\n`;
   body += `**Validation Run:** ${status.html_url || 'N/A'}\n`;
   body += `**Status:** ${status.status} (${status.conclusion})\n`;
   body += `**Date:** ${new Date().toISOString()}\n\n`;
-  
+
   if (status.errorSummary) {
     body += `### Error Summary\n\n\`\`\`\n${status.errorSummary}\n\`\`\`\n\n`;
   }
-  
+
   if (status.failedJobs && status.failedJobs.length > 0) {
     body += `### Failed Jobs\n\n`;
     status.failedJobs.forEach((job: any) => {
@@ -625,7 +628,7 @@ function createValidationIssue(status: any) {
     });
     body += `\n`;
   }
-  
+
   body += `### Next Steps\n\n`;
   body += `1. Review the [workflow run logs](${status.html_url})\n`;
   body += `2. Check for common issues:\n`;
@@ -636,16 +639,17 @@ function createValidationIssue(status: any) {
   body += `3. Fix identified issues and re-run validation\n\n`;
   body += `---\n`;
   body += `*This issue was created automatically by [Template Doctor](https://github.com/Template-Doctor/template-doctor)*`;
-  
+
   // Create GitHub issue URL with pre-filled data
-  const issueUrl = `https://github.com/${owner}/${repo}/issues/new?` +
+  const issueUrl =
+    `https://github.com/${owner}/${repo}/issues/new?` +
     `title=${encodeURIComponent(title)}&` +
     `body=${encodeURIComponent(body)}&` +
     `labels=bug,azd-validation`;
-  
+
   // Open in new tab
   window.open(issueUrl, '_blank');
-  
+
   showInfo('Issue Created', 'Opening GitHub issue form in new tab');
 }
 

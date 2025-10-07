@@ -344,7 +344,7 @@ async function performSearch(query: string): Promise<void> {
       analyzeBtn.addEventListener('click', (e) => {
         e.stopPropagation(); // Prevent event bubbling
         console.log('[Search DEBUG] Analyze button clicked:', matchedTemplate.repoUrl);
-        
+
         if (!matchedTemplate.repoUrl) return;
 
         // Check if user is authenticated to avoid rate limiting
@@ -387,7 +387,7 @@ async function performSearch(query: string): Promise<void> {
       validateBtn.addEventListener('click', (e) => {
         e.stopPropagation(); // Prevent event bubbling
         console.log('[Search DEBUG] Validate button clicked:', matchedTemplate.repoUrl);
-        
+
         if ((window as any).NotificationSystem) {
           (window as any).NotificationSystem.showInfo(
             'Validation',
@@ -486,7 +486,7 @@ async function performSearch(query: string): Promise<void> {
         if (analyzeBtn) {
           analyzeBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            
+
             if (!template.repoUrl) return;
 
             // Check if user is authenticated
@@ -526,7 +526,7 @@ async function performSearch(query: string): Promise<void> {
         if (validateBtn) {
           validateBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            
+
             if ((window as any).NotificationSystem) {
               (window as any).NotificationSystem.showInfo(
                 'Validation',
@@ -637,7 +637,7 @@ async function performSearch(query: string): Promise<void> {
     if (validateBtn) {
       validateBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        
+
         if ((window as any).NotificationSystem) {
           (window as any).NotificationSystem.showInfo(
             'Validation',
