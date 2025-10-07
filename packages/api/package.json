@@ -7,7 +7,6 @@
         "start": "func start",
         "build": "node bundle-analyzer-core.js && tsc -p .",
         "clean": "rm -rf dist",
-        "prepare": "npm run build",
         "test": "echo \"No tests yet\"",
         "test:trivy": "node ./validation-docker-image/tests/test-trivy-processor.js ./validation-docker-image/example-scan-files/image-scan.json",
         "typecheck": "tsc -p . --noEmit"

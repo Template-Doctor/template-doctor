@@ -3,6 +3,9 @@ import { wrapHttp } from "./shared/http";
 import { loadEnv } from "./shared/env";
 import { isPost, parseOwnerRepo } from "./shared/validation";
 
+// Constants
+const POLLING_LOOKBACK_MS = 10 * 60 * 1000; // 10 minutes
+
 interface TriggerBody {
     workflowOrgRep?: string; // owner/repo
     workflowId?: string | number; // file name or numeric id
@@ -125,7 +128,7 @@ export default wrapHttp(async (req: any, ctx: Context, requestId: string) => {
     }
     // Ten minutes lookback for polling
     const tenMinutesAgoIso = new Date(
-        Date.now() - 10 * 60 * 1000,
+        Date.now() - POLLING_LOOKBACK_MS,
     ).toISOString();
     // Dispatch
     const dispatchRes = await dispatchWorkflow(
