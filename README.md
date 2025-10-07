@@ -14,53 +14,151 @@
 
 </div>
 
-> [!IMPORTANT]
-> This app has been built with vanilla JavaScript for fast prototyping and will be migrated to TypeScript for robustness.
-
 Template Doctor analyzes and validates samples and templates, including but not limited to Azure Developer CLI (azd) templates. It provides a web UI to view analysis results and take action, including opening GitHub issues and assigning them to GitHub copilot in one go. It also automates PR updates with scan results.
 
 # Overview
 
-Template Doctor analyzes and validates samples and templates, including but not limited to Azure Developer CLI (azd) templates. It provides a web UI to view analysis results and take action, including opening GitHub issues and assigning them to GitHub copilot in one go. It also automates PR updates with scan results.
+Template Doctor is a containerized application that analyzes and validates samples and templates, with a focus on Azure Developer CLI (azd) templates. It provides:
 
-> [!IMPORTANT]
-> This app has been built with vanilla JavaScript for fast prototyping and will be migrated to TypeScript for robustness.
-> Progress to be tracked here: https://github.com/Template-Doctor/template-doctor/pull/89
+- **Web UI**: TypeScript-based Vite SPA for viewing analysis results and managing templates
+- **REST API**: Express backend for validation, OAuth, and GitHub integration
+- **Containerized Deployment**: Docker-based architecture for consistent development and production environments
+- **One-Click Actions**: GitHub issue creation with AI-powered suggestions and automated PR updates
 
 ## Features
 
-- Template analysis and validation against organization standards
-- Web UI for viewing analysis results
-- One-click GitHub issue creation with AI-powered assignee suggestions
-- Automated PR updates with scan results
-- Bicep security analysis
-- Azure Developer CLI (azd) deployment testing
-- AI model deprecation checking
-- Centralized archive for analysis metadata
-- Automated API smoke tests in CI (see badge above)
+- **Template Analysis**: Validate templates against organization standards and best practices
+- **Interactive Web UI**: TypeScript-based Vite SPA for viewing and managing analysis results
+- **Security Analysis**: Bicep security checks for Managed Identity, insecure auth patterns, and anonymous access
+- **AI Integration**: One-click GitHub issue creation with AI-powered suggestions
+- **Automated Workflows**: PR updates with scan results and deployment testing
+- **Azure Developer CLI (azd)**: AZD deployment validation and testing
+- **AI Model Checks**: Automated deprecation checking for AI models
+- **Centralized Archive**: Metadata storage for analysis results
+- **CI/CD Integration**: Automated API smoke tests and deployment workflows
 
 ## Architecture
 
-This repository is structured as a monorepo with independently deployable packages:
+Template Doctor is a **containerized monorepo** with independently deployable packages:
 
-- **packages/app** — Static web app (frontend UI)
-    - Serves the dashboard and loads scan results from `packages/app/results/`
-- **packages/api** — Azure Functions (PR creation, OAuth helpers, AZD validation)
-- **docs** — Documentation for GitHub Action/App and usage
+### Current Architecture (Express-based)
+
+- **packages/app**: Vite SPA (TypeScript frontend)
+    - Built with Vite for fast development and optimized production builds
+    - Serves dashboard at http://localhost:3000 (preview/production)
+    - Development server at http://localhost:4000 with HMR
+    - Loads scan results from `packages/app/results/`
+
+- **packages/server**: Express backend (TypeScript REST API)
+    - RESTful API at http://localhost:3001
+    - Handles OAuth token exchange, template validation, and GitHub integration
+    - CORS-enabled for frontend communication
+    - Serves static frontend assets in production
+
+- **packages/analyzer-core**: Core analyzer functionality (shared library)
+    - Shared validation logic used by both server and legacy API
+    - Bundled into dependent packages during build
+
+- **Docker**: Containerized deployment
+    - `docker-compose.yml`: Multi-container development setup
+    - `Dockerfile.combined`: Single-container production build
+    - Includes all services (frontend + backend) in one deployable unit
+
+### Legacy Architecture (Azure Functions)
+
+- **packages/api**: Azure Functions (maintained in `legacy/azure-functions` branch)
+    - Original serverless implementation
+    - Preserved for reference and migration comparison
+    - Optional build with `--if-present` flag
+
+### Results Storage
 
 Results live under `packages/app/results/`:
 
-- `packages/app/results/index-data.js` — master list of scanned templates (window.templatesData)
-- `packages/app/results/<owner-repo>/<timestamp>-data.js` — per-scan data (window.reportData)
-- `packages/app/results/<owner-repo>/<timestamp>-dashboard.html` — per-scan dashboard
+- `packages/app/results/index-data.js` — Master list of scanned templates (window.templatesData)
+- `packages/app/results/<owner-repo>/<timestamp>-data.js` — Per-scan data (window.reportData)
+- `packages/app/results/<owner-repo>/<timestamp>-dashboard.html` — Per-scan dashboard
 
 # Installation and Setup
 
 ## Prerequisites
 
-- Node.js (LTS) and npm
-- Azure Functions Core Tools (for API development)
-- GitHub account with appropriate permissions
+- **Node.js LTS** (v20.x, enforced by guard script)
+- **npm** (for dependency management)
+- **Docker & Docker Compose** (recommended for local development)
+- **GitHub account** with appropriate permissions
+
+> [!NOTE]
+> The project enforces Node.js LTS range: >=20 <23. A guard script (`scripts/ensure-node-version.js`) will fail fast if you use an unsupported version. Use `nvm install 20 && nvm use 20` if needed.
+
+## Quick Start (Docker - Recommended)
+
+1. **Clone the repository**:
+    ```bash
+    git clone https://github.com/Template-Doctor/template-doctor.git
+    cd template-doctor
+    ```
+
+2. **Install dependencies**:
+    ```bash
+    npm ci
+    ```
+
+3. **Configure environment**:
+    ```bash
+    cp .env.example .env
+    ```
+    
+    Edit `.env` with your values (see [Environment Variables](#environment-variables) below)
+
+4. **Start with Docker Compose**:
+    ```bash
+    docker-compose up
+    ```
+
+5. **Access the application**:
+    - Frontend: http://localhost:3000
+    - Backend API: http://localhost:3001
+
+## Manual Development Setup
+
+If you prefer running services without Docker:
+
+1. **Follow steps 1-3 from Quick Start above**
+
+2. **Build packages**:
+    ```bash
+    npm run build -w packages/server
+    npm run build -w packages/app
+    ```
+
+3. **Start services in SEPARATE terminals**:
+
+    **Terminal 1 - Express Backend (port 3001)**:
+    ```bash
+    cd packages/server
+    npm run dev
+    ```
+
+    **Terminal 2 - Vite Dev Server (port 4000)**:
+    ```bash
+    cd packages/app
+    npm run dev
+    ```
+
+4. **Access the application**: http://localhost:4000
+
+> [!IMPORTANT]
+> The Express backend MUST be running before using OAuth login or analysis features.
+> Hard refresh (Cmd+Shift+R / Ctrl+Shift+R) required after config changes.
+
+### Port Allocation
+
+| Service          | Development | Preview | Docker |
+|------------------|-------------|---------|--------|
+| Vite Dev Server  | 4000        | -       | -      |
+| Vite Preview     | -           | 3000    | 3000   |
+| Express Backend  | 3001        | 3001    | 3001   |
 
 ## Authentication Setup
 
@@ -83,13 +181,20 @@ Results live under `packages/app/results/`:
 
 Template Doctor uses a consolidated approach to environment variables. All variables are defined in a single `.env` file at the root of the project.
 
-1. Copy the example file:
-
+1. **Copy the example file**:
     ```bash
     cp .env.example .env
     ```
 
-2. Fill in the core variables required for your environment
+2. **Required variables**:
+    - `GITHUB_CLIENT_ID`: OAuth app client ID (required for authentication)
+    - `GITHUB_CLIENT_SECRET`: OAuth app client secret (required for authentication)
+    - `GH_WORKFLOW_TOKEN`: GitHub token with workflow permissions
+
+3. **Configuration layers**:
+    - **Backend** (`packages/server/.env`): Copied from root during Docker build
+    - **Frontend** (`packages/app/config.json`): Client configuration with backend URLs
+    - **Environment** (`.env` at repo root): Single source of truth for shared config
 
 See the [Environment Variables Documentation](docs/development/ENVIRONMENT_VARIABLES.md) for a complete reference of all available variables.
 
@@ -97,33 +202,59 @@ See the [Environment Variables Documentation](docs/development/ENVIRONMENT_VARIA
 
 ## Local Development
 
-1. Install dependencies:
+### With Docker (Recommended)
+
+1. **Install dependencies**:
     ```bash
     npm ci
     ```
 
-The project enforces a Node.js LTS range: >=20 <23. A guard script (`scripts/ensure-node-version.js`) will fail fast if you use an unsupported version (e.g. early experimental 23.x). Use `nvm install 20 && nvm use 20` if needed.
-
-2. Start the API locally:
-
+2. **Start all services**:
     ```bash
-    npm run -w packages/api start
+    docker-compose up
     ```
 
-3. Start the frontend (Vite dev server with live reload & TypeScript support):
+3. **Access the application**:
+    - Frontend: http://localhost:3000
+    - Backend API: http://localhost:3001
 
-```bash
-npm run -w packages/app dev
-```
+### Manual Development (Two-Terminal Approach)
 
-4. Open http://localhost:5173 (default Vite port) in your browser. The frontend will call the API at http://localhost:7071 by default.
+1. **Install dependencies**:
+    ```bash
+    npm ci
+    ```
+
+2. **Build packages**:
+    ```bash
+    npm run build:analyzer-core
+    npm run build -w packages/server
+    npm run build -w packages/app
+    ```
+
+3. **Terminal 1 - Start Express backend**:
+    ```bash
+    cd packages/server
+    npm run dev
+    ```
+
+4. **Terminal 2 - Start Vite dev server**:
+    ```bash
+    cd packages/app
+    npm run dev
+    ```
+
+5. **Open browser**: http://localhost:4000
 
 > [!NOTE]
-> The legacy guidance to use a Python static server has been removed. The migration to a TypeScript + Vite build pipeline is in progress; always prefer `npm run dev` during development.
+> The Vite dev server provides hot module replacement (HMR) for fast TypeScript development.
+> The Express backend must be running before using OAuth or analysis features.
 
 ## Testing
 
-Run frontend tests (Playwright) from the root:
+### Run All Tests
+
+From the project root:
 
 ```bash
 npm test           # Run all tests
@@ -131,17 +262,144 @@ npm run test:ui    # Run tests with UI
 npm run test:debug # Run tests in debug mode
 ```
 
-You can run a specific test with:
+### Run Specific Tests
 
 ```bash
 npm run test -- "-g" "should handle search functionality" packages/app/tests/app.spec.js
 ```
 
+### API Smoke Tests
+
+For quick end-to-end verification of Express endpoints:
+
+```bash
+./scripts/smoke-api.sh                           # Default (http://localhost:3001)
+BASE=http://localhost:3001 ./scripts/smoke-api.sh # Override base URL
+DRY_RUN=1 ./scripts/smoke-api.sh                 # Print commands only
+```
+
+The smoke script verifies:
+- Config endpoint (`/api/v4/client-settings`)
+- Validation endpoints
+- Analysis endpoints
+- OAuth flow (if `GITHUB_TOKEN` present)
+
+> [!NOTE]
+> Test files use Playwright for E2E testing. Avoid native browser dialogs in code (use notifications) to keep tests stable.
+
+## Build and Deployment
+
+### Build All Packages
+
+```bash
+npm run build:all
+```
+
+This builds packages in the correct dependency order:
+1. `analyzer-core` (shared library)
+2. `server` (Express backend)
+3. `app` (Vite frontend)
+
+### Docker Deployment
+
+#### Single-Container Production Build
+
+```bash
+# Build the combined image
+docker build -f Dockerfile.combined -t template-doctor .
+
+# Run the container
+docker run -p 3000:3000 --env-file .env template-doctor
+```
+
+The combined Dockerfile:
+- Builds all packages (analyzer-core → server → app)
+- Serves frontend and API from single Express process
+- Optimized for production deployment
+
+#### Multi-Container Development
+
+```bash
+# Start all services
+docker-compose up
+
+# Rebuild and restart
+docker-compose up --build
+
+# Stop services
+docker-compose down
+```
+
+### Preview Build Locally
+
+```bash
+# Build all packages
+npm run build:all
+
+# Start preview server (port 3000)
+npm run preview -w packages/server
+```
+
+Access at http://localhost:3000
+
 ## Requirements and Conventions
 
-- **Origin Upstream Requirement**: For provisioning templates with azd, the canonical upstream must be provided in the format `owner/repo`. This is used for `azd init -t <owner/repo>` and ensures the test/provision flow uses the correct azd template (no heuristics).
-- **Results Storage**: New scan PRs write to `packages/app/results` and update `packages/app/results/index-data.js`.
+- **Origin Upstream Requirement**: For provisioning templates with azd, the canonical upstream must be provided in the format `owner/repo`. This is used for `azd init -t <owner/repo>` and ensures the test/provision flow uses the correct azd template.
+- **Results Storage**: New scan PRs write to `packages/app/results/` and update `packages/app/results/index-data.js`.
 - **Independent Deployment**: Each package is deployable independently via dedicated workflows.
+- **TypeScript-First**: All new code should be TypeScript with proper type definitions.
+- **No Mocks in Production**: All implementations must be complete and production-ready (see `.github/instructions/copilot-instructions.md`).
+
+## Troubleshooting
+
+### Common Issues
+
+- **OAuth redirect issues**: Ensure ports match between GitHub OAuth app settings and local server
+  - Development: Frontend 4000, Backend 3001
+  - Preview/Docker: Frontend 3000, Backend 3001
+
+- **Express server not starting**: 
+  - Check `.env` file exists with required variables
+  - Verify port 3001 is not in use: `lsof -i :3001`
+
+- **Docker issues**:
+  - Ensure Docker and Docker Compose are installed and running
+  - Check logs: `docker-compose logs`
+
+- **Port conflicts**: Kill processes if needed:
+  ```bash
+  lsof -ti :3000 | xargs kill -9  # Frontend preview
+  lsof -ti :3001 | xargs kill -9  # Backend
+  lsof -ti :4000 | xargs kill -9  # Frontend dev
+  ```
+
+- **Configuration mismatch**: Verify `config.json` has correct `githubOAuth.clientId` matching `.env`
+
+## Deployments (CI/CD)
+
+### GitHub Actions Workflows
+
+Located in `.github/workflows/`:
+
+- **smoke-api.yml**: API smoke tests
+  - Runs on push/PR to verify Express API endpoints
+  - Builds analyzer-core → server → runs smoke tests
+  - See badge at top of README
+
+- **Nightly Deploy**: Automated deployment
+  - Runs nightly at 02:15 UTC
+  - Can be triggered manually via "Run workflow"
+  - See details: [docs/usage/DEPLOYMENT.md](docs/usage/DEPLOYMENT.md)
+
+- **Submit Template Analysis**: repository_dispatch workflow
+  - Saves scan results and opens a PR using `peter-evans/create-pull-request`
+  - See setup guide: [docs/usage/GITHUB_ACTION_SETUP.md](docs/usage/GITHUB_ACTION_SETUP.md)
+
+### Publishing Results
+
+- After "Save Results" creates a PR and the PR is merged, results appear on the site after the nightly deploy
+- Admins can run the deploy workflow manually to publish immediately
+- The UI shows a notification to inform users of this timing
 
 ## Deployments (CI/CD)
 
