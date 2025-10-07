@@ -83,5 +83,5 @@ export function isPost(method: string, requestId: string) {
             },
         };
     }
-    return {};
+    return { value: true };
 }

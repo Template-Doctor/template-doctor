@@ -34,10 +34,9 @@ function copyRecursive(src, dest) {
 }
 
 if (!fs.existsSync(ANALYZER_CORE_SRC)) {
-    console.error(
+    throw new Error(
         "ERROR: analyzer-core dist not found. Build analyzer-core first!",
     );
-    process.exit(1);
 }
 
 // Copy TypeScript source files for compilation
