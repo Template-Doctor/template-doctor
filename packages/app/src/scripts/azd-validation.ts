@@ -354,13 +354,31 @@ async function runValidation(templateUrl: string) {
     if (currentGithubRunUrl) {
       appendLog(logElement, `GitHub Run URL: ${currentGithubRunUrl}`);
 
-      // Add clickable button in controls (not logs)
+      // Add clickable button in controls with dynamic elapsed time
       const controlsContainer = document.getElementById('azd-provision-controls');
       if (controlsContainer && !document.getElementById('azd-gh-run-link')) {
+        // Add CSS animation for the scrolling icon
+        if (!document.getElementById('azd-scroll-animation')) {
+          const style = document.createElement('style');
+          style.id = 'azd-scroll-animation';
+          style.textContent = `
+            @keyframes scrollUp {
+              0% { transform: translateY(20px); opacity: 0; }
+              50% { opacity: 1; }
+              100% { transform: translateY(-20px); opacity: 0; }
+            }
+            .azd-scroll-icon {
+              animation: scrollUp 2s infinite;
+              display: inline-block;
+            }
+          `;
+          document.head.appendChild(style);
+        }
+
         const linkDiv = document.createElement('div');
         linkDiv.id = 'azd-gh-run-link';
         linkDiv.style.cssText =
-          'margin: 0 0 15px 0; padding: 12px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 6px;';
+          'margin: 0 0 15px 0; padding: 12px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; gap: 15px;';
 
         const linkButton = document.createElement('button');
         linkButton.textContent = '🔗 View GitHub Actions Run';
@@ -368,7 +386,34 @@ async function runValidation(templateUrl: string) {
           'background: #0078d4; color: white; border: none; padding: 10px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;';
         linkButton.onclick = () => window.open(currentGithubRunUrl!, '_blank');
 
+        // Add elapsed time counter with animated icon
+        const elapsedDiv = document.createElement('div');
+        elapsedDiv.id = 'azd-elapsed-time';
+        elapsedDiv.style.cssText =
+          'display: flex; align-items: center; gap: 8px; color: #666; font-size: 13px; font-weight: 500;';
+        
+        // Start time tracking
+        const startTime = Date.now();
+        const updateElapsed = () => {
+          const elapsed = Math.floor((Date.now() - startTime) / 1000);
+          const minutes = Math.floor(elapsed / 60);
+          const seconds = elapsed % 60;
+          const timeStr = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+          
+          elapsedDiv.innerHTML = `
+            <i class="fa-regular fa-file-lines azd-scroll-icon" style="color: #0078d4;"></i>
+            <span>${timeStr} elapsed</span>
+          `;
+        };
+        
+        updateElapsed();
+        const elapsedInterval = setInterval(updateElapsed, 1000);
+        
+        // Store interval ID to clear it later
+        (window as any).azdElapsedInterval = elapsedInterval;
+
         linkDiv.appendChild(linkButton);
+        linkDiv.appendChild(elapsedDiv);
         controlsContainer.appendChild(linkDiv);
       }
     }
@@ -562,6 +607,12 @@ function startStatusPolling(apiBase: string, runId: string) {
         stopPolling();
         isValidationRunning = false;
 
+        // Stop the elapsed time counter
+        if ((window as any).azdElapsedInterval) {
+          clearInterval((window as any).azdElapsedInterval);
+          (window as any).azdElapsedInterval = null;
+        }
+
         // Fetch the full workflow logs to parse AZD results
         let azdResults: AzdValidationResult | null = null;
         try {
@@ -580,6 +631,108 @@ function startStatusPolling(apiBase: string, runId: string) {
         if (!controlsContainer) {
           console.error('[azd-validation] Controls container not found!');
           return;
+        }
+
+        // Add troubleshooting tips section FIRST (always visible, regardless of status)
+        if (!document.getElementById('azd-troubleshooting-tips')) {
+          const troubleshootingSection = document.createElement('div');
+          troubleshootingSection.id = 'azd-troubleshooting-tips';
+          troubleshootingSection.style.cssText = `
+            margin: 15px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+          `;
+
+          // Check for UnmatchedPrincipalType error for conditional styling
+          const errorText = azdResults?.errorReason || status.errorSummary || '';
+          const hasUnmatchedPrincipalError = /UnmatchedPrincipalType[\s\S]*has type[\s\S]*ServicePrincipal[\s\S]*different from[\s\S]*PrinciaplType[\s\S]*User/i.test(errorText);
+
+          // Tip 1: Region Availability
+          const tip1 = document.createElement('div');
+          tip1.style.cssText = `
+            background: #f0f9ff;
+            border: 1px solid #0078d4;
+            border-radius: 8px;
+            padding: 12px 15px;
+            display: flex;
+            gap: 12px;
+            align-items: start;
+          `;
+          tip1.innerHTML = `
+            <span style="font-size: 20px; flex-shrink: 0;">💡</span>
+            <div style="flex: 1;">
+              <strong style="color: #0078d4; font-size: 14px; display: block; margin-bottom: 6px;">Tip 1: Region Availability</strong>
+              <p style="margin: 0 0 8px 0; color: #555; font-size: 13px; line-height: 1.5;">
+                Models are available in certain regions only. If you encounter a Region Availability error, check the troubleshooting guide and update your template's README.md to reflect available regions for used models.
+              </p>
+              <a href="https://github.com/Azure-Samples/azd-template-artifacts/blob/main/docs/development-guidelines/trouble-shooting.md#region-availability" 
+                 target="_blank" 
+                 style="color: #0078d4; text-decoration: none; font-size: 13px; font-weight: 500;">
+                📖 View Region Availability Guide →
+              </a>
+            </div>
+          `;
+
+          // Tip 2: UnmatchedPrincipalType Error (highlight if detected)
+          const tip2 = document.createElement('div');
+          tip2.style.cssText = `
+            background: ${hasUnmatchedPrincipalError ? '#fff8e1' : '#f0f9ff'};
+            border: 2px solid ${hasUnmatchedPrincipalError ? '#ff9800' : '#0078d4'};
+            border-radius: 8px;
+            padding: 12px 15px;
+            display: flex;
+            gap: 12px;
+            align-items: start;
+          `;
+          tip2.innerHTML = `
+            <span style="font-size: 20px; flex-shrink: 0;">💡</span>
+            <div style="flex: 1;">
+              <strong style="color: ${hasUnmatchedPrincipalError ? '#e65100' : '#0078d4'}; font-size: 14px; display: block; margin-bottom: 6px;">
+                Tip 2: UnmatchedPrincipalType Error${hasUnmatchedPrincipalError ? ' ⚠️ DETECTED' : ''}
+              </strong>
+              <p style="margin: 0 0 4px 0; color: #555; font-size: 13px; line-height: 1.5;">
+                <strong>Error:</strong> UnmatchedPrincipalType: The PrincipalId has type 'ServicePrincipal', which is different from specified PrincipalType 'User'.
+              </p>
+              <p style="margin: 0 0 8px 0; color: #555; font-size: 13px; line-height: 1.5;">
+                <strong>Solution:</strong> Create a flag to avoid assigning the principal type to service, and create it for the current user instead.
+              </p>
+              <a href="https://github.com/Azure-Samples/azure-openai-assistant-javascript/pull/18/files" 
+                 target="_blank" 
+                 style="color: #0078d4; text-decoration: none; font-size: 13px; font-weight: 500;">
+                📖 View Example Fix →
+              </a>
+            </div>
+          `;
+
+          // Tip 3: BCP332 maxLength Error
+          const tip3 = document.createElement('div');
+          tip3.style.cssText = `
+            background: #f0f9ff;
+            border: 1px solid #0078d4;
+            border-radius: 8px;
+            padding: 12px 15px;
+            display: flex;
+            gap: 12px;
+            align-items: start;
+          `;
+          tip3.innerHTML = `
+            <span style="font-size: 20px; flex-shrink: 0;">💡</span>
+            <div style="flex: 1;">
+              <strong style="color: #0078d4; font-size: 14px; display: block; margin-bottom: 6px;">Tip 3: BCP332 maxLength Error</strong>
+              <p style="margin: 0 0 4px 0; color: #555; font-size: 13px; line-height: 1.5;">
+                <strong>Error:</strong> BCP332: The provided value (whose length will always be greater than or equal to 15) is too long to assign to a target for which the maximum allowable length is 10.
+              </p>
+              <p style="margin: 0 0 8px 0; color: #555; font-size: 13px; line-height: 1.5;">
+                <strong>Solution:</strong> The maxLength property defined for a parameter in main.bicep is too small. Increase the maxLength value to accommodate longer inputs.
+              </p>
+            </div>
+          `;
+
+          troubleshootingSection.appendChild(tip1);
+          troubleshootingSection.appendChild(tip2);
+          troubleshootingSection.appendChild(tip3);
+          controlsContainer.appendChild(troubleshootingSection);
         }
 
         // Determine overall validation status
@@ -683,111 +836,9 @@ function startStatusPolling(apiBase: string, runId: string) {
             const errorDiv = document.createElement('div');
             errorDiv.id = 'azd-error-details';
             errorDiv.style.cssText =
-              'margin: 0 0 15px 0; padding: 12px; background: #fff; border: 1px solid #f44336; border-left: 4px solid #f44336; font-family: monospace; font-size: 12px; white-space: pre-wrap; border-radius: 6px;';
-            errorDiv.innerHTML = `<strong style="color: #d32f2f;">Error Details:</strong>\n${azdResults.errorReason}`;
+              'margin: 0 0 15px 0; padding: 12px; background: #1a1b1c; border: 1px solid #f44336; border-left: 4px solid #f44336; font-family: monospace; font-size: 12px; white-space: pre-wrap; border-radius: 6px; color: white;';
+            errorDiv.innerHTML = `<strong style="color: #ff6b6b;">Error Details:</strong>\n${azdResults.errorReason}`;
             controlsContainer.appendChild(errorDiv);
-          }
-
-          // Add troubleshooting tips section (always visible)
-          if (!document.getElementById('azd-troubleshooting-tips')) {
-            const troubleshootingSection = document.createElement('div');
-            troubleshootingSection.id = 'azd-troubleshooting-tips';
-            troubleshootingSection.style.cssText = `
-              margin: 15px 0;
-              display: flex;
-              flex-direction: column;
-              gap: 12px;
-            `;
-
-            // Check for UnmatchedPrincipalType error for conditional styling
-            const errorText = azdResults?.errorReason || status.errorSummary || '';
-            const hasUnmatchedPrincipalError = /UnmatchedPrincipalType[\s\S]*has type[\s\S]*ServicePrincipal[\s\S]*different from[\s\S]*PrinciaplType[\s\S]*User/i.test(errorText);
-
-            // Tip 1: Region Availability
-            const tip1 = document.createElement('div');
-            tip1.style.cssText = `
-              background: #f0f9ff;
-              border: 1px solid #0078d4;
-              border-radius: 8px;
-              padding: 12px 15px;
-              display: flex;
-              gap: 12px;
-              align-items: start;
-            `;
-            tip1.innerHTML = `
-              <span style="font-size: 20px; flex-shrink: 0;">💡</span>
-              <div style="flex: 1;">
-                <strong style="color: #0078d4; font-size: 14px; display: block; margin-bottom: 6px;">Tip 1: Region Availability</strong>
-                <p style="margin: 0 0 8px 0; color: #555; font-size: 13px; line-height: 1.5;">
-                  Models are available in certain regions only. If you encounter a Region Availability error, check the troubleshooting guide and update your template's README.md to reflect available regions for used models.
-                </p>
-                <a href="https://github.com/Azure-Samples/azd-template-artifacts/blob/main/docs/development-guidelines/trouble-shooting.md#region-availability" 
-                   target="_blank" 
-                   style="color: #0078d4; text-decoration: none; font-size: 13px; font-weight: 500;">
-                  📖 View Region Availability Guide →
-                </a>
-              </div>
-            `;
-
-            // Tip 2: UnmatchedPrincipalType Error (highlight if detected)
-            const tip2 = document.createElement('div');
-            tip2.style.cssText = `
-              background: ${hasUnmatchedPrincipalError ? '#fff8e1' : '#f0f9ff'};
-              border: 2px solid ${hasUnmatchedPrincipalError ? '#ff9800' : '#0078d4'};
-              border-radius: 8px;
-              padding: 12px 15px;
-              display: flex;
-              gap: 12px;
-              align-items: start;
-            `;
-            tip2.innerHTML = `
-              <span style="font-size: 20px; flex-shrink: 0;">💡</span>
-              <div style="flex: 1;">
-                <strong style="color: ${hasUnmatchedPrincipalError ? '#e65100' : '#0078d4'}; font-size: 14px; display: block; margin-bottom: 6px;">
-                  Tip 2: UnmatchedPrincipalType Error${hasUnmatchedPrincipalError ? ' ⚠️ DETECTED' : ''}
-                </strong>
-                <p style="margin: 0 0 4px 0; color: #555; font-size: 13px; line-height: 1.5;">
-                  <strong>Error:</strong> UnmatchedPrincipalType: The PrincipalId has type 'ServicePrincipal', which is different from specified PrincipalType 'User'.
-                </p>
-                <p style="margin: 0 0 8px 0; color: #555; font-size: 13px; line-height: 1.5;">
-                  <strong>Solution:</strong> Create a flag to avoid assigning the principal type to service, and create it for the current user instead.
-                </p>
-                <a href="https://github.com/Azure-Samples/azure-openai-assistant-javascript/pull/18/files" 
-                   target="_blank" 
-                   style="color: #0078d4; text-decoration: none; font-size: 13px; font-weight: 500;">
-                  📖 View Example Fix →
-                </a>
-              </div>
-            `;
-
-            // Tip 3: BCP332 maxLength Error
-            const tip3 = document.createElement('div');
-            tip3.style.cssText = `
-              background: #f0f9ff;
-              border: 1px solid #0078d4;
-              border-radius: 8px;
-              padding: 12px 15px;
-              display: flex;
-              gap: 12px;
-              align-items: start;
-            `;
-            tip3.innerHTML = `
-              <span style="font-size: 20px; flex-shrink: 0;">💡</span>
-              <div style="flex: 1;">
-                <strong style="color: #0078d4; font-size: 14px; display: block; margin-bottom: 6px;">Tip 3: BCP332 maxLength Error</strong>
-                <p style="margin: 0 0 4px 0; color: #555; font-size: 13px; line-height: 1.5;">
-                  <strong>Error:</strong> BCP332: The provided value (whose length will always be greater than or equal to 15) is too long to assign to a target for which the maximum allowable length is 10.
-                </p>
-                <p style="margin: 0 0 8px 0; color: #555; font-size: 13px; line-height: 1.5;">
-                  <strong>Solution:</strong> The maxLength property defined for a parameter in main.bicep is too small. Increase the maxLength value to accommodate longer inputs.
-                </p>
-              </div>
-            `;
-
-            troubleshootingSection.appendChild(tip1);
-            troubleshootingSection.appendChild(tip2);
-            troubleshootingSection.appendChild(tip3);
-            controlsContainer.appendChild(troubleshootingSection);
           }
 
           // Check for UnmatchedPrincipalType error (ServicePrincipal vs User mismatch)
@@ -866,7 +917,7 @@ function startStatusPolling(apiBase: string, runId: string) {
             status.failedJobs.forEach((job: any) => {
               jobsHtml += `<a href="${job.html_url}" target="_blank" style="color: #4fc3f7; text-decoration: none; display: block; margin: 5px 0;">📋 ${job.name}</a>`;
               if (job.failedSteps && job.failedSteps.length > 0) {
-                jobsHtml += '<div style="margin-left: 20px; color: #999;">';
+                jobsHtml += '<div style="margin-left: 20px; color: white;">';
                 job.failedSteps.forEach((step: any) => {
                   jobsHtml += `  ❌ Step ${step.number}: ${step.name}<br>`;
                 });
