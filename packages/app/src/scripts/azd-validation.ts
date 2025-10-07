@@ -501,15 +501,50 @@ function startStatusPolling(apiBase: string, runId: string) {
         } else if (status.conclusion === 'failure') {
           appendLog(logElement!, '✗ Validation failed');
 
+          // Calculate elapsed time
+          const startTime = status.started_at ? new Date(status.started_at) : null;
+          const endTime = status.completed_at ? new Date(status.completed_at) : new Date();
+          const elapsedMs = startTime ? endTime.getTime() - startTime.getTime() : 0;
+          const elapsedMin = Math.floor(elapsedMs / 60000);
+          const elapsedSec = Math.floor((elapsedMs % 60000) / 1000);
+          const elapsedTime = `${elapsedMin}m ${elapsedSec}s`;
+
+          // Create status bar OUTSIDE log console
+          const statusBar = document.createElement('div');
+          statusBar.style.cssText =
+            'margin: 0 0 15px 0; padding: 15px; background: linear-gradient(135deg, #1a1b1c 0%, #2d1f1f 100%); border-radius: 8px; border: 1px solid #f44336;';
+          statusBar.innerHTML = `
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="font-size: 32px;">❌</div>
+                <div>
+                  <h3 style="margin: 0; color: #f44336; font-size: 18px;">Validation Failed</h3>
+                  <div style="display: flex; gap: 20px; margin-top: 4px;">
+                    <span style="color: #999; font-size: 13px;">⏱️ ${elapsedTime}</span>
+                    <span style="color: #999; font-size: 13px;">📋 Failed Jobs: ${status.failedJobs?.length || 0}</span>
+                  </div>
+                </div>
+              </div>
+              ${
+                currentGithubRunUrl
+                  ? `<a href="${currentGithubRunUrl}" target="_blank" style="padding: 8px 16px; background: #0078d4; color: white; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: 500;">🔗 View GitHub Run</a>`
+                  : ''
+              }
+            </div>
+          `;
+
+          // Insert status bar BEFORE the log element
+          logElement!.parentElement!.insertBefore(statusBar, logElement);
+
           // Check for UnmatchedPrincipalType error (ServicePrincipal vs User mismatch)
           const errorText = status.errorSummary || '';
           const hasUnmatchedPrincipalError = /UnmatchedPrincipalType[\s\S]*has type[\s\S]*ServicePrincipal[\s\S]*different from[\s\S]*PrinciaplType[\s\S]*User/i.test(errorText);
 
           if (hasUnmatchedPrincipalError) {
-            // Show specific guidance for UnmatchedPrincipalType error
+            // Show specific guidance for UnmatchedPrincipalType error OUTSIDE log
             const principalErrorDiv = document.createElement('div');
             principalErrorDiv.style.cssText =
-              'margin: 10px 0; padding: 15px; background: #2d1f1f; border-left: 4px solid #ff9800; border-radius: 4px;';
+              'margin: 0 0 15px 0; padding: 15px; background: linear-gradient(135deg, #2d1f1f 0%, #3d2f1f 100%); border-left: 4px solid #ff9800; border-radius: 8px;';
             principalErrorDiv.innerHTML = `
               <div style="display: flex; align-items: start; gap: 12px;">
                 <div style="font-size: 32px;">⚠️</div>
@@ -527,16 +562,36 @@ function startStatusPolling(apiBase: string, runId: string) {
                   </div>
                   <a href="https://github.com/Azure-Samples/azd-template-artifacts/blob/main/docs/development-guidelines/trouble-shooting.md#error-unmatchedprincipaltype-the-principalid-id-has-type-serviceprincipal--which-is-different-from-specified-princiapltype-user" 
                      target="_blank" 
-                     style="display: inline-block; margin-top: 8px; padding: 6px 12px; background: #0078d4; color: white; text-decoration: none; border-radius: 4px; font-size: 13px;">
+                     style="display: inline-block; padding: 8px 16px; background: #0078d4; color: white; text-decoration: none; border-radius: 6px; font-size: 13px; font-weight: 500;">
                     📚 View Fix Documentation
                   </a>
                 </div>
               </div>
             `;
-            logElement!.appendChild(principalErrorDiv);
+            // Insert BEFORE the log element
+            logElement!.parentElement!.insertBefore(principalErrorDiv, logElement);
           }
 
-          // Show error details if available
+          // Add "Create Issue" button OUTSIDE log console
+          if (status.html_url) {
+            const issueSection = document.createElement('div');
+            issueSection.style.cssText =
+              'margin: 0 0 15px 0; padding: 15px; background: linear-gradient(135deg, #1a1b1c 0%, #1f2c3d 100%); border-radius: 8px; border: 1px solid #0078d4;';
+            
+            const issueButton = document.createElement('button');
+            issueButton.textContent = '🐛 Create GitHub Issue with Fix Guidance';
+            issueButton.style.cssText =
+              'width: 100%; background: #0078d4; color: white; border: none; padding: 12px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; transition: background 0.2s;';
+            issueButton.onmouseover = () => (issueButton.style.background = '#005a9e');
+            issueButton.onmouseout = () => (issueButton.style.background = '#0078d4');
+            issueButton.onclick = () => createValidationIssue(status);
+
+            issueSection.appendChild(issueButton);
+            // Insert BEFORE the log element
+            logElement!.parentElement!.insertBefore(issueSection, logElement);
+          }
+
+          // Show error details if available - INSIDE log console
           if (status.errorSummary) {
             const errorDiv = document.createElement('div');
             errorDiv.style.cssText =
@@ -545,7 +600,7 @@ function startStatusPolling(apiBase: string, runId: string) {
             logElement!.appendChild(errorDiv);
           }
 
-          // Add links to failed jobs
+          // Add links to failed jobs - INSIDE log console
           if (status.failedJobs && status.failedJobs.length > 0) {
             const jobsDiv = document.createElement('div');
             jobsDiv.style.cssText =
@@ -564,22 +619,6 @@ function startStatusPolling(apiBase: string, runId: string) {
             });
             jobsDiv.innerHTML = jobsHtml;
             logElement!.appendChild(jobsDiv);
-          }
-
-          // Add "Create Issue" button
-          if (status.html_url) {
-            const issueDiv = document.createElement('div');
-            issueDiv.style.cssText =
-              'margin: 10px 0; padding: 12px; background: #1a1b1c; border-left: 3px solid #0078d4;';
-
-            const issueButton = document.createElement('button');
-            issueButton.textContent = '🐛 Create GitHub Issue';
-            issueButton.style.cssText =
-              'background: #0078d4; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px;';
-            issueButton.onclick = () => createValidationIssue(status);
-
-            issueDiv.appendChild(issueButton);
-            logElement!.appendChild(issueDiv);
           }
 
           showError('Validation Failed', 'Template validation encountered errors');
