@@ -69,6 +69,10 @@ function createLogContainer(): HTMLPreElement {
   const existingIssueSection = document.getElementById('azd-issue-section');
   if (existingIssueSection) existingIssueSection.remove();
 
+  // Remove actions container
+  const existingActionsContainer = document.getElementById('azd-actions-container');
+  if (existingActionsContainer) existingActionsContainer.remove();
+
   // Create or get validation section container
   let validationSection = document.getElementById('validation-section') as HTMLElement | null;
 
@@ -520,6 +524,16 @@ function startStatusPolling(apiBase: string, runId: string) {
           const elapsedSec = Math.floor((elapsedMs % 60000) / 1000);
           const elapsedTime = `${elapsedMin}m ${elapsedSec}s`;
 
+          // Create actions container AFTER log element (only once)
+          let actionsContainer = document.getElementById('azd-actions-container');
+          if (!actionsContainer) {
+            actionsContainer = document.createElement('div');
+            actionsContainer.id = 'azd-actions-container';
+            actionsContainer.style.cssText = 'margin: 15px 0 0 0;';
+            // Insert AFTER the log element
+            logElement!.parentElement!.insertBefore(actionsContainer, logElement!.nextSibling);
+          }
+
           // Create status bar OUTSIDE log console (only if it doesn't exist)
           if (!document.getElementById('azd-status-bar')) {
             const statusBar = document.createElement('div');
@@ -546,8 +560,8 @@ function startStatusPolling(apiBase: string, runId: string) {
               </div>
             `;
 
-            // Insert status bar BEFORE the log element
-            logElement!.parentElement!.insertBefore(statusBar, logElement);
+            // Add to actions container AFTER log
+            actionsContainer.appendChild(statusBar);
           }
 
           // Check for UnmatchedPrincipalType error (ServicePrincipal vs User mismatch)
@@ -583,8 +597,8 @@ function startStatusPolling(apiBase: string, runId: string) {
                 </div>
               </div>
             `;
-            // Insert BEFORE the log element
-            logElement!.parentElement!.insertBefore(principalErrorDiv, logElement);
+            // Add to actions container AFTER log
+            actionsContainer.appendChild(principalErrorDiv);
           }
 
           // Add "Create Issue" button OUTSIDE log console (only if it doesn't exist)
@@ -603,8 +617,8 @@ function startStatusPolling(apiBase: string, runId: string) {
             issueButton.onclick = () => createValidationIssue(status);
 
             issueSection.appendChild(issueButton);
-            // Insert BEFORE the log element
-            logElement!.parentElement!.insertBefore(issueSection, logElement);
+            // Add to actions container AFTER log
+            actionsContainer.appendChild(issueSection);
           }
 
           // Show error details if available - INSIDE log console
