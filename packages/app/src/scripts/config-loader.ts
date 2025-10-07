@@ -154,18 +154,31 @@ async function loadConfigJson(): Promise<ConfigJsonShape> {
         console.debug('[config-loader] config.json candidate not ok', url, resp.status);
         continue;
       }
+      
+      // Check content type to avoid parsing HTML as JSON
+      const contentType = resp.headers.get('content-type') || '';
       const txt = await resp.text();
+      
+      // Skip if we got HTML (404 page) instead of JSON
+      if (contentType.includes('text/html') || txt.trim().startsWith('<!doctype') || txt.trim().startsWith('<html')) {
+        console.debug('[config-loader] Skipping HTML response for', url, '(file likely does not exist)');
+        continue;
+      }
+      
       try {
         const data = JSON.parse(txt);
         console.log('[config-loader] Loaded config.json via', url, 'keys:', Object.keys(data));
         return data as ConfigJsonShape;
       } catch (e) {
-        console.warn(
-          '[config-loader] JSON parse failed for',
-          url,
-          'first 100 chars:',
-          txt.slice(0, 100),
-        );
+        // Only warn about unexpected JSON parse failures (not HTML 404 pages)
+        if (!txt.includes('<!doctype') && !txt.includes('<html>')) {
+          console.warn(
+            '[config-loader] JSON parse failed for',
+            url,
+            'first 100 chars:',
+            txt.slice(0, 100),
+          );
+        }
       }
     } catch (err) {
       console.debug('[config-loader] fetch error for candidate', url, err?.message || err);
