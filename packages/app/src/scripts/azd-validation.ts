@@ -590,7 +590,7 @@ function createValidationIssue(status: any) {
   }
   
   // Extract owner/repo from URL
-  const match = targetRepoUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+  const match = targetRepoUrl.match(/https?:\/\/github\.com\/([^\/]+)\/([^\/]+)/);
   if (!match) {
     showError('Invalid URL', 'Could not parse repository from URL');
     return;
