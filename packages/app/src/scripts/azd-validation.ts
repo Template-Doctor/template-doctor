@@ -128,10 +128,10 @@ function createLogContainer(): HTMLPreElement {
   // Append to validation section
   validationSection.appendChild(logEl);
 
-  // Create controls row with cancel button
+  // Create controls container with cancel button
   const controls = document.createElement('div');
   controls.id = 'azd-provision-controls';
-  controls.style.cssText = 'margin: 0 0 10px 0; display: flex; gap: 8px; align-items: center;';
+  controls.style.cssText = 'margin: 0 0 10px 0; display: flex; flex-direction: column; gap: 10px;';
 
   const stopBtn = document.createElement('button');
   stopBtn.id = 'azd-stop-btn';
