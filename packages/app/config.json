@@ -1,6 +1,6 @@
 {
   "githubOAuth": {
-    "clientId": "Ov23li6IDVTv9Ml50OKi"
+    "clientId": "YOUR_GITHUB_OAUTH_CLIENT_ID"
   },
   "defaultRuleSet": "dod",
   "requireAuthForResults": true,

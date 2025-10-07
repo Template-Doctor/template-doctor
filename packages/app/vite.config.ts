@@ -28,6 +28,8 @@ export default defineConfig({
       input: {
         main: 'index.html',
         callback: 'callback.html',
+        leaderboards: 'leaderboards.html',
+        setup: 'setup.html',
       },
       output: {
         assetFileNames: (assetInfo) => {
