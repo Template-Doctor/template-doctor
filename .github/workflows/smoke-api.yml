@@ -1,0 +1,102 @@
+name: API Smoke
+
+on:
+    push:
+        branches: [main]
+        paths:
+            - "packages/server/**"
+            - "packages/analyzer-core/**"
+            - "scripts/smoke-api.sh"
+            - ".github/workflows/smoke-api.yml"
+    pull_request:
+        branches: [main]
+        paths:
+            - "packages/server/**"
+            - "packages/analyzer-core/**"
+            - "scripts/smoke-api.sh"
+            - ".github/workflows/smoke-api.yml"
+    workflow_dispatch:
+
+jobs:
+    smoke:
+        runs-on: ubuntu-latest
+        env:
+            NODE_VERSION: "20.x"
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: ${{ env.NODE_VERSION }}
+                  cache: "npm"
+
+            - name: Install deps (root workspaces)
+              run: npm ci
+
+            - name: Build analyzer-core
+              run: npm run build:analyzer-core
+
+            - name: Build Express server
+              run: npm run build -w packages/server
+
+            - name: Run unit tests
+              run: npm run test:unit
+
+            - name: Ensure Node version
+              run: node scripts/ensure-node-version.js
+
+            - name: DRY RUN smoke script
+              run: |
+                  chmod +x scripts/smoke-api.sh
+                  DRY_RUN=1 BASE=http://localhost:3001 ./scripts/smoke-api.sh
+
+            - name: Create .env for Express server
+              run: |
+                  echo "PORT=3001" > packages/server/.env
+                  echo "GITHUB_CLIENT_ID=test-client-id" >> packages/server/.env
+                  echo "GITHUB_CLIENT_SECRET=test-secret" >> packages/server/.env
+
+            - name: Start Express server
+              run: |
+                  # Start server in background
+                  npm run -w packages/server start > server.log 2>&1 &
+                  SERVER_PID=$!
+                  echo "Started server with PID: $SERVER_PID"
+                  
+                  # Wait for server to be ready (up to 30 seconds)
+                  echo "Waiting for Express server to respond..."
+                  for i in {1..30}; do
+                    if curl -sf http://localhost:3001/api/health > /dev/null 2>&1; then
+                      echo "✓ Express server is ready!"
+                      exit 0
+                    fi
+                    echo "  Attempt $i/30..."
+                    sleep 1
+                  done
+                  
+                  # If we get here, server failed to start
+                  echo "✗ Server failed to start after 30 seconds"
+                  echo "=== Server logs ==="
+                  cat server.log || echo "No logs available"
+                  exit 1
+
+            - name: Run smoke script
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GH_WORKFLOW_TOKEN || secrets.GITHUB_TOKEN }}
+              run: BASE=http://localhost:3001 ./scripts/smoke-api.sh
+
+            - name: Archive smoke logs
+              if: always()
+              run: |
+                  mkdir -p artifact
+                  cp -f .env artifact/env.ci.txt || true
+                  echo "Completed at $(date)" > artifact/done.txt
+
+            - name: Upload artifact
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: smoke-api-artifact
+                  path: artifact

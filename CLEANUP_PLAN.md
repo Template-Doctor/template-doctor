@@ -1,5 +1,16 @@
 # Cleanup Plan - Post v1.0.0 Express Migration
 
+## ✅ Completed Cleanup
+
+### Removed Files
+- ✅ `scripts/test-add-template.json` - Obsolete Azure Functions test data
+- ✅ `scripts/test-submit-analysis-local.js` - Obsolete Azure Functions local testing harness
+- ✅ `debug-auth.html` - Debug file (added to .gitignore)
+- ✅ `smoke-test-output.log` - Test output (added to .gitignore)
+
+### Updated Files
+- ✅ `.gitignore` - Added patterns for debug/test output files to prevent future commits
+
 ## Root-Level Scripts (Keep at Root)
 
 These convenience scripts should **stay at root** for easy access:
@@ -11,13 +22,15 @@ These convenience scripts should **stay at root** for easy access:
 
 **Rationale**: Moving these would require updating multiple docs (DOCKER.md, OAUTH_SETUP_PORT_3000.md, PORT_ALLOCATION.md, README.md). They're meant to be run from root for convenience.
 
-## Scripts Directory - Review Needed
+## Scripts Directory - Status
 
-### Test/Development Scripts (Low Priority)
-- [ ] `scripts/test-add-template.json` - Test data, may still be useful
-- [ ] `scripts/test-submit-analysis-local.js` - Local testing utility
-- [ ] `scripts/bootstrap-node.sh` - Node setup alternative
-- [ ] `scripts/reset-results.sh` - Development utility
+### Removed (Obsolete)
+- ✅ `scripts/test-add-template.json` - Azure Functions test data
+- ✅ `scripts/test-submit-analysis-local.js` - Azure Functions local testing
+
+### Kept (May Review Later)
+- ⏸️ `scripts/bootstrap-node.sh` - Node setup utility (documented as "Keep" in SCRIPTS_AUDIT.md)
+- ⏸️ `scripts/reset-results.sh` - Used by batch-scan.sh
 
 ### Scripts to KEEP (Actively Used)
 - ✅ `scripts/setup.sh` - **CRITICAL** - UAMI/GitHub Actions auth (referenced in package.json, UAMI_SETUP_INSTRUCTIONS.md)
@@ -33,6 +46,23 @@ These convenience scripts should **stay at root** for easy access:
 - ✅ `scripts/ensure-node-version.js` - CI/CD requirement
 - ✅ `scripts/extract-repo-urls.js` - Data processing
 - ✅ `scripts/generate-scan-meta-backfill.js` - Data generation
+
+## Summary
+
+### Files Removed (4 total)
+1. `scripts/test-add-template.json` - Azure Functions test data
+2. `scripts/test-submit-analysis-local.js` - Azure Functions testing harness
+3. `debug-auth.html` - OAuth debug page
+4. `smoke-test-output.log` - Test output
+
+### Files Updated
+1. `.gitignore` - Added patterns: `debug-*.html`, `*-test-output.log`, `smoke-test-output.log`
+
+### Result
+- Removed obsolete Azure Functions test files
+- Cleaned up debug/test output files
+- Protected against future debug file commits
+- All active scripts preserved
 
 ## Recommended Actions
 

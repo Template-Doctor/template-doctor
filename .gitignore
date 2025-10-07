@@ -16,6 +16,11 @@ tests/*.sh
 
 playwright-report/
 
+# Debug and test output files
+debug-*.html
+*-test-output.log
+smoke-test-output.log
+
 # macOS system files
 .DS_Store
 **/.DS_Store
