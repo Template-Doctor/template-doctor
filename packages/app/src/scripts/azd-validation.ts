@@ -3,8 +3,9 @@ import { ApiClient } from './api-client';
 
 let currentRunId: string | null = null;
 let currentGithubRunId: string | null = null;
-let currentWorkflowOrgRepo: string | null = null;
 let currentGithubRunUrl: string | null = null;
+let currentWorkflowOrgRepo: string | null = null;
+let currentTemplateUrl: string | null = null; // Store the template repo URL being validated
 let pollingInterval: number | null = null;
 let logElement: HTMLPreElement | null = null;
 let stopButton: HTMLButtonElement | null = null;
@@ -66,6 +67,10 @@ function createLogContainer(): HTMLPreElement {
   if (existingPrincipalError) existingPrincipalError.remove();
   const existingIssueSection = document.getElementById('azd-issue-section');
   if (existingIssueSection) existingIssueSection.remove();
+  const existingErrorDetails = document.getElementById('azd-error-details');
+  if (existingErrorDetails) existingErrorDetails.remove();
+  const existingFailedJobs = document.getElementById('azd-failed-jobs');
+  if (existingFailedJobs) existingFailedJobs.remove();
 
   // Create or get validation section container
   let validationSection = document.getElementById('validation-section') as HTMLElement | null;
@@ -274,6 +279,7 @@ async function runValidation(templateUrl: string) {
     currentGithubRunId = data.workflowRunId || data.githubRunId || null;
     currentWorkflowOrgRepo = data.workflowOrgRepo || null;
     currentGithubRunUrl = data.githubRunUrl || null;
+    currentTemplateUrl = templateUrl; // Store the template URL for issue creation
 
     appendLog(logElement, `✓ Validation started`);
     appendLog(logElement, `Run ID: ${currentRunId}`);
@@ -518,8 +524,12 @@ function startStatusPolling(apiBase: string, runId: string) {
           const elapsedSec = Math.floor((elapsedMs % 60000) / 1000);
           const elapsedTime = `${elapsedMin}m ${elapsedSec}s`;
 
+          console.log('[DEBUG] Elapsed time calculation:', { startTime, endTime, elapsedMs, elapsedTime });
+
           // Get controls container to append action buttons
           const controlsContainer = document.getElementById('azd-provision-controls');
+          console.log('[azd-validation] Controls container found:', controlsContainer);
+          console.log('[azd-validation] Controls container HTML:', controlsContainer?.outerHTML);
           if (!controlsContainer) {
             console.error('[azd-validation] Controls container not found!');
             return;
@@ -530,7 +540,7 @@ function startStatusPolling(apiBase: string, runId: string) {
             const statusBar = document.createElement('div');
             statusBar.id = 'azd-status-bar';
             statusBar.style.cssText =
-              'margin: 0 0 15px 0; padding: 15px; background: linear-gradient(135deg, #1a1b1c 0%, #2d1f1f 100%); border-radius: 8px; border: 1px solid #f44336; flex: 1;';
+              'margin: 0 0 15px 0; padding: 15px; background: linear-gradient(135deg, #1a1b1c 0%, #2d1f1f 100%); border-radius: 8px; border: 1px solid #f44336;';
             statusBar.innerHTML = `
               <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
                 <div style="display: flex; align-items: center; gap: 10px;">
@@ -552,7 +562,12 @@ function startStatusPolling(apiBase: string, runId: string) {
             `;
 
             // Append to controls container
+            console.log('[azd-validation] Appending status bar to controls');
+            console.log('[DEBUG] controlsContainer:', controlsContainer);
+            console.log('[DEBUG] controlsContainer.parentElement:', controlsContainer.parentElement);
+            debugger; // STOP HERE TO INSPECT
             controlsContainer.appendChild(statusBar);
+            console.log('[azd-validation] Status bar appended. Controls HTML:', controlsContainer.outerHTML.substring(0, 200));
           }
 
           // Check for UnmatchedPrincipalType error (ServicePrincipal vs User mismatch)
@@ -597,7 +612,7 @@ function startStatusPolling(apiBase: string, runId: string) {
             const issueSection = document.createElement('div');
             issueSection.id = 'azd-issue-section';
             issueSection.style.cssText =
-              'margin: 0 0 15px 0; padding: 15px; background: linear-gradient(135deg, #1a1b1c 0%, #1f2c3d 100%); border-radius: 8px; border: 1px solid #0078d4; flex: 1;';
+              'margin: 0 0 15px 0; padding: 15px; background: linear-gradient(135deg, #1a1b1c 0%, #1f2c3d 100%); border-radius: 8px; border: 1px solid #0078d4;';
             
             const issueButton = document.createElement('button');
             issueButton.textContent = '🐛 Create GitHub Issue with Fix Guidance';
@@ -609,23 +624,31 @@ function startStatusPolling(apiBase: string, runId: string) {
 
             issueSection.appendChild(issueButton);
             // Append to controls container
+            console.log('[azd-validation] Appending issue section to controls');
+            console.log('[DEBUG ISSUE] controlsContainer:', controlsContainer);
+            console.log('[DEBUG ISSUE] controlsContainer.parentElement:', controlsContainer.parentElement);
+            console.log('[DEBUG ISSUE] controlsContainer in DOM?', document.contains(controlsContainer));
+            debugger; // STOP HERE TO INSPECT ISSUE BUTTON
             controlsContainer.appendChild(issueSection);
+            console.log('[azd-validation] Issue section appended. Controls children count:', controlsContainer.children.length);
           }
 
-          // Show error details if available - INSIDE log console
-          if (status.errorSummary) {
+          // Show error details if available - move to controls
+          if (status.errorSummary && !document.getElementById('azd-error-details')) {
             const errorDiv = document.createElement('div');
+            errorDiv.id = 'azd-error-details';
             errorDiv.style.cssText =
-              'margin: 10px 0; padding: 12px; background: #2d1f1f; border-left: 3px solid #f44336; font-family: monospace; font-size: 12px; white-space: pre-wrap;';
+              'margin: 0 0 15px 0; padding: 12px; background: #2d1f1f; border-left: 3px solid #f44336; font-family: monospace; font-size: 12px; white-space: pre-wrap; border-radius: 6px;';
             errorDiv.innerHTML = `<strong style="color: #f44336;">Error Details:</strong>\n${status.errorSummary}`;
-            logElement!.appendChild(errorDiv);
+            controlsContainer.appendChild(errorDiv);
           }
 
-          // Add links to failed jobs - INSIDE log console
-          if (status.failedJobs && status.failedJobs.length > 0) {
+          // Add links to failed jobs - move to controls
+          if (status.failedJobs && status.failedJobs.length > 0 && !document.getElementById('azd-failed-jobs')) {
             const jobsDiv = document.createElement('div');
+            jobsDiv.id = 'azd-failed-jobs';
             jobsDiv.style.cssText =
-              'margin: 10px 0; padding: 12px; background: #1a1b1c; border-left: 3px solid #ff9800;';
+              'margin: 0 0 15px 0; padding: 12px; background: #1a1b1c; border-left: 3px solid #ff9800; border-radius: 6px;';
 
             let jobsHtml = '<strong style="color: #ff9800;">Failed Jobs:</strong><br>';
             status.failedJobs.forEach((job: any) => {
@@ -639,7 +662,7 @@ function startStatusPolling(apiBase: string, runId: string) {
               }
             });
             jobsDiv.innerHTML = jobsHtml;
-            logElement!.appendChild(jobsDiv);
+            controlsContainer.appendChild(jobsDiv);
           }
 
           showError('Validation Failed', 'Template validation encountered errors');
@@ -680,11 +703,11 @@ function stopPolling() {
  * Create a GitHub issue for validation failures
  */
 function createValidationIssue(status: any) {
-  const targetRepoInput = document.getElementById('targetRepoUrl') as HTMLInputElement;
-  const targetRepoUrl = targetRepoInput?.value || '';
+  // Use the stored template URL from the current validation
+  const targetRepoUrl = currentTemplateUrl || '';
 
   if (!targetRepoUrl) {
-    showError('Missing Information', 'Cannot determine target repository');
+    showError('Missing Information', 'Cannot determine target repository. Please ensure validation was started with a valid repo URL.');
     return;
   }
 
