@@ -60,24 +60,27 @@ jobs:
 
             - name: Start Express server
               run: |
-                  cd packages/server
-                  npm run start &
+                  # Start server in background
+                  npm run -w packages/server start > server.log 2>&1 &
                   SERVER_PID=$!
-                  echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
-                  cd ../..
+                  echo "Started server with PID: $SERVER_PID"
+                  
                   # Wait for server to be ready (up to 30 seconds)
-                  echo "Waiting for Express server to start..."
+                  echo "Waiting for Express server to respond..."
                   for i in {1..30}; do
-                    if curl -sf http://localhost:3001/api/v4/client-settings > /dev/null 2>&1; then
+                    if curl -sf http://localhost:3001/api/health > /dev/null 2>&1; then
                       echo "✓ Express server is ready!"
-                      break
+                      exit 0
                     fi
-                    if [ $i -eq 30 ]; then
-                      echo "✗ Server failed to start after 30 seconds"
-                      exit 1
-                    fi
+                    echo "  Attempt $i/30..."
                     sleep 1
                   done
+                  
+                  # If we get here, server failed to start
+                  echo "✗ Server failed to start after 30 seconds"
+                  echo "=== Server logs ==="
+                  cat server.log || echo "No logs available"
+                  exit 1
 
             - name: Run smoke script
               env:
