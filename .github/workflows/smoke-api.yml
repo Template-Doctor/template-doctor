@@ -4,13 +4,15 @@ on:
     push:
         branches: [main]
         paths:
-            - "packages/api/**"
+            - "packages/server/**"
+            - "packages/analyzer-core/**"
             - "scripts/smoke-api.sh"
             - ".github/workflows/smoke-api.yml"
     pull_request:
         branches: [main]
         paths:
-            - "packages/api/**"
+            - "packages/server/**"
+            - "packages/analyzer-core/**"
             - "scripts/smoke-api.sh"
             - ".github/workflows/smoke-api.yml"
     workflow_dispatch:
@@ -33,11 +35,11 @@ jobs:
             - name: Install deps (root workspaces)
               run: npm ci
 
-            - name: Build analyzer-core (dependency)
+            - name: Build analyzer-core
               run: npm run build:analyzer-core
 
-            - name: Build API
-              run: npm run -w packages/api build
+            - name: Build Express server
+              run: npm run build -w packages/server
 
             - name: Run unit tests
               run: npm run test:unit
@@ -48,17 +50,17 @@ jobs:
             - name: DRY RUN smoke script
               run: |
                   chmod +x scripts/smoke-api.sh
-                  DRY_RUN=1 ./scripts/smoke-api.sh
+                  DRY_RUN=1 BASE=http://localhost:3001 ./scripts/smoke-api.sh
 
-            - name: Start Functions host
+            - name: Start Express server
               run: |
-                  (npm run -w packages/api start &) 
-                  n=0; until curl -sf http://localhost:7071/api/v4/client-settings > /dev/null || [ $n -ge 20 ]; do n=$((n+1)); sleep 1; done
+                  (npm run -w packages/server start &) 
+                  n=0; until curl -sf http://localhost:3001/api/v4/client-settings > /dev/null || [ $n -ge 20 ]; do n=$((n+1)); sleep 1; done
 
             - name: Run smoke script
               env:
                   GITHUB_TOKEN: ${{ secrets.GH_WORKFLOW_TOKEN || secrets.GITHUB_TOKEN }}
-              run: ./scripts/smoke-api.sh
+              run: BASE=http://localhost:3001 ./scripts/smoke-api.sh
 
             - name: Archive smoke logs
               if: always()
