@@ -59,6 +59,16 @@ function createLogContainer(): HTMLPreElement {
   const existingControls = document.getElementById('azd-provision-controls');
   if (existingControls) existingControls.remove();
 
+  // Remove existing status/error UI elements
+  const existingStatusBar = document.getElementById('azd-status-bar');
+  if (existingStatusBar) existingStatusBar.remove();
+
+  const existingPrincipalError = document.getElementById('azd-principal-error');
+  if (existingPrincipalError) existingPrincipalError.remove();
+
+  const existingIssueSection = document.getElementById('azd-issue-section');
+  if (existingIssueSection) existingIssueSection.remove();
+
   // Create or get validation section container
   let validationSection = document.getElementById('validation-section') as HTMLElement | null;
 
@@ -381,6 +391,7 @@ async function cancelValidation() {
         runId: currentRunId,
         githubRunId: currentGithubRunId,
         githubRunUrl: currentGithubRunUrl,
+        workflowOrgRepo: currentWorkflowOrgRepo,
       }),
     });
 
@@ -509,40 +520,44 @@ function startStatusPolling(apiBase: string, runId: string) {
           const elapsedSec = Math.floor((elapsedMs % 60000) / 1000);
           const elapsedTime = `${elapsedMin}m ${elapsedSec}s`;
 
-          // Create status bar OUTSIDE log console
-          const statusBar = document.createElement('div');
-          statusBar.style.cssText =
-            'margin: 0 0 15px 0; padding: 15px; background: linear-gradient(135deg, #1a1b1c 0%, #2d1f1f 100%); border-radius: 8px; border: 1px solid #f44336;';
-          statusBar.innerHTML = `
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-              <div style="display: flex; align-items: center; gap: 10px;">
-                <div style="font-size: 32px;">❌</div>
-                <div>
-                  <h3 style="margin: 0; color: #f44336; font-size: 18px;">Validation Failed</h3>
-                  <div style="display: flex; gap: 20px; margin-top: 4px;">
-                    <span style="color: #999; font-size: 13px;">⏱️ ${elapsedTime}</span>
-                    <span style="color: #999; font-size: 13px;">📋 Failed Jobs: ${status.failedJobs?.length || 0}</span>
+          // Create status bar OUTSIDE log console (only if it doesn't exist)
+          if (!document.getElementById('azd-status-bar')) {
+            const statusBar = document.createElement('div');
+            statusBar.id = 'azd-status-bar';
+            statusBar.style.cssText =
+              'margin: 0 0 15px 0; padding: 15px; background: linear-gradient(135deg, #1a1b1c 0%, #2d1f1f 100%); border-radius: 8px; border: 1px solid #f44336;';
+            statusBar.innerHTML = `
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <div style="font-size: 32px;">❌</div>
+                  <div>
+                    <h3 style="margin: 0; color: #f44336; font-size: 18px;">Validation Failed</h3>
+                    <div style="display: flex; gap: 20px; margin-top: 4px;">
+                      <span style="color: #999; font-size: 13px;">⏱️ ${elapsedTime}</span>
+                      <span style="color: #999; font-size: 13px;">📋 Failed Jobs: ${status.failedJobs?.length || 0}</span>
+                    </div>
                   </div>
                 </div>
+                ${
+                  currentGithubRunUrl
+                    ? `<a href="${currentGithubRunUrl}" target="_blank" style="padding: 8px 16px; background: #0078d4; color: white; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: 500;">🔗 View GitHub Run</a>`
+                    : ''
+                }
               </div>
-              ${
-                currentGithubRunUrl
-                  ? `<a href="${currentGithubRunUrl}" target="_blank" style="padding: 8px 16px; background: #0078d4; color: white; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: 500;">🔗 View GitHub Run</a>`
-                  : ''
-              }
-            </div>
-          `;
+            `;
 
-          // Insert status bar BEFORE the log element
-          logElement!.parentElement!.insertBefore(statusBar, logElement);
+            // Insert status bar BEFORE the log element
+            logElement!.parentElement!.insertBefore(statusBar, logElement);
+          }
 
           // Check for UnmatchedPrincipalType error (ServicePrincipal vs User mismatch)
           const errorText = status.errorSummary || '';
           const hasUnmatchedPrincipalError = /UnmatchedPrincipalType[\s\S]*has type[\s\S]*ServicePrincipal[\s\S]*different from[\s\S]*PrinciaplType[\s\S]*User/i.test(errorText);
 
-          if (hasUnmatchedPrincipalError) {
+          if (hasUnmatchedPrincipalError && !document.getElementById('azd-principal-error')) {
             // Show specific guidance for UnmatchedPrincipalType error OUTSIDE log
             const principalErrorDiv = document.createElement('div');
+            principalErrorDiv.id = 'azd-principal-error';
             principalErrorDiv.style.cssText =
               'margin: 0 0 15px 0; padding: 15px; background: linear-gradient(135deg, #2d1f1f 0%, #3d2f1f 100%); border-left: 4px solid #ff9800; border-radius: 8px;';
             principalErrorDiv.innerHTML = `
@@ -572,9 +587,10 @@ function startStatusPolling(apiBase: string, runId: string) {
             logElement!.parentElement!.insertBefore(principalErrorDiv, logElement);
           }
 
-          // Add "Create Issue" button OUTSIDE log console
-          if (status.html_url) {
+          // Add "Create Issue" button OUTSIDE log console (only if it doesn't exist)
+          if (status.html_url && !document.getElementById('azd-issue-section')) {
             const issueSection = document.createElement('div');
+            issueSection.id = 'azd-issue-section';
             issueSection.style.cssText =
               'margin: 0 0 15px 0; padding: 15px; background: linear-gradient(135deg, #1a1b1c 0%, #1f2c3d 100%); border-radius: 8px; border: 1px solid #0078d4;';
             
