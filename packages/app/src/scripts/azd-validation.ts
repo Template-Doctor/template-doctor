@@ -501,6 +501,41 @@ function startStatusPolling(apiBase: string, runId: string) {
         } else if (status.conclusion === 'failure') {
           appendLog(logElement!, '✗ Validation failed');
 
+          // Check for UnmatchedPrincipalType error (ServicePrincipal vs User mismatch)
+          const errorText = status.errorSummary || '';
+          const hasUnmatchedPrincipalError = /UnmatchedPrincipalType.*has type.*ServicePrincipal.*different from.*PrinciaplType.*User/i.test(errorText);
+
+          if (hasUnmatchedPrincipalError) {
+            // Show specific guidance for UnmatchedPrincipalType error
+            const principalErrorDiv = document.createElement('div');
+            principalErrorDiv.style.cssText =
+              'margin: 10px 0; padding: 15px; background: #2d1f1f; border-left: 4px solid #ff9800; border-radius: 4px;';
+            principalErrorDiv.innerHTML = `
+              <div style="display: flex; align-items: start; gap: 12px;">
+                <div style="font-size: 32px;">⚠️</div>
+                <div style="flex: 1;">
+                  <h4 style="margin: 0 0 10px 0; color: #ff9800; font-size: 16px;">Detected: Principal Type Mismatch</h4>
+                  <p style="margin: 0 0 10px 0; color: #ffa726; font-size: 14px; line-height: 1.5;">
+                    Your template is trying to assign a <strong>Service Principal</strong> to a role that expects a <strong>User</strong>.
+                    This happens when GitHub Actions runs with a Service Principal but your Bicep files expect a user principal.
+                  </p>
+                  <div style="background: #1a1b1c; padding: 10px; border-radius: 4px; margin: 10px 0;">
+                    <p style="margin: 0 0 8px 0; color: #4fc3f7; font-size: 13px; font-weight: bold;">✨ Solution:</p>
+                    <p style="margin: 0; color: #ccc; font-size: 12px; line-height: 1.6;">
+                      Add a <code style="background: #2d1f1f; padding: 2px 6px; border-radius: 3px; color: #4fc3f7;">createRoleForUser</code> flag to your <code style="background: #2d1f1f; padding: 2px 6px; border-radius: 3px;">main.bicep</code> file to conditionally create role assignments based on the principal type.
+                    </p>
+                  </div>
+                  <a href="https://github.com/Azure-Samples/azd-template-artifacts/blob/main/docs/development-guidelines/trouble-shooting.md#error-unmatchedprincipaltype-the-principalid-id-has-type-serviceprincipal--which-is-different-from-specified-princiapltype-user" 
+                     target="_blank" 
+                     style="display: inline-block; margin-top: 8px; padding: 6px 12px; background: #0078d4; color: white; text-decoration: none; border-radius: 4px; font-size: 13px;">
+                    📚 View Fix Documentation
+                  </a>
+                </div>
+              </div>
+            `;
+            logElement!.appendChild(principalErrorDiv);
+          }
+
           // Show error details if available
           if (status.errorSummary) {
             const errorDiv = document.createElement('div');
@@ -602,8 +637,14 @@ function createValidationIssue(status: any) {
 
   const [, owner, repo] = match;
 
+  // Check for UnmatchedPrincipalType error
+  const errorText = status.errorSummary || '';
+  const hasUnmatchedPrincipalError = /UnmatchedPrincipalType.*has type.*ServicePrincipal.*different from.*PrinciaplType.*User/i.test(errorText);
+
   // Build issue title
-  const title = `[Template Doctor] AZD Validation Failed`;
+  const title = hasUnmatchedPrincipalError
+    ? `[Template Doctor] Fix: Principal Type Mismatch in Role Assignment`
+    : `[Template Doctor] AZD Validation Failed`;
 
   // Build issue body
   let body = `## AZD Validation Failure Report\n\n`;
@@ -611,6 +652,32 @@ function createValidationIssue(status: any) {
   body += `**Validation Run:** ${status.html_url || 'N/A'}\n`;
   body += `**Status:** ${status.status} (${status.conclusion})\n`;
   body += `**Date:** ${new Date().toISOString()}\n\n`;
+
+  // Add specific guidance for UnmatchedPrincipalType error
+  if (hasUnmatchedPrincipalError) {
+    body += `### ⚠️ Detected Issue: Principal Type Mismatch\n\n`;
+    body += `Your template has a **Service Principal** vs **User** principal type mismatch in role assignments. `;
+    body += `This happens when GitHub Actions runs with a Service Principal but your Bicep files expect a user principal.\n\n`;
+    body += `### ✅ Recommended Fix\n\n`;
+    body += `Add a \`createRoleForUser\` parameter to conditionally create role assignments:\n\n`;
+    body += `\`\`\`bicep\n`;
+    body += `// In main.bicep\n`;
+    body += `@description('Flag to decide whether to create OpenAI role for current user')\n`;
+    body += `param createRoleForUser bool = true\n\n`;
+    body += `// User roles (conditional)\n`;
+    body += `module openAiRoleUser 'core/security/role.bicep' = if (createRoleForUser) {\n`;
+    body += `  scope: resourceGroup\n`;
+    body += `  name: 'openai-role-user'\n`;
+    body += `  params: {\n`;
+    body += `    principalId: principalId\n`;
+    body += `    roleDefinitionId: cognitiveServicesOpenAIUserRole.id\n`;
+    body += `    principalType: 'User'\n`;
+    body += `  }\n`;
+    body += `}\n`;
+    body += `\`\`\`\n\n`;
+    body += `**Reference:** [Azure Samples Troubleshooting Guide](https://github.com/Azure-Samples/azd-template-artifacts/blob/main/docs/development-guidelines/trouble-shooting.md#error-unmatchedprincipaltype-the-principalid-id-has-type-serviceprincipal--which-is-different-from-specified-princiapltype-user)\n\n`;
+    body += `**Example PR:** [azure-openai-assistant-javascript#18](https://github.com/Azure-Samples/azure-openai-assistant-javascript/pull/18/files)\n\n`;
+  }
 
   if (status.errorSummary) {
     body += `### Error Summary\n\n\`\`\`\n${status.errorSummary}\n\`\`\`\n\n`;
