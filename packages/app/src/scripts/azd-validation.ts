@@ -431,6 +431,7 @@ function startStatusPolling(apiBase: string, runId: string) {
         url.searchParams.set('workflowRunId', currentGithubRunId);
       } else {
         // Fallback to runId if workflowRunId not available (shouldn't happen)
+        console.warn('Fallback: workflowRunId not available, using runId instead. This should not happen.', { runId, currentGithubRunId });
         url.searchParams.set('runId', runId);
       }
       if (currentWorkflowOrgRepo) {
