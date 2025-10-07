@@ -59,19 +59,13 @@ function createLogContainer(): HTMLPreElement {
   const existingControls = document.getElementById('azd-provision-controls');
   if (existingControls) existingControls.remove();
 
-  // Remove existing status/error UI elements
+    // Remove old status elements if they exist (they'll be recreated in controls container)
   const existingStatusBar = document.getElementById('azd-status-bar');
   if (existingStatusBar) existingStatusBar.remove();
-
   const existingPrincipalError = document.getElementById('azd-principal-error');
   if (existingPrincipalError) existingPrincipalError.remove();
-
   const existingIssueSection = document.getElementById('azd-issue-section');
   if (existingIssueSection) existingIssueSection.remove();
-
-  // Remove actions container
-  const existingActionsContainer = document.getElementById('azd-actions-container');
-  if (existingActionsContainer) existingActionsContainer.remove();
 
   // Create or get validation section container
   let validationSection = document.getElementById('validation-section') as HTMLElement | null;
@@ -524,22 +518,19 @@ function startStatusPolling(apiBase: string, runId: string) {
           const elapsedSec = Math.floor((elapsedMs % 60000) / 1000);
           const elapsedTime = `${elapsedMin}m ${elapsedSec}s`;
 
-          // Create actions container AFTER log element (only once)
-          let actionsContainer = document.getElementById('azd-actions-container');
-          if (!actionsContainer) {
-            actionsContainer = document.createElement('div');
-            actionsContainer.id = 'azd-actions-container';
-            actionsContainer.style.cssText = 'margin: 15px 0 0 0;';
-            // Insert AFTER the log element
-            logElement!.parentElement!.insertBefore(actionsContainer, logElement!.nextSibling);
+          // Get controls container to append action buttons
+          const controlsContainer = document.getElementById('azd-provision-controls');
+          if (!controlsContainer) {
+            console.error('[azd-validation] Controls container not found!');
+            return;
           }
 
-          // Create status bar OUTSIDE log console (only if it doesn't exist)
+          // Create status bar in controls (only if it doesn't exist)
           if (!document.getElementById('azd-status-bar')) {
             const statusBar = document.createElement('div');
             statusBar.id = 'azd-status-bar';
             statusBar.style.cssText =
-              'margin: 0 0 15px 0; padding: 15px; background: linear-gradient(135deg, #1a1b1c 0%, #2d1f1f 100%); border-radius: 8px; border: 1px solid #f44336;';
+              'margin: 0 0 15px 0; padding: 15px; background: linear-gradient(135deg, #1a1b1c 0%, #2d1f1f 100%); border-radius: 8px; border: 1px solid #f44336; flex: 1;';
             statusBar.innerHTML = `
               <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
                 <div style="display: flex; align-items: center; gap: 10px;">
@@ -560,8 +551,8 @@ function startStatusPolling(apiBase: string, runId: string) {
               </div>
             `;
 
-            // Add to actions container AFTER log
-            actionsContainer.appendChild(statusBar);
+            // Append to controls container
+            controlsContainer.appendChild(statusBar);
           }
 
           // Check for UnmatchedPrincipalType error (ServicePrincipal vs User mismatch)
@@ -569,11 +560,11 @@ function startStatusPolling(apiBase: string, runId: string) {
           const hasUnmatchedPrincipalError = /UnmatchedPrincipalType[\s\S]*has type[\s\S]*ServicePrincipal[\s\S]*different from[\s\S]*PrinciaplType[\s\S]*User/i.test(errorText);
 
           if (hasUnmatchedPrincipalError && !document.getElementById('azd-principal-error')) {
-            // Show specific guidance for UnmatchedPrincipalType error OUTSIDE log
+            // Show specific guidance for UnmatchedPrincipalType error in controls
             const principalErrorDiv = document.createElement('div');
             principalErrorDiv.id = 'azd-principal-error';
             principalErrorDiv.style.cssText =
-              'margin: 0 0 15px 0; padding: 15px; background: linear-gradient(135deg, #2d1f1f 0%, #3d2f1f 100%); border-left: 4px solid #ff9800; border-radius: 8px;';
+              'margin: 0 0 15px 0; padding: 15px; background: linear-gradient(135deg, #2d1f1f 0%, #3d2f1f 100%); border-left: 4px solid #ff9800; border-radius: 8px; flex: 1;';
             principalErrorDiv.innerHTML = `
               <div style="display: flex; align-items: start; gap: 12px;">
                 <div style="font-size: 32px;">⚠️</div>
@@ -597,16 +588,16 @@ function startStatusPolling(apiBase: string, runId: string) {
                 </div>
               </div>
             `;
-            // Add to actions container AFTER log
-            actionsContainer.appendChild(principalErrorDiv);
+            // Append to controls container
+            controlsContainer.appendChild(principalErrorDiv);
           }
 
-          // Add "Create Issue" button OUTSIDE log console (only if it doesn't exist)
+          // Add "Create Issue" button in controls (only if it doesn't exist)
           if (status.html_url && !document.getElementById('azd-issue-section')) {
             const issueSection = document.createElement('div');
             issueSection.id = 'azd-issue-section';
             issueSection.style.cssText =
-              'margin: 0 0 15px 0; padding: 15px; background: linear-gradient(135deg, #1a1b1c 0%, #1f2c3d 100%); border-radius: 8px; border: 1px solid #0078d4;';
+              'margin: 0 0 15px 0; padding: 15px; background: linear-gradient(135deg, #1a1b1c 0%, #1f2c3d 100%); border-radius: 8px; border: 1px solid #0078d4; flex: 1;';
             
             const issueButton = document.createElement('button');
             issueButton.textContent = '🐛 Create GitHub Issue with Fix Guidance';
@@ -617,8 +608,8 @@ function startStatusPolling(apiBase: string, runId: string) {
             issueButton.onclick = () => createValidationIssue(status);
 
             issueSection.appendChild(issueButton);
-            // Add to actions container AFTER log
-            actionsContainer.appendChild(issueSection);
+            // Append to controls container
+            controlsContainer.appendChild(issueSection);
           }
 
           // Show error details if available - INSIDE log console
