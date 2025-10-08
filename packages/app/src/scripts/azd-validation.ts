@@ -11,61 +11,219 @@ let logElement: HTMLPreElement | null = null;
 let stopButton: HTMLButtonElement | null = null;
 let isValidationRunning = false;
 
-// AZD validation results
+// AZD validation results (from backend artifact parsing)
 interface AzdValidationResult {
   azdUpSuccess: boolean;
   azdUpTime: string | null;
   azdDownSuccess: boolean;
   azdDownTime: string | null;
-  workflowSuccess: boolean;
-  errorReason: string | null;
+  psRuleErrors: number;
+  psRuleWarnings: number;
+  securityStatus: 'pass' | 'warnings' | 'errors';
+  overallStatus: 'success' | 'warning' | 'failure';
+  resultFileContent: string;
 }
 
 /**
- * Parse the workflow logs to extract AZD Up and Down results
+ * Shows troubleshooting tips to help user during long workflow runs
+ * Called immediately when validation starts to provide guidance
  */
-function parseAzdResults(logs: string): AzdValidationResult {
-  const result: AzdValidationResult = {
-    azdUpSuccess: false,
-    azdUpTime: null,
-    azdDownSuccess: false,
-    azdDownTime: null,
-    workflowSuccess: false,
-    errorReason: null,
-  };
-
-  // Check for AZD Up success: "SUCCESS: Your up workflow to provision and deploy to Azure completed in X minutes Y seconds"
-  const azdUpMatch = logs.match(/SUCCESS:\s*Your up workflow to provision and deploy to Azure completed in ([\d\s\w]+)/i);
-  if (azdUpMatch) {
-    result.azdUpSuccess = true;
-    result.azdUpTime = azdUpMatch[1].trim();
+function showTroubleshootingTips(container: HTMLElement, errorText: string = ''): void {
+  // Remove existing tips if present
+  const existing = document.getElementById('azd-troubleshooting-tips');
+  if (existing) {
+    existing.remove();
   }
 
-  // Check for AZD Down success: "SUCCESS: Your application was removed from Azure in X minutes Y seconds"
-  const azdDownMatch = logs.match(/SUCCESS:\s*Your application was removed from Azure in ([\d\s\w]+)/i);
-  if (azdDownMatch) {
-    result.azdDownSuccess = true;
-    result.azdDownTime = azdDownMatch[1].trim();
-  }
+  const troubleshootingSection = document.createElement('div');
+  troubleshootingSection.id = 'azd-troubleshooting-tips';
+  troubleshootingSection.style.cssText = `
+    margin: 20px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  `;
 
-  // Check for errors
-  if (!result.azdUpSuccess) {
-    const upErrorMatch = logs.match(/Deploying services.*?\n(.*?ERROR.*?)(?=\n\n|\n[A-Z]|$)/is);
-    if (upErrorMatch) {
-      result.errorReason = `AZD Up failed: ${upErrorMatch[1].trim()}`;
+  // Check for specific errors for conditional styling
+  const hasUnmatchedPrincipalError = /UnmatchedPrincipalType[\s\S]*has type[\s\S]*ServicePrincipal[\s\S]*different from[\s\S]*PrinciaplType[\s\S]*User/i.test(errorText);
+
+  // Tip 1: Region Availability
+  const tip1 = document.createElement('div');
+  tip1.style.cssText = `
+    background: #f0f9ff;
+    border: 1px solid #0078d4;
+    border-radius: 8px;
+    padding: 12px 15px;
+    display: flex;
+    gap: 12px;
+    align-items: start;
+  `;
+  tip1.innerHTML = `
+    <span style="font-size: 20px; flex-shrink: 0;">💡</span>
+    <div style="flex: 1;">
+      <strong style="color: #0078d4; font-size: 14px; display: block; margin-bottom: 6px;">Tip: Region Availability</strong>
+      <p style="margin: 0 0 8px 0; color: #555; font-size: 13px; line-height: 1.5;">
+        Models are available in certain regions only. If you encounter a Region Availability error, check the troubleshooting guide and update your template's README.md to reflect available regions.
+      </p>
+      <a href="https://github.com/Azure-Samples/azd-template-artifacts/blob/main/docs/development-guidelines/trouble-shooting.md#region-availability" 
+         target="_blank" 
+         style="color: #0078d4; text-decoration: none; font-size: 13px; font-weight: 500;">
+        📖 View Region Availability Guide →
+      </a>
+    </div>
+  `;
+
+  // Tip 2: UnmatchedPrincipalType Error (highlight if detected)
+  const tip2 = document.createElement('div');
+  tip2.style.cssText = `
+    background: ${hasUnmatchedPrincipalError ? '#fff8e1' : '#f0f9ff'};
+    border: 2px solid ${hasUnmatchedPrincipalError ? '#ff9800' : '#0078d4'};
+    border-radius: 8px;
+    padding: 12px 15px;
+    display: flex;
+    gap: 12px;
+    align-items: start;
+  `;
+  tip2.innerHTML = `
+    <span style="font-size: 20px; flex-shrink: 0;">💡</span>
+    <div style="flex: 1;">
+      <strong style="color: ${hasUnmatchedPrincipalError ? '#e65100' : '#0078d4'}; font-size: 14px; display: block; margin-bottom: 6px;">
+        Tip: UnmatchedPrincipalType Error${hasUnmatchedPrincipalError ? ' ⚠️ DETECTED' : ''}
+      </strong>
+      <p style="margin: 0 0 4px 0; color: #555; font-size: 13px; line-height: 1.5;">
+        <strong>Error:</strong> UnmatchedPrincipalType with ServicePrincipal vs User type mismatch.
+      </p>
+      <p style="margin: 0 0 8px 0; color: #555; font-size: 13px; line-height: 1.5;">
+        <strong>Solution:</strong> Create a flag to avoid assigning principal type to service, assign to current user instead.
+      </p>
+      <a href="https://github.com/Azure-Samples/azure-openai-assistant-javascript/pull/18/files" 
+         target="_blank" 
+         style="color: #0078d4; text-decoration: none; font-size: 13px; font-weight: 500;">
+        📖 View Example Fix →
+      </a>
+    </div>
+  `;
+
+  // Tip 3: BCP332 maxLength Error
+  const tip3 = document.createElement('div');
+  tip3.style.cssText = `
+    background: #f0f9ff;
+    border: 1px solid #0078d4;
+    border-radius: 8px;
+    padding: 12px 15px;
+    display: flex;
+    gap: 12px;
+    align-items: start;
+  `;
+  tip3.innerHTML = `
+    <span style="font-size: 20px; flex-shrink: 0;">💡</span>
+    <div style="flex: 1;">
+      <strong style="color: #0078d4; font-size: 14px; display: block; margin-bottom: 6px;">Tip: BCP332 maxLength Error</strong>
+      <p style="margin: 0 0 4px 0; color: #555; font-size: 13px; line-height: 1.5;">
+        <strong>Error:</strong> Provided value length exceeds maxLength constraint in Bicep parameter.
+      </p>
+      <p style="margin: 0 0 8px 0; color: #555; font-size: 13px; line-height: 1.5;">
+        <strong>Solution:</strong> Increase the maxLength property in main.bicep to accommodate longer inputs.
+      </p>
+    </div>
+  `;
+
+  troubleshootingSection.appendChild(tip1);
+  troubleshootingSection.appendChild(tip2);
+  troubleshootingSection.appendChild(tip3);
+
+  container.appendChild(troubleshootingSection);
+}
+
+/**
+ * Displays AZD validation results from artifact data (parsed by backend)
+ * Replaces the old log-based parsing approach
+ */
+function displayAzdValidationResults(
+    container: HTMLElement,
+    azdValidation: AzdValidationResult,
+    githubRunUrl: string
+): void {
+    const statusIcon = {
+        success: '✅',
+        warning: '⚠️',
+        failure: '❌',
+    }[azdValidation.overallStatus];
+
+    const statusClass = {
+        success: 'validation-success',
+        warning: 'validation-warning',
+        failure: 'validation-failure',
+    }[azdValidation.overallStatus];
+
+    const statusMessage = {
+        success: 'Template validation passed',
+        warning: 'Template validation passed with warnings',
+        failure: 'Template validation failed',
+    }[azdValidation.overallStatus];
+
+    // Build details HTML
+    const azdUpIcon = azdValidation.azdUpSuccess ? '✅' : '❌';
+    const azdDownIcon = azdValidation.azdDownSuccess ? '✅' : '❌';
+    const azdUpTime = azdValidation.azdUpTime ? ` (${azdValidation.azdUpTime})` : '';
+    const azdDownTime = azdValidation.azdDownTime ? ` (${azdValidation.azdDownTime})` : '';
+
+    let securityLine = '';
+    if (azdValidation.securityStatus === 'pass') {
+        securityLine = '✅ Security Scan passed';
+    } else if (azdValidation.securityStatus === 'warnings') {
+        securityLine = `⚠️ Security Scan: ${azdValidation.psRuleWarnings} warnings`;
+    } else {
+        securityLine = `❌ Security Scan: ${azdValidation.psRuleErrors} errors`;
     }
-  }
 
-  if (!result.azdDownSuccess) {
-    const downErrorMatch = logs.match(/azd down.*?\n(.*?ERROR.*?)(?=\n\n|\n[A-Z]|$)/is);
-    if (downErrorMatch) {
-      result.errorReason = result.errorReason 
-        ? `${result.errorReason}\nAZD Down failed: ${downErrorMatch[1].trim()}`
-        : `AZD Down failed: ${downErrorMatch[1].trim()}`;
-    }
-  }
+    // Generate unique ID for collapsible details
+    const detailsId = `azd-details-${Date.now()}`;
+    
+    // Escape HTML in the markdown content for safe display
+    const escapedContent = (azdValidation.resultFileContent || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 
-  return result;
+    container.innerHTML = `
+        <div class="validation-result ${statusClass}">
+            <div class="validation-header">
+                <span class="validation-icon">${statusIcon}</span>
+                <span class="validation-message">${statusMessage}</span>
+            </div>
+            <div class="validation-details">
+                <div class="validation-step">
+                    <span class="step-icon">${azdUpIcon}</span>
+                    <span class="step-name">AZD Up${azdUpTime}</span>
+                </div>
+                <div class="validation-step">
+                    <span class="step-icon">${azdDownIcon}</span>
+                    <span class="step-name">AZD Down${azdDownTime}</span>
+                </div>
+                <div class="validation-step">
+                    <span class="step-text">${securityLine}</span>
+                </div>
+            </div>
+            <div class="validation-actions">
+                <a href="${githubRunUrl}" target="_blank" class="btn-view-logs">
+                    View Full Logs
+                </a>
+            </div>
+            ${azdValidation.resultFileContent ? `
+                <details class="validation-details-panel" style="margin-top: 15px;">
+                    <summary style="cursor: pointer; padding: 10px; background: rgba(0, 0, 0, 0.05); border-radius: 6px; font-weight: 500; user-select: none;">
+                        📋 Show Full Validation Details
+                    </summary>
+                    <div style="margin-top: 10px; padding: 15px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; max-height: 500px; overflow-y: auto;">
+                        <pre style="margin: 0; white-space: pre-wrap; word-wrap: break-word; font-family: 'Consolas', 'Monaco', monospace; font-size: 13px; line-height: 1.5;">${escapedContent}</pre>
+                    </div>
+                </details>
+            ` : ''}
+        </div>
+    `;
 }
 
 function notify() {
@@ -357,24 +515,6 @@ async function runValidation(templateUrl: string) {
       // Add clickable button in controls with dynamic elapsed time
       const controlsContainer = document.getElementById('azd-provision-controls');
       if (controlsContainer && !document.getElementById('azd-gh-run-link')) {
-        // Add CSS animation for the scrolling icon
-        if (!document.getElementById('azd-scroll-animation')) {
-          const style = document.createElement('style');
-          style.id = 'azd-scroll-animation';
-          style.textContent = `
-            @keyframes scrollUp {
-              0% { transform: translateY(20px); opacity: 0; }
-              50% { opacity: 1; }
-              100% { transform: translateY(-20px); opacity: 0; }
-            }
-            .azd-scroll-icon {
-              animation: scrollUp 2s infinite;
-              display: inline-block;
-            }
-          `;
-          document.head.appendChild(style);
-        }
-
         const linkDiv = document.createElement('div');
         linkDiv.id = 'azd-gh-run-link';
         linkDiv.style.cssText =
@@ -386,14 +526,15 @@ async function runValidation(templateUrl: string) {
           'background: #0078d4; color: white; border: none; padding: 10px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;';
         linkButton.onclick = () => window.open(currentGithubRunUrl!, '_blank');
 
-        // Add elapsed time counter with animated icon
+        // Add elapsed time counter with spinner (same as analysis)
         const elapsedDiv = document.createElement('div');
         elapsedDiv.id = 'azd-elapsed-time';
         elapsedDiv.style.cssText =
-          'display: flex; align-items: center; gap: 8px; color: #666; font-size: 13px; font-weight: 500;';
+          'display: flex; align-items: center; gap: 10px; color: #666; font-size: 14px; font-weight: 500;';
         
         // Start time tracking
         const startTime = Date.now();
+        (window as any).azdStartTime = startTime; // Store for final time calculation
         const updateElapsed = () => {
           const elapsed = Math.floor((Date.now() - startTime) / 1000);
           const minutes = Math.floor(elapsed / 60);
@@ -401,7 +542,7 @@ async function runValidation(templateUrl: string) {
           const timeStr = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
           
           elapsedDiv.innerHTML = `
-            <i class="fa-regular fa-file-lines azd-scroll-icon" style="color: #0078d4;"></i>
+            <i class="fas fa-spinner fa-spin" style="color: #0078d4;"></i>
             <span>${timeStr} elapsed</span>
           `;
         };
@@ -458,6 +599,11 @@ async function runValidation(templateUrl: string) {
     if (stopButton && currentRunId) {
       stopButton.disabled = false;
       stopButton.onclick = () => cancelValidation();
+    }
+
+    // Show troubleshooting tips immediately (to help user during long wait)
+    if (logElement?.parentElement) {
+      showTroubleshootingTips(logElement.parentElement);
     }
 
     // Start polling for status
@@ -607,25 +753,30 @@ function startStatusPolling(apiBase: string, runId: string) {
         stopPolling();
         isValidationRunning = false;
 
-        // Stop the elapsed time counter
+        // Stop the elapsed time counter animation and freeze final time
         if ((window as any).azdElapsedInterval) {
           clearInterval((window as any).azdElapsedInterval);
           (window as any).azdElapsedInterval = null;
+          
+          // Update elapsed time one last time and remove animation
+          const elapsedDiv = document.getElementById('azd-elapsed-time');
+          if (elapsedDiv) {
+            const startTime = (window as any).azdStartTime || Date.now();
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const minutes = Math.floor(elapsed / 60);
+            const seconds = elapsed % 60;
+            const timeStr = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+            
+            // Display final time WITHOUT spinner
+            elapsedDiv.innerHTML = `
+              <i class="fa-regular fa-clock" style="color: #0078d4; font-size: 16px;"></i>
+              <span><strong>Total time:</strong> ${timeStr}</span>
+            `;
+          }
         }
 
-        // Fetch the full workflow logs to parse AZD results
-        let azdResults: AzdValidationResult | null = null;
-        try {
-          const logsResponse = await fetch(`${apiBase}/api/v4/validation-status?workflowRunId=${currentGithubRunId}&workflowOrgRepo=${currentWorkflowOrgRepo}&includeLogs=true`);
-          if (logsResponse.ok) {
-            const logsData = await logsResponse.json();
-            const fullLogs = logsData.logs || '';
-            azdResults = parseAzdResults(fullLogs);
-            azdResults.workflowSuccess = status.conclusion === 'success';
-          }
-        } catch (err) {
-          console.error('[azd-validation] Failed to fetch logs for parsing:', err);
-        }
+        // Get AZD validation results from artifact data (parsed by backend)
+        const azdValidation = status.azdValidation;
 
         const controlsContainer = document.getElementById('azd-provision-controls');
         if (!controlsContainer) {
@@ -633,302 +784,67 @@ function startStatusPolling(apiBase: string, runId: string) {
           return;
         }
 
-        // Add troubleshooting tips section FIRST (always visible, regardless of status)
-        if (!document.getElementById('azd-troubleshooting-tips')) {
-          const troubleshootingSection = document.createElement('div');
-          troubleshootingSection.id = 'azd-troubleshooting-tips';
-          troubleshootingSection.style.cssText = `
-            margin: 15px 0;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-          `;
-
-          // Check for UnmatchedPrincipalType error for conditional styling
-          const errorText = azdResults?.errorReason || status.errorSummary || '';
-          const hasUnmatchedPrincipalError = /UnmatchedPrincipalType[\s\S]*has type[\s\S]*ServicePrincipal[\s\S]*different from[\s\S]*PrinciaplType[\s\S]*User/i.test(errorText);
-
-          // Tip 1: Region Availability
-          const tip1 = document.createElement('div');
-          tip1.style.cssText = `
-            background: #f0f9ff;
-            border: 1px solid #0078d4;
-            border-radius: 8px;
-            padding: 12px 15px;
-            display: flex;
-            gap: 12px;
-            align-items: start;
-          `;
-          tip1.innerHTML = `
-            <span style="font-size: 20px; flex-shrink: 0;">💡</span>
-            <div style="flex: 1;">
-              <strong style="color: #0078d4; font-size: 14px; display: block; margin-bottom: 6px;">Tip 1: Region Availability</strong>
-              <p style="margin: 0 0 8px 0; color: #555; font-size: 13px; line-height: 1.5;">
-                Models are available in certain regions only. If you encounter a Region Availability error, check the troubleshooting guide and update your template's README.md to reflect available regions for used models.
-              </p>
-              <a href="https://github.com/Azure-Samples/azd-template-artifacts/blob/main/docs/development-guidelines/trouble-shooting.md#region-availability" 
-                 target="_blank" 
-                 style="color: #0078d4; text-decoration: none; font-size: 13px; font-weight: 500;">
-                📖 View Region Availability Guide →
-              </a>
-            </div>
-          `;
-
-          // Tip 2: UnmatchedPrincipalType Error (highlight if detected)
-          const tip2 = document.createElement('div');
-          tip2.style.cssText = `
-            background: ${hasUnmatchedPrincipalError ? '#fff8e1' : '#f0f9ff'};
-            border: 2px solid ${hasUnmatchedPrincipalError ? '#ff9800' : '#0078d4'};
-            border-radius: 8px;
-            padding: 12px 15px;
-            display: flex;
-            gap: 12px;
-            align-items: start;
-          `;
-          tip2.innerHTML = `
-            <span style="font-size: 20px; flex-shrink: 0;">💡</span>
-            <div style="flex: 1;">
-              <strong style="color: ${hasUnmatchedPrincipalError ? '#e65100' : '#0078d4'}; font-size: 14px; display: block; margin-bottom: 6px;">
-                Tip 2: UnmatchedPrincipalType Error${hasUnmatchedPrincipalError ? ' ⚠️ DETECTED' : ''}
-              </strong>
-              <p style="margin: 0 0 4px 0; color: #555; font-size: 13px; line-height: 1.5;">
-                <strong>Error:</strong> UnmatchedPrincipalType: The PrincipalId has type 'ServicePrincipal', which is different from specified PrincipalType 'User'.
-              </p>
-              <p style="margin: 0 0 8px 0; color: #555; font-size: 13px; line-height: 1.5;">
-                <strong>Solution:</strong> Create a flag to avoid assigning the principal type to service, and create it for the current user instead.
-              </p>
-              <a href="https://github.com/Azure-Samples/azure-openai-assistant-javascript/pull/18/files" 
-                 target="_blank" 
-                 style="color: #0078d4; text-decoration: none; font-size: 13px; font-weight: 500;">
-                📖 View Example Fix →
-              </a>
-            </div>
-          `;
-
-          // Tip 3: BCP332 maxLength Error
-          const tip3 = document.createElement('div');
-          tip3.style.cssText = `
-            background: #f0f9ff;
-            border: 1px solid #0078d4;
-            border-radius: 8px;
-            padding: 12px 15px;
-            display: flex;
-            gap: 12px;
-            align-items: start;
-          `;
-          tip3.innerHTML = `
-            <span style="font-size: 20px; flex-shrink: 0;">💡</span>
-            <div style="flex: 1;">
-              <strong style="color: #0078d4; font-size: 14px; display: block; margin-bottom: 6px;">Tip 3: BCP332 maxLength Error</strong>
-              <p style="margin: 0 0 4px 0; color: #555; font-size: 13px; line-height: 1.5;">
-                <strong>Error:</strong> BCP332: The provided value (whose length will always be greater than or equal to 15) is too long to assign to a target for which the maximum allowable length is 10.
-              </p>
-              <p style="margin: 0 0 8px 0; color: #555; font-size: 13px; line-height: 1.5;">
-                <strong>Solution:</strong> The maxLength property defined for a parameter in main.bicep is too small. Increase the maxLength value to accommodate longer inputs.
+        // Display validation results if artifact data is available
+        if (azdValidation) {
+          displayAzdValidationResults(controlsContainer, azdValidation, status.html_url);
+        } else {
+          // Fallback: artifact not yet available or workflow too old
+          const conclusion = status.conclusion || 'unknown';
+          controlsContainer.innerHTML = `
+            <div class="validation-result validation-${conclusion}">
+              <p>Workflow ${conclusion}</p>
+              <p>⚠️ Detailed validation results not available. 
+                 <a href="${status.html_url}" target="_blank" style="color: #4fc3f7;">View workflow logs</a>
               </p>
             </div>
           `;
-
-          troubleshootingSection.appendChild(tip1);
-          troubleshootingSection.appendChild(tip2);
-          troubleshootingSection.appendChild(tip3);
-          controlsContainer.appendChild(troubleshootingSection);
         }
 
-        // Determine overall validation status
-        let validationStatus: 'success' | 'warning' | 'failure' = 'failure';
-        if (azdResults) {
-          if (azdResults.azdUpSuccess && azdResults.azdDownSuccess) {
-            validationStatus = azdResults.workflowSuccess ? 'success' : 'warning';
+        // Update troubleshooting tips with error context (if tips already shown)
+        const errorText = status.errorSummary || '';
+        if (errorText && logElement?.parentElement) {
+          // Refresh tips with error context for conditional highlighting
+          showTroubleshootingTips(logElement.parentElement, errorText);
+        }
+
+        // Add "Create Issue" button if validation failed or had warnings
+        const hasIssues = !azdValidation || 
+          azdValidation.overallStatus === 'failure' || 
+          azdValidation.overallStatus === 'warning';
+
+        if (hasIssues && currentGithubRunUrl && !document.getElementById('azd-issue-section')) {
+          const issueSection = document.createElement('div');
+          issueSection.id = 'azd-issue-section';
+          issueSection.style.cssText =
+            'margin: 15px 0; padding: 15px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 8px;';
+          
+          const issueButton = document.createElement('button');
+          issueButton.textContent = '🐛 Create GitHub Issue';
+          issueButton.style.cssText =
+            'width: 100%; background: #0078d4; color: white; border: none; padding: 12px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;';
+          issueButton.onmouseover = () => (issueButton.style.background = '#005a9e');
+          issueButton.onmouseout = () => (issueButton.style.background = '#0078d4');
+          issueButton.onclick = async () => {
+            await createValidationIssue(status, azdValidation);
+          };
+
+          issueSection.appendChild(issueButton);
+          controlsContainer.appendChild(issueSection);
+        }
+
+        // Show notification based on overall status
+        if (azdValidation) {
+          if (azdValidation.overallStatus === 'success') {
+            showSuccess('Validation Complete', 'Template validation passed!');
+          } else if (azdValidation.overallStatus === 'warning') {
+            showInfo('Validation Warning', 'Template passed with warnings');
+          } else {
+            showError('Validation Failed', 'Template validation encountered errors');
           }
         } else if (status.conclusion === 'success') {
-          validationStatus = 'success';
-        }
-
-        // Display results based on status
-        if (validationStatus === 'success' && !document.getElementById('azd-success-tile')) {
-          appendLog(logElement!, '✓ Validation completed successfully!');
-
-          const successTile = document.createElement('div');
-          successTile.id = 'azd-success-tile';
-          successTile.style.cssText =
-            'margin: 0 0 15px 0; padding: 20px; background: #f0f9ff; border: 2px solid #4caf50; border-radius: 8px;';
-          successTile.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 15px;">
-              <div style="font-size: 48px;">✅</div>
-              <div style="flex: 1;">
-                <h3 style="margin: 0 0 8px 0; color: #2e7d32; font-size: 20px; font-weight: bold;">Validation Passed!</h3>
-                ${azdResults?.azdUpTime ? `<p style="margin: 4px 0; color: #1976d2; font-size: 14px;">🚀 AZD Up completed in ${azdResults.azdUpTime}</p>` : ''}
-                ${azdResults?.azdDownTime ? `<p style="margin: 4px 0; color: #1976d2; font-size: 14px;">🧹 AZD Down completed in ${azdResults.azdDownTime}</p>` : ''}
-                <p style="margin: 4px 0 0 0; color: #666; font-size: 13px;">Your template meets all requirements! 🎉</p>
-              </div>
-            </div>
-          `;
-          controlsContainer.appendChild(successTile);
-          showSuccess('Validation Complete', 'Template validation passed!');
-        } else if (validationStatus === 'warning' && !document.getElementById('azd-warning-tile')) {
-          appendLog(logElement!, '⚠️ AZD operations succeeded but workflow had issues');
-
-          const warningTile = document.createElement('div');
-          warningTile.id = 'azd-warning-tile';
-          warningTile.style.cssText =
-            'margin: 0 0 15px 0; padding: 20px; background: #fffbf0; border: 2px solid #ff9800; border-radius: 8px;';
-          warningTile.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 15px;">
-              <div style="font-size: 48px;">⚠️</div>
-              <div style="flex: 1;">
-                <h3 style="margin: 0 0 8px 0; color: #f57c00; font-size: 20px; font-weight: bold;">AZD Succeeded, Workflow Failed</h3>
-                ${azdResults?.azdUpTime ? `<p style="margin: 4px 0; color: #2e7d32; font-size: 14px;">✅ AZD Up completed in ${azdResults.azdUpTime}</p>` : ''}
-                ${azdResults?.azdDownTime ? `<p style="margin: 4px 0; color: #2e7d32; font-size: 14px;">✅ AZD Down completed in ${azdResults.azdDownTime}</p>` : ''}
-                <p style="margin: 8px 0 0 0; color: #f57c00; font-size: 13px;">⚠️ Workflow completed with errors - check logs for details</p>
-              </div>
-            </div>
-          `;
-          controlsContainer.appendChild(warningTile);
-          
-          // Still show issue button for workflow errors
-          if (currentGithubRunUrl && !document.getElementById('azd-issue-section')) {
-            const issueSection = document.createElement('div');
-            issueSection.id = 'azd-issue-section';
-            issueSection.style.cssText =
-              'margin: 0 0 15px 0; padding: 15px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 8px;';
-            
-            const issueButton = document.createElement('button');
-            issueButton.textContent = '🐛 Report Workflow Issue';
-            issueButton.style.cssText =
-              'width: 100%; background: #ff9800; color: white; border: none; padding: 12px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;';
-            issueButton.onclick = () => createValidationIssue(status, azdResults);
-
-            issueSection.appendChild(issueButton);
-            controlsContainer.appendChild(issueSection);
-          }
-        } else if (validationStatus === 'failure') {
-          appendLog(logElement!, '✗ Validation failed');
-
-          // Create status bar with light styling
-          if (!document.getElementById('azd-status-bar')) {
-            const statusBar = document.createElement('div');
-            statusBar.id = 'azd-status-bar';
-            statusBar.style.cssText =
-              'margin: 0 0 15px 0; padding: 20px; background: #fff3f3; border: 2px solid #f44336; border-radius: 8px;';
-            statusBar.innerHTML = `
-              <div style="display: flex; align-items: center; gap: 15px;">
-                <div style="font-size: 48px;">❌</div>
-                <div style="flex: 1;">
-                  <h3 style="margin: 0 0 8px 0; color: #d32f2f; font-size: 20px; font-weight: bold;">Validation Failed</h3>
-                  ${!azdResults?.azdUpSuccess ? '<p style="margin: 4px 0; color: #d32f2f; font-size: 14px;">❌ AZD Up failed</p>' : ''}
-                  ${azdResults?.azdUpSuccess && azdResults?.azdUpTime ? `<p style="margin: 4px 0; color: #2e7d32; font-size: 14px;">✅ AZD Up completed in ${azdResults.azdUpTime}</p>` : ''}
-                  ${!azdResults?.azdDownSuccess && azdResults?.azdUpSuccess ? '<p style="margin: 4px 0; color: #d32f2f; font-size: 14px;">❌ AZD Down failed</p>' : ''}
-                  ${azdResults?.azdDownSuccess && azdResults?.azdDownTime ? `<p style="margin: 4px 0; color: #2e7d32; font-size: 14px;">✅ AZD Down completed in ${azdResults.azdDownTime}</p>` : ''}
-                </div>
-                ${
-                  currentGithubRunUrl
-                    ? `<a href="${currentGithubRunUrl}" target="_blank" style="padding: 10px 16px; background: #0078d4; color: white; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: 500;">🔗 View Run</a>`
-                    : ''
-                }
-              </div>
-            `;
-            controlsContainer.appendChild(statusBar);
-          }
-
-          // Show error details if available
-          if (azdResults?.errorReason && !document.getElementById('azd-error-details')) {
-            const errorDiv = document.createElement('div');
-            errorDiv.id = 'azd-error-details';
-            errorDiv.style.cssText =
-              'margin: 0 0 15px 0; padding: 12px; background: #1a1b1c; border: 1px solid #f44336; border-left: 4px solid #f44336; font-family: monospace; font-size: 12px; white-space: pre-wrap; border-radius: 6px; color: white;';
-            errorDiv.innerHTML = `<strong style="color: #ff6b6b;">Error Details:</strong>\n${azdResults.errorReason}`;
-            controlsContainer.appendChild(errorDiv);
-          }
-
-          // Check for UnmatchedPrincipalType error (ServicePrincipal vs User mismatch)
-          const errorText = azdResults?.errorReason || status.errorSummary || '';
-          const hasUnmatchedPrincipalError = /UnmatchedPrincipalType[\s\S]*has type[\s\S]*ServicePrincipal[\s\S]*different from[\s\S]*PrinciaplType[\s\S]*User/i.test(errorText);
-
-          if (hasUnmatchedPrincipalError && !document.getElementById('azd-principal-error')) {
-            // Show specific guidance for UnmatchedPrincipalType error in controls
-            const principalErrorDiv = document.createElement('div');
-            principalErrorDiv.id = 'azd-principal-error';
-            principalErrorDiv.style.cssText =
-              'margin: 0 0 15px 0; padding: 15px; background: #fff8e1; border: 2px solid #ff9800; border-radius: 8px;';
-            principalErrorDiv.innerHTML = `
-              <div style="display: flex; align-items: start; gap: 12px;">
-                <div style="font-size: 32px;">⚠️</div>
-                <div style="flex: 1;">
-                  <h4 style="margin: 0 0 10px 0; color: #f57c00; font-size: 16px;">Detected: Principal Type Mismatch</h4>
-                  <p style="margin: 0 0 10px 0; color: #666; font-size: 14px; line-height: 1.5;">
-                    Your template is trying to assign a <strong>Service Principal</strong> to a role that expects a <strong>User</strong>.
-                    This happens when GitHub Actions runs with a Service Principal but your Bicep files expect a user principal.
-                  </p>
-                  <div style="background: #f5f5f5; padding: 10px; border-radius: 4px; margin: 10px 0; border-left: 3px solid #0078d4;">
-                    <p style="margin: 0 0 8px 0; color: #0078d4; font-size: 13px; font-weight: bold;">✨ Solution:</p>
-                    <p style="margin: 0; color: #666; font-size: 12px; line-height: 1.6;">
-                      Add a <code style="background: #e3f2fd; padding: 2px 6px; border-radius: 3px; color: #1976d2;">createRoleForUser</code> flag to your <code style="background: #e3f2fd; padding: 2px 6px; border-radius: 3px;">main.bicep</code> file to conditionally create role assignments based on the principal type.
-                    </p>
-                  </div>
-                  <a href="https://github.com/Azure-Samples/azd-template-artifacts/blob/main/docs/development-guidelines/trouble-shooting.md#error-unmatchedprincipaltype-the-principalid-id-has-type-serviceprincipal--which-is-different-from-specified-princiapltype-user" 
-                     target="_blank" 
-                     style="display: inline-block; padding: 8px 16px; background: #0078d4; color: white; text-decoration: none; border-radius: 6px; font-size: 13px; font-weight: 500;">
-                    📚 View Fix Documentation
-                  </a>
-                </div>
-              </div>
-            `;
-            controlsContainer.appendChild(principalErrorDiv);
-          }
-
-          // Add "Create Issue" button in controls (only if it doesn't exist)
-          if (currentGithubRunUrl && !document.getElementById('azd-issue-section')) {
-            const issueSection = document.createElement('div');
-            issueSection.id = 'azd-issue-section';
-            issueSection.style.cssText =
-              'margin: 0 0 15px 0; padding: 15px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 8px;';
-            
-            const issueButton = document.createElement('button');
-            issueButton.textContent = '🐛 Create GitHub Issue with Fix Guidance';
-            issueButton.style.cssText =
-              'width: 100%; background: #0078d4; color: white; border: none; padding: 12px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;';
-            issueButton.onmouseover = () => (issueButton.style.background = '#005a9e');
-            issueButton.onmouseout = () => (issueButton.style.background = '#0078d4');
-            issueButton.onclick = () => createValidationIssue(status, azdResults);
-
-            issueSection.appendChild(issueButton);
-            controlsContainer.appendChild(issueSection);
-          }
-
-          // Show error details if available - move to controls
-          if (status.errorSummary && !document.getElementById('azd-error-details')) {
-            const errorDiv = document.createElement('div');
-            errorDiv.id = 'azd-error-details';
-            errorDiv.style.cssText =
-              'margin: 0 0 15px 0; padding: 12px; background: #2d1f1f; border-left: 3px solid #f44336; font-family: monospace; font-size: 12px; white-space: pre-wrap; border-radius: 6px;';
-            errorDiv.innerHTML = `<strong style="color: #f44336;">Error Details:</strong>\n${status.errorSummary}`;
-            controlsContainer.appendChild(errorDiv);
-          }
-
-          // Add links to failed jobs - move to controls
-          if (status.failedJobs && status.failedJobs.length > 0 && !document.getElementById('azd-failed-jobs')) {
-            const jobsDiv = document.createElement('div');
-            jobsDiv.id = 'azd-failed-jobs';
-            jobsDiv.style.cssText =
-              'margin: 0 0 15px 0; padding: 12px; background: #1a1b1c; border-left: 3px solid #ff9800; border-radius: 6px;';
-
-            let jobsHtml = '<strong style="color: #ff9800;">Failed Jobs:</strong><br>';
-            status.failedJobs.forEach((job: any) => {
-              jobsHtml += `<a href="${job.html_url}" target="_blank" style="color: #4fc3f7; text-decoration: none; display: block; margin: 5px 0;">📋 ${job.name}</a>`;
-              if (job.failedSteps && job.failedSteps.length > 0) {
-                jobsHtml += '<div style="margin-left: 20px; color: white;">';
-                job.failedSteps.forEach((step: any) => {
-                  jobsHtml += `  ❌ Step ${step.number}: ${step.name}<br>`;
-                });
-                jobsHtml += '</div>';
-              }
-            });
-            jobsDiv.innerHTML = jobsHtml;
-            controlsContainer.appendChild(jobsDiv);
-          }
-
-          showError('Validation Failed', 'Template validation encountered errors');
+          showSuccess('Validation Complete', 'Workflow completed successfully');
+        } else if (status.conclusion === 'failure') {
+          showError('Validation Failed', 'Workflow failed');
         } else if (status.conclusion === 'cancelled') {
           appendLog(logElement!, '⚠ Validation cancelled');
           showInfo('Validation Cancelled', 'Workflow was cancelled');
@@ -965,7 +881,7 @@ function stopPolling() {
 /**
  * Create a GitHub issue for validation failures
  */
-function createValidationIssue(status: any, azdResults?: AzdValidationResult | null) {
+async function createValidationIssue(status: any, azdResults?: AzdValidationResult | null) {
   // Use the stored template URL from the current validation
   const targetRepoUrl = currentTemplateUrl || '';
 
@@ -983,97 +899,132 @@ function createValidationIssue(status: any, azdResults?: AzdValidationResult | n
 
   const [, owner, repo] = match;
 
-  // Build issue body with AZD-specific information
-  let body = `## AZD Validation Report\n\n`;
+  // Extract actual validation errors from the markdown content
+  let errorSummary = '';
+  
+  if (azdResults?.resultFileContent) {
+    const markdown = azdResults.resultFileContent;
+    
+    // Extract failed deployment steps (lines with (x) Failed:)
+    const failedSteps = markdown.match(/\(x\) Failed:.*$/gm) || [];
+    
+    // Extract security scan warnings/errors (under Security Requirements section)
+    const securityMatch = markdown.match(/## Security Requirements:([\s\S]*?)(?=##|$)/);
+    const securitySection = securityMatch ? securityMatch[1].trim() : '';
+    
+    // Build error summary from actual validation content
+    if (failedSteps.length > 0) {
+      errorSummary += `**Deployment Failures:**\n`;
+      failedSteps.forEach(step => {
+        errorSummary += `- ${step.replace('(x) Failed:', '').trim()}\n`;
+      });
+      errorSummary += `\n`;
+    }
+    
+    if (securitySection && (azdResults.psRuleErrors > 0 || azdResults.psRuleWarnings > 0)) {
+      errorSummary += `**Security Scan Issues:**\n`;
+      errorSummary += securitySection + '\n\n';
+    }
+  }
+  
+  if (!errorSummary) {
+    errorSummary = status.errorSummary || 'Validation failed. See workflow logs for details.';
+  }
+
+  // Build Copilot-friendly prompt as issue title and body
+  const title = `[Template Doctor] Fix validation errors in Azure template`;
+  
+  let body = `Please help fix the following Azure template validation errors:\n\n`;
+  
+  body += `## Validation Report\n\n`;
   body += `**Repository:** ${targetRepoUrl}\n`;
   body += `**Validation Run:** ${status.html_url || currentGithubRunUrl || 'N/A'}\n`;
   body += `**Date:** ${new Date().toISOString()}\n\n`;
 
-  // Add AZD operation results
+  // Add AZD operation summary
   if (azdResults) {
-    body += `### AZD Operations\n\n`;
-    body += `- **AZD Up:** ${azdResults.azdUpSuccess ? `✅ Success (${azdResults.azdUpTime})` : '❌ Failed'}\n`;
-    body += `- **AZD Down:** ${azdResults.azdDownSuccess ? `✅ Success (${azdResults.azdDownTime})` : '❌ Failed'}\n`;
-    body += `- **Workflow:** ${azdResults.workflowSuccess ? '✅ Success' : '❌ Failed'}\n\n`;
+    body += `## Validation Results\n\n`;
+    body += `- **AZD Up:** ${azdResults.azdUpSuccess ? `✅ Success ${azdResults.azdUpTime ? `(${azdResults.azdUpTime})` : ''}` : '❌ Failed'}\n`;
+    body += `- **AZD Down:** ${azdResults.azdDownSuccess ? `✅ Success ${azdResults.azdDownTime ? `(${azdResults.azdDownTime})` : ''}` : '❌ Failed'}\n`;
+    body += `- **Security Scan:** ${azdResults.securityStatus === 'pass' ? '✅ Pass' : azdResults.securityStatus === 'warnings' ? `⚠️ ${azdResults.psRuleWarnings} warnings` : `❌ ${azdResults.psRuleErrors} errors`}\n`;
+    body += `- **Overall Status:** ${azdResults.overallStatus === 'success' ? '✅ Success' : azdResults.overallStatus === 'warning' ? '⚠️ Warning' : '❌ Failure'}\n\n`;
   }
 
-  // Check for UnmatchedPrincipalType error
-  const errorText = azdResults?.errorReason || status.errorSummary || '';
-  const hasUnmatchedPrincipalError = /UnmatchedPrincipalType[\s\S]*has type[\s\S]*ServicePrincipal[\s\S]*different from[\s\S]*PrinciaplType[\s\S]*User/i.test(errorText);
+  // Add the actual errors from validation (not workflow errors)
+  body += `## Issues Found\n\n`;
+  body += errorSummary;
 
-  // Build issue title
-  const title = hasUnmatchedPrincipalError
-    ? `[Template Doctor] Fix: Principal Type Mismatch in Role Assignment`
-    : `[Template Doctor] AZD Validation Failed`;
+  // Add Copilot task prompt
+  body += `## Task\n\n`;
+  body += `Please analyze these validation errors and:\n`;
+  body += `1. Identify the root cause of each failure\n`;
+  body += `2. Suggest specific code changes to fix the issues\n`;
+  body += `3. Update the relevant Bicep/infrastructure files\n`;
+  body += `4. Ensure the template follows [Azure Developer CLI best practices](https://learn.microsoft.com/azure/developer/azure-developer-cli/)\n\n`;
 
-  // Add specific guidance for UnmatchedPrincipalType error
-  if (hasUnmatchedPrincipalError) {
-    body += `### ⚠️ Detected Issue: Principal Type Mismatch\n\n`;
-    body += `Your template has a **Service Principal** vs **User** principal type mismatch in role assignments. `;
-    body += `This happens when GitHub Actions runs with a Service Principal but your Bicep files expect a user principal.\n\n`;
-    body += `### ✅ Recommended Fix\n\n`;
-    body += `Add a \`createRoleForUser\` parameter to conditionally create role assignments:\n\n`;
-    body += `\`\`\`bicep\n`;
-    body += `// In main.bicep\n`;
-    body += `@description('Flag to decide whether to create OpenAI role for current user')\n`;
-    body += `param createRoleForUser bool = true\n\n`;
-    body += `// User roles (conditional)\n`;
-    body += `module openAiRoleUser 'core/security/role.bicep' = if (createRoleForUser) {\n`;
-    body += `  scope: resourceGroup\n`;
-    body += `  name: 'openai-role-user'\n`;
-    body += `  params: {\n`;
-    body += `    principalId: principalId\n`;
-    body += `    roleDefinitionId: cognitiveServicesOpenAIUserRole.id\n`;
-    body += `    principalType: 'User'\n`;
-    body += `  }\n`;
-    body += `}\n`;
-    body += `\`\`\`\n\n`;
-    body += `**Reference:** [Azure Samples Troubleshooting Guide](https://github.com/Azure-Samples/azd-template-artifacts/blob/main/docs/development-guidelines/trouble-shooting.md#error-unmatchedprincipaltype-the-principalid-id-has-type-serviceprincipal--which-is-different-from-specified-princiapltype-user)\n\n`;
-    body += `**Example PR:** [azure-openai-assistant-javascript#18](https://github.com/Azure-Samples/azure-openai-assistant-javascript/pull/18/files)\n\n`;
+  // Add reference links
+  body += `## References\n\n`;
+  body += `- [Validation Workflow Logs](${status.html_url})\n`;
+  body += `- [AZD Template Best Practices](https://learn.microsoft.com/azure/developer/azure-developer-cli/make-azd-compatible)\n`;
+  body += `- [PSRule for Azure](https://azure.github.io/PSRule.Rules.Azure/)\n\n`;
+
+  // Add full validation details in collapsible section
+  if (azdResults?.resultFileContent) {
+    body += `<details>\n`;
+    body += `<summary>Full Validation Details</summary>\n\n`;
+    body += `\`\`\`\n${azdResults.resultFileContent}\n\`\`\`\n\n`;
+    body += `</details>\n\n`;
   }
 
-  // Add error details
-  if (azdResults?.errorReason) {
-    body += `### Error Details\n\n\`\`\`\n${azdResults.errorReason}\n\`\`\`\n\n`;
-  } else if (status.errorSummary) {
-    body += `### Error Summary\n\n\`\`\`\n${status.errorSummary}\n\`\`\`\n\n`;
-  }
-
-  if (status.failedJobs && status.failedJobs.length > 0) {
-    body += `### Failed Jobs\n\n`;
-    status.failedJobs.forEach((job: any) => {
-      body += `- [${job.name}](${job.html_url})\n`;
-      if (job.failedSteps && job.failedSteps.length > 0) {
-        job.failedSteps.forEach((step: any) => {
-          body += `  - ❌ Step ${step.number}: ${step.name}\n`;
-        });
-      }
-    });
-    body += `\n`;
-  }
-
-  body += `### Next Steps\n\n`;
-  body += `1. Review the [workflow run logs](${status.html_url})\n`;
-  body += `2. Check for common issues:\n`;
-  body += `   - Missing or incorrect Azure infrastructure files\n`;
-  body += `   - Invalid azd template configuration\n`;
-  body += `   - Docker image build failures\n`;
-  body += `   - Resource deployment errors\n`;
-  body += `3. Fix identified issues and re-run validation\n\n`;
   body += `---\n`;
   body += `*This issue was created automatically by [Template Doctor](https://github.com/Template-Doctor/template-doctor)*`;
 
-  // Create GitHub issue URL with pre-filled data
-  const issueUrl =
-    `https://github.com/${owner}/${repo}/issues/new?` +
-    `title=${encodeURIComponent(title)}&` +
-    `body=${encodeURIComponent(body)}&` +
-    `labels=bug,azd-validation`;
+  // Use GraphQL API to create issue and auto-assign to Copilot
+  const labels = ['bug', 'azd-validation'];
+  
+  // Get GitHub client instance
+  const gh = (window as any).GitHubClient;
+  
+  if (!gh || typeof gh.createIssueGraphQL !== 'function') {
+    // Fallback: open issue form in browser
+    const issueUrl =
+      `https://github.com/${owner}/${repo}/issues/new?` +
+      `title=${encodeURIComponent(title)}&` +
+      `body=${encodeURIComponent(body)}&` +
+      `labels=${labels.join(',')}`;
+    window.open(issueUrl, '_blank');
+    showInfo('Issue Created', 'Opening GitHub issue form (GraphQL unavailable)');
+    return;
+  }
 
-  // Open in new tab
-  window.open(issueUrl, '_blank');
-
-  showInfo('Issue Created', 'Opening GitHub issue form in new tab');
+  try {
+    // Show loading notification
+    const loadingNotification = showLoading('Creating Issue', 'Creating GitHub issue and assigning to Copilot...');
+    
+    // Create issue via GraphQL (automatically assigns to copilot-agent-swe if available)
+    const createdIssue = await gh.createIssueGraphQL(owner, repo, title, body, labels);
+    
+    // Close loading notification
+    if (loadingNotification && typeof loadingNotification.close === 'function') {
+      loadingNotification.close();
+    }
+    
+    // Show success and open issue in new tab
+    showSuccess('Issue Created', `Issue #${createdIssue.number} created and assigned to Copilot`);
+    window.open(createdIssue.url, '_blank');
+    
+  } catch (error: any) {
+    console.error('Failed to create issue via GraphQL:', error);
+    
+    // Fallback: open issue form in browser
+    const issueUrl =
+      `https://github.com/${owner}/${repo}/issues/new?` +
+      `title=${encodeURIComponent(title)}&` +
+      `body=${encodeURIComponent(body)}&` +
+      `labels=${labels.join(',')}`;
+    window.open(issueUrl, '_blank');
+    showError('Issue Creation Failed', `Could not auto-create issue: ${error.message}. Opening form in browser.`);
+  }
 }
 
 // Track if listeners are already registered to prevent duplicates
@@ -1084,9 +1035,15 @@ let listenersRegistered = false;
 
 // Listen for validation requests from template cards and dashboard
 if (!listenersRegistered) {
+  // Add custom event listener with guard to prevent duplicate triggers
   document.addEventListener('template-card-validate', (e: any) => {
     const template = e.detail?.template;
     if (template?.repoUrl) {
+      // Additional guard: check if validation is already running before calling
+      if (isValidationRunning) {
+        console.warn('[azd-validation] Ignoring duplicate template-card-validate event');
+        return;
+      }
       testAzdProvision(template.repoUrl);
     }
   });
@@ -1101,6 +1058,11 @@ if (!listenersRegistered) {
 
     if (testProvisionButton) {
       testProvisionButton.addEventListener('click', () => {
+        // Guard against double-click or rapid successive clicks
+        if (isValidationRunning) {
+          console.warn('[azd-validation] Ignoring click - validation already running');
+          return;
+        }
         testAzdProvision();
       });
     }

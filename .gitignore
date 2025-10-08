@@ -27,3 +27,4 @@ local.settings.json
 __azurite*
 
 gallery.jsonpackages/server/config/
+debug-oauth.md
