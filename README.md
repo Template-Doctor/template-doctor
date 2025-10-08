@@ -273,6 +273,38 @@ npm run test:debug # Run tests in debug mode
 npm run test -- "-g" "should handle search functionality" packages/app/tests/app.spec.js
 ```
 
+### Playwright Browser Guard (Fail‑Fast)
+
+End‑to‑end tests require Playwright browsers (Chromium at minimum). A misconfigured pipeline that sets `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` without restoring a cached browser directory used to fail late with a missing executable error. We added a proactive guard script `scripts/verify-playwright-browsers.js` (wired via the root `pretest` hook) that:
+
+1. Detects whether a Chromium installation exists in the Playwright cache.
+2. Fails fast (non‑zero) with remediation guidance if `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD` is set but browsers are absent.
+3. Allows intentional bypass (unit‑only jobs) via `PLAYWRIGHT_ALLOW_MISSING=1`.
+
+Typical GitHub Actions snippet (with cache):
+
+```yaml
+- uses: actions/cache@v4
+    with:
+        path: ~/.cache/ms-playwright
+        key: ${{ runner.os }}-playwright-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+            ${{ runner.os }}-playwright-
+- name: Install browsers (if cache miss)
+    run: |
+        if [ ! -d ~/.cache/ms-playwright ]; then npx playwright install chromium; fi
+- name: Tests
+    run: npm test
+```
+
+Unit‑only pipeline example (skip browser requirement deliberately):
+
+```bash
+PLAYWRIGHT_ALLOW_MISSING=1 npm run test:unit
+```
+
+Do NOT set `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD` for jobs that execute Playwright tests unless you guarantee a cache restore first.
+
 ### API Smoke Tests
 
 For quick end-to-end verification of Express endpoints:
