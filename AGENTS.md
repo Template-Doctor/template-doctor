@@ -203,6 +203,7 @@ The script exits non‑zero on the first critical failure (missing endpoint / un
 - `docs/development/ENVIRONMENT_VARIABLES.md`: Complete reference of all environment variables
 - `docs/development/OAUTH_CONFIGURATION.md`: OAuth setup details
 - `docs/development/EXPRESS_MIGRATION_MATRIX.md`: Azure Functions → Express migration tracking
+- `docs/development/AZD_VALIDATION_ARTIFACT_PARSING.md`: **CRITICAL** - Implementation plan for accurate AZD validation (ACTIVE WORK)
 - `docs/usage/GITHUB_ACTION_SETUP.md`: GitHub Action setup guide
 - `docker-compose.yml`: Multi-container development setup
 - `Dockerfile.combined`: Single-container production build
