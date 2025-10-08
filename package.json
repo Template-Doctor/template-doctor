@@ -11,6 +11,7 @@
         "template-doctor": "dist/cli.js"
     },
     "scripts": {
+        "pretest": "node scripts/verify-playwright-browsers.js",
         "setup:uami": "bash ./scripts/setup.sh",
         "build:all": "npm run build:analyzer-core && npm run build:api --if-present && npm run build:app",
         "build:analyzer-core": "npm run -w packages/analyzer-core build",
