@@ -167,9 +167,19 @@
         const ruleSet = t.ruleSet || 'dod';
         const ruleBadge = ruleSet.charAt(0).toUpperCase() + ruleSet.slice(1);
         const cls = p >= 80 ? 'high' : p >= 50 ? 'medium' : 'low';
+        
+        // AZD test badge
+        const azdBadgeHtml = t.azdTest ? `
+          <a href="/azd-test.html?repo=${t.owner}/${t.repo}&testId=${t.azdTest.testId}" 
+             class="azd-badge azd-${t.azdTest.status}" 
+             title="AZD Test: ${t.azdTest.status} (${new Date(t.azdTest.timestamp).toLocaleString()})">
+            <i class="fas fa-rocket"></i> AZD ${t.azdTest.status === 'success' ? '✓' : t.azdTest.status === 'failed' ? '✗' : '•'}
+          </a>
+        ` : '';
+        
         const card = document.createElement('div');
         card.className = 'template-card __auto';
-        card.innerHTML = `\n<div class="template-header">\n  <div class="template-name">${repoName}</div>\n  <div class="template-url" title="${t.repoUrl}">${t.repoUrl}</div>\n</div>\n<div>\n  <div style="display:flex;justify-content:space-between;">\n    <div>Compliance <span class="rule-set-badge rule-${ruleSet}">${ruleBadge}</span>:</div>\n    <div><strong>${p}%</strong></div>\n  </div>\n  <div class="gauge"><div class="gauge-fill ${cls}" style="width:${p}%"></div></div>\n</div>\n<div class="template-stats">\n  <div class="stat-item"><div class="stat-value">${issues}</div><div class="stat-label">Issues</div></div>\n  <div class="stat-item"><div class="stat-value">${passed}</div><div class="stat-label">Passed</div></div>\n</div>\n<a href="${t.relativePath}" class="btn"><i class="fas fa-chart-bar"></i> View Report</a>\n<div class="template-timestamp"><i class="far fa-clock"></i> ${t.timestamp}</div>`;
+        card.innerHTML = `\n<div class="template-header">\n  <div class="template-name">${repoName}</div>\n  <div class="template-url" title="${t.repoUrl}">${t.repoUrl}</div>\n</div>\n<div>\n  <div style="display:flex;justify-content:space-between;align-items:center;">\n    <div>Compliance <span class="rule-set-badge rule-${ruleSet}">${ruleBadge}</span>:</div>\n    <div><strong>${p}%</strong></div>\n  </div>\n  <div class="gauge"><div class="gauge-fill ${cls}" style="width:${p}%"></div></div>\n</div>\n<div class="template-stats">\n  <div class="stat-item"><div class="stat-value">${issues}</div><div class="stat-label">Issues</div></div>\n  <div class="stat-item"><div class="stat-value">${passed}</div><div class="stat-label">Passed</div></div>\n</div>\n<div style="display:flex;gap:8px;margin-top:8px;">\n  <a href="${t.relativePath}" class="btn" style="flex:1"><i class="fas fa-chart-bar"></i> View Report</a>\n  ${azdBadgeHtml}\n</div>\n<div class="template-timestamp"><i class="far fa-clock"></i> ${t.timestamp}</div>`;
         grid.appendChild(card);
       });
       console.log(

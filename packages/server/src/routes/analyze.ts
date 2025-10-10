@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express";
 import { runAnalyzer } from "../analyzer-core/index.js";
+import { analysisStorage } from "../services/analysis-storage.js";
 
 export const analyzeRouter = Router();
 
@@ -245,6 +246,27 @@ export async function analyzeSingleRepository(
             aiDeprecationCheckEnabled: aiDeprecationCheckEnabled !== false,
         });
         if (archiveOverride === true) result.archiveRequested = true;
+
+        // Save results to database
+        try {
+            await analysisStorage.saveAnalysis({
+                repoUrl,
+                ruleSet,
+                compliance: {
+                    percentage: result.compliance?.percentage || 0,
+                    issues: result.compliance?.issues || [],
+                    compliant: result.compliance?.compliant || [],
+                },
+                categories: result.compliance?.categories,
+                analysisResult: result,
+                archiveRequested: result.archiveRequested,
+            });
+            console.log(`[analyze] Saved analysis to database for ${repoUrl}`);
+        } catch (dbError: any) {
+            console.error(`[analyze] Database save failed: ${dbError?.message}`);
+            // Don't fail the request if database save fails
+        }
+
         return { status: 200, body: result };
     } catch (e: any) {
         const msg = e?.message || String(e);

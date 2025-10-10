@@ -3,6 +3,7 @@
  * Tests GET/POST /api/v4/setup with Git CSV persistence
  */
 
+import { describe, it, expect, beforeEach } from "vitest";
 import fs from "fs/promises";
 import path from "path";
 

@@ -84,13 +84,79 @@ declare global {
         });
     },
     loadReport: function (template: string | TemplateDescriptor) {
-      return new Promise<ReportData>((resolve, reject) => {
+      return new Promise((resolve, reject) => {
         if (!template) {
-          debug('report-loader', 'No template provided');
           return reject(new Error('No template specified'));
         }
 
-        let templateName: string | undefined,
+        // NEW: Try loading from MongoDB API first if we have owner/repo info
+        const tryApiLoad = async (): Promise<ReportData | null> => {
+          try {
+            // Extract owner/repo from URL params or template object
+            let owner: string | undefined, repo: string | undefined;
+            
+            // Check URL params first (e.g., /report.html?repo=owner/repo)
+            const urlParams = new URLSearchParams(window.location.search);
+            const repoParam = urlParams.get('repo');
+            if (repoParam && repoParam.includes('/')) {
+              [owner, repo] = repoParam.split('/');
+              debug('report-loader', `Extracted from URL: ${owner}/${repo}`);
+            }
+            
+            // Otherwise try to extract from template object
+            if (!owner && !repo && typeof template === 'object' && template?.repoUrl) {
+              const match = template.repoUrl.match(/github\.com\/([^/]+)\/([^/]+)/);
+              if (match) {
+                owner = match[1];
+                repo = match[2].replace(/\.git$/, '');
+                debug('report-loader', `Extracted from repoUrl: ${owner}/${repo}`);
+              }
+            }
+            
+            if (owner && repo) {
+              debug('report-loader', `Attempting API load for ${owner}/${repo}`);
+              const response = await fetch(`/api/v4/results/repo/${owner}/${repo}`, {
+                cache: 'no-store',
+                headers: { 'Accept': 'application/json' }
+              });
+              
+              if (response.ok) {
+                const apiData = await response.json();
+                debug('report-loader', 'API load successful', apiData);
+                
+                // Transform API response to match expected report data structure
+                if (apiData.analyses && apiData.analyses.length > 0) {
+                  const latest = apiData.analyses[0];
+                  return {
+                    repoUrl: apiData.repoUrl,
+                    owner: apiData.owner,
+                    repo: apiData.repo,
+                    ruleSet: latest.ruleSet,
+                    timestamp: latest.timestamp,
+                    scanDate: latest.scanDate,
+                    compliance: latest.compliance,
+                    categories: latest.categories,
+                    analysisResult: latest.analysisResult || {},
+                    // Keep raw API data for debugging
+                    _apiData: apiData,
+                  };
+                }
+              }
+            }
+          } catch (err: any) {
+            debug('report-loader', 'API load failed, will try filesystem fallback', err?.message);
+          }
+          return null;
+        };
+
+        // Try API first, then fall back to existing filesystem logic
+        tryApiLoad().then((apiData) => {
+          if (apiData) {
+            return resolve(apiData);
+          }
+          
+          // Fall back to existing filesystem loading logic...
+          let templateName: string | undefined,
           templatePath: string | undefined,
           directData: ReportData | undefined,
           dataJsPath: string | undefined,
@@ -168,6 +234,7 @@ declare global {
         } else {
           afterFallback(this._tryLoadReport(templateName, templatePath, folderName));
         }
+        }).catch(reject); // Close tryApiLoad().then() and handle errors
       });
     },
     _loadDataJsFile: function (dataJsPath: string) {
