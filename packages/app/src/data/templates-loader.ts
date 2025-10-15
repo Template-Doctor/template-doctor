@@ -6,6 +6,10 @@
 // (index-data.js populates window.templatesData with this shape.)
 
 (function () {
+  // Prevent duplicate loads
+  let isLoaded = false;
+  let isLoading = false;
+  
   function log(...args: any[]) {
     try {
       console.log('[templates-loader]', ...args);
@@ -13,7 +17,9 @@
   }
 
   function dispatchLoaded() {
+    // Only dispatch template-data-loaded once
     document.dispatchEvent(new CustomEvent('template-data-loaded'));
+    log('Dispatched template-data-loaded event');
   }
 
   function showTilesLoadedDebug(count: number) {
@@ -52,7 +58,15 @@
   }
 
   async function loadTemplateData() {
+    // Prevent duplicate loads
+    if (isLoading || isLoaded) {
+      log('Already loaded or loading, skipping duplicate load');
+      return;
+    }
+    
+    isLoading = true;
     log('Loading template data from MongoDB API (auth confirmed)');
+    
     try {
       // Load from MongoDB-backed API instead of filesystem
       const response = await fetch('/api/v4/results/latest?limit=200', {
@@ -111,6 +125,8 @@
       if (!Array.isArray(window.templatesData)) window.templatesData = [];
       showTilesLoadedDebug(0);
     } finally {
+      isLoading = false;
+      isLoaded = true;
       dispatchLoaded();
     }
   }
@@ -164,7 +180,7 @@
 
   document.addEventListener('auth-state-changed', (e: any) => {
     try {
-      if (e.detail && e.detail.authenticated) {
+      if (e.detail && e.detail.authenticated && !isLoaded && !isLoading) {
         log('Auth changed to authenticated; loading templates');
         loadTemplateData();
       }

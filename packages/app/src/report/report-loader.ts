@@ -127,19 +127,29 @@ declare global {
                 // Transform API response to match expected report data structure
                 if (apiData.analyses && apiData.analyses.length > 0) {
                   const latest = apiData.analyses[0];
-                  return {
+                  
+                  // Use the complete analysisResult which contains all compliance data with categories
+                  const analysisResult = latest.analysisResult || {};
+                  const compliance = analysisResult.compliance || latest.compliance || {};
+                  
+                  const transformedData = {
                     repoUrl: apiData.repoUrl,
                     owner: apiData.owner,
                     repo: apiData.repo,
                     ruleSet: latest.ruleSet,
                     timestamp: latest.timestamp,
                     scanDate: latest.scanDate,
-                    compliance: latest.compliance,
-                    categories: latest.categories,
-                    analysisResult: latest.analysisResult || {},
+                    compliance: compliance,
+                    analysisResult: analysisResult,
                     // Keep raw API data for debugging
                     _apiData: apiData,
                   };
+                  
+                  debug('report-loader', 'Transformed data:', transformedData);
+                  debug('report-loader', 'Compliance object:', compliance);
+                  debug('report-loader', 'Categories:', compliance.categories);
+                  
+                  return transformedData;
                 }
               }
             }

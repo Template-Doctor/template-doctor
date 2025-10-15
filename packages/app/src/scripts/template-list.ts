@@ -109,6 +109,7 @@ function createCard(t: ScannedTemplateEntry): HTMLElement {
     if (!target || target.tagName !== 'BUTTON') return;
     const action = target.getAttribute('data-action');
     if (action === 'view') {
+      e.stopPropagation(); // Prevent delegated handler from catching this
       document.dispatchEvent(new CustomEvent('template-card-view', { detail: { template: t } }));
     } else if (action === 'rescan') {
       console.log('[TemplateList] rescan requested', t.repoUrl);
