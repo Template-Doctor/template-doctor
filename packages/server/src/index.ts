@@ -54,6 +54,8 @@ import { analysisRouter } from "./routes/analysis.js";
 import { actionsRouter } from "./routes/actions.js";
 import { miscRouter } from "./routes/misc.js";
 import { resultsRouter } from "./routes/results.js";
+import { adminConfigRouter } from "./routes/admin-config.js";
+import leaderboardsRouter from "./routes/leaderboards.js";
 
 // Initialize database connection
 import { database } from "./services/database.js";
@@ -86,6 +88,8 @@ app.use("/api/v4", analysisRouter);
 app.use("/api/v4", actionsRouter);
 app.use("/api/v4", miscRouter);
 app.use("/api/v4", resultsRouter);
+app.use("/api/v4/admin", adminConfigRouter); // Admin configuration endpoints
+app.use("/api/v4/leaderboards", leaderboardsRouter); // Leaderboards analytics
 
 // Fallback to serve index.html for client-side routing (SPA)
 app.get("*", (req: Request, res: Response) => {
@@ -97,13 +101,23 @@ app.get("*", (req: Request, res: Response) => {
 });
 
 // Start server
-app.listen(port, () => {
+app.listen(port, async () => {
     console.log(`🚀 Template Doctor server running on port ${port}`);
     console.log(`📊 Health check: http://localhost:${port}/api/health`);
     console.log(
         `🔑 GitHub Token configured: ${!!process.env.GH_WORKFLOW_TOKEN || !!process.env.GITHUB_TOKEN}`,
     );
     console.log(`📁 Serving static files from: ${staticPath}`);
+    
+    // Initialize default configuration settings
+    try {
+        console.log('📝 Initializing configuration defaults...');
+        const { ConfigurationStorage } = await import("./services/configuration-storage.js");
+        await ConfigurationStorage.initializeDefaults();
+        console.log('✅ Configuration initialized');
+    } catch (error) {
+        console.error('⚠️  Failed to initialize configuration:', error);
+    }
 });
 
 export default app;
