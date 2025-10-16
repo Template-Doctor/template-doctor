@@ -1,0 +1,137 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+
+name: template-doctor
+metadata:
+  template: template-doctor@0.0.1-beta
+
+services:
+  web:
+    project: .
+    language: docker
+    docker:
+      path: Dockerfile.combined
+      context: .
+    host: containerapp
+    env:
+      # Database configuration
+      MONGODB_URI:
+        value: ${MONGODB_URI}
+      MONGODB_DATABASE:
+        value: template-doctor
+      
+      # GitHub OAuth configuration (required)
+      GITHUB_CLIENT_ID:
+        value: ${GITHUB_CLIENT_ID}
+      GITHUB_CLIENT_SECRET:
+        value: ${GITHUB_CLIENT_SECRET}
+      
+      # GitHub Personal Access Token (required for repository operations)
+      # Used for: cloning repos, creating PRs, saving results, triggering workflows
+      # Scopes needed: repo, workflow, read:org
+      GITHUB_TOKEN:
+        value: ${GITHUB_TOKEN}
+      
+      # Legacy: GitHub workflow token (use GITHUB_TOKEN instead)
+      GH_WORKFLOW_TOKEN:
+        value: ${GITHUB_TOKEN}
+      
+      # Application configuration
+      NODE_ENV:
+        value: production
+      PORT:
+        value: 3000
+
+hooks:
+  postprovision:
+    shell: sh
+    run: |
+      echo "✅ Cosmos DB provisioned successfully"
+      echo "   Database: template-doctor"
+      echo "   Endpoint: ${MONGODB_URI}"
+      echo ""
+      if [ -z "${GITHUB_TOKEN}" ]; then
+        echo "⚠️  GitHub credentials not found in .env file"
+        echo ""
+        echo "Add to your .env file:"
+        echo "  GITHUB_CLIENT_ID=Iv1.xxxxxxxx"
+        echo "  GITHUB_CLIENT_SECRET=xxxxxxxx"
+        echo "  GITHUB_TOKEN=ghp_xxxxxxxx"
+        echo ""
+        echo "Or set via azd:"
+        echo "  azd env set GITHUB_CLIENT_ID <value>"
+        echo "  azd env set GITHUB_CLIENT_SECRET <value>"
+        echo "  azd env set GITHUB_TOKEN <value>"
+        echo ""
+      else
+        echo "✅ GitHub credentials configured"
+        echo ""
+      fi
+      echo "📦 Next step: Deploy the application"
+      echo "   azd deploy"
+    continueOnError: false
+  
+  postdeploy:
+    shell: sh
+    run: |
+      echo ""
+      echo "🌱 Initializing database and seeding sample data..."
+      
+      # Get the deployed app URL
+      APP_URL="${SERVICE_WEB_URI}"
+      
+      if [ -z "$APP_URL" ]; then
+        echo "⚠️  Could not determine app URL, skipping initialization"
+        exit 0
+      fi
+      
+      # Wait for app to be ready
+      echo "⏳ Waiting for application to be ready..."
+      for i in {1..30}; do
+        if curl -sf "${APP_URL}/api/v4/health" > /dev/null 2>&1; then
+          echo "✅ Application is ready"
+          break
+        fi
+        echo -n "."
+        sleep 2
+      done
+      echo ""
+      
+      # Initialize default admin settings
+      echo "⚙️  Initializing admin settings..."
+      INIT_RESPONSE=$(curl -s -X POST "${APP_URL}/api/v4/admin/settings/initialize" \
+        -H "Content-Type: application/json")
+      
+      if echo "$INIT_RESPONSE" | grep -q "success"; then
+        echo "✅ Admin settings initialized"
+      else
+        echo "⚠️  Could not initialize settings (may already exist)"
+      fi
+      
+      # Seed with Azure-Samples/todo-nodejs-mongo (a well-known azd template)
+      echo "📊 Adding sample template: Azure-Samples/todo-nodejs-mongo"
+      
+      RESPONSE=$(curl -s -X POST "${APP_URL}/api/v4/analyze-template" \
+        -H "Content-Type: application/json" \
+        -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+        -d '{
+          "repoUrl": "https://github.com/Azure-Samples/todo-nodejs-mongo",
+          "ruleSet": "dod"
+        }')
+      
+      if echo "$RESPONSE" | grep -q "analysisId"; then
+        echo "✅ Sample template added successfully"
+        echo "   Repository: Azure-Samples/todo-nodejs-mongo"
+        echo "   View at: ${APP_URL}"
+      else
+        echo "⚠️  Could not add sample template (app may need GitHub login)"
+        echo "   You can manually analyze a template after logging in"
+      fi
+      
+      echo ""
+      echo "🎉 Deployment complete!"
+      echo ""
+      echo "📊 Application URL: ${APP_URL}"
+      echo "🔐 Update OAuth callback: ${APP_URL}/callback.html"
+      echo "⚙️  Admin settings: ${APP_URL}/api/v4/admin/settings"
+      echo ""
+    continueOnError: true

@@ -405,3 +405,257 @@ db.analysis.aggregate([
 - Historical trends only need last 10 scans (sufficient for charts)
 - AZD tests are infrequent, latest is all we need
 - Bounded growth prevents runaway collection size
+
+## Common Query Examples
+
+### Find repositories with low compliance
+```javascript
+db.repos.find({
+  "latestAnalysis.compliancePercentage": { $lt: 50 }
+}).sort({ "latestAnalysis.compliancePercentage": 1 })
+```
+
+### Get analysis trend for a repository
+```javascript
+db.analysis.find({
+  repoUrl: "https://github.com/owner/repo"
+}).sort({ scanDate: -1 }).limit(10)
+```
+
+### Count analyses per ruleset
+```javascript
+db.analysis.aggregate([
+  { $group: { _id: "$ruleSet", count: { $sum: 1 } } },
+  { $sort: { count: -1 } }
+])
+```
+
+### Find repositories with security issues
+```javascript
+db.analysis.find({
+  "categories.security.issues.0": { $exists: true }
+})
+```
+
+### Average compliance by category
+```javascript
+db.analysis.aggregate([
+  { $match: { "categories": { $exists: true } } },
+  {
+    $project: {
+      repoMgmt: "$categories.repositoryManagement.percentage",
+      deployment: "$categories.deployment.percentage",
+      security: "$categories.security.percentage"
+    }
+  },
+  {
+    $group: {
+      _id: null,
+      avgRepoMgmt: { $avg: "$repoMgmt" },
+      avgDeployment: { $avg: "$deployment" },
+      avgSecurity: { $avg: "$security" }
+    }
+  }
+])
+```
+
+## Performance Considerations
+
+### Cosmos DB RU Consumption
+
+Typical Request Unit costs for common operations:
+
+| Operation | RUs | Notes |
+|-----------|-----|-------|
+| Insert analysis | ~10 | Depends on document size (typically 10-50KB) |
+| Update repos | ~5 | Small updates to latestAnalysis |
+| Query latest 50 repos | ~20 | With index on scanDate |
+| Historical query (10 docs) | ~10 | With compound index on repoUrl + scanDate |
+| Aggregation pipeline | ~50+ | Varies by complexity and data size |
+
+### Optimization Tips
+
+1. **Always use indexes** - All queries should hit indexed fields to minimize RU consumption
+2. **Limit results** - Use `.limit()` to avoid scanning entire collection
+3. **Project only needed fields** - Reduce document size in results with `.project()`
+4. **Batch writes** - Group multiple operations when possible to reduce connection overhead
+5. **Use TTL indexes** - For automatic data expiration (if needed for old analyses)
+6. **Monitor RU consumption** - Set alerts in Azure Portal for high RU usage
+7. **Choose appropriate consistency** - Eventual consistency is cheaper than strong for read-heavy workloads
+
+### Sample Query Costs
+
+**Dashboard (50 latest repositories):**
+```javascript
+// ~20 RUs with index on latestAnalysis.scanDate
+db.repos.find({})
+  .sort({ "latestAnalysis.scanDate": -1 })
+  .limit(50)
+  .project({ _id: 1, repoUrl: 1, owner: 1, repo: 1, latestAnalysis: 1 })
+```
+
+**Leaderboard (top 100 by compliance):**
+```javascript
+// ~30 RUs with index on latestAnalysis.compliancePercentage
+db.repos.find({})
+  .sort({ "latestAnalysis.compliancePercentage": -1 })
+  .limit(100)
+  .project({ _id: 1, repoUrl: 1, owner: 1, repo: 1, latestAnalysis: 1 })
+```
+
+## Backup Strategy
+
+### Local Development (MongoDB)
+
+**Daily Backup Script:**
+```bash
+#!/bin/bash
+# Save to /scripts/backup-mongodb.sh
+
+BACKUP_DIR="/backups/mongodb"
+DATE=$(date +%Y%m%d_%H%M%S)
+
+# Create backup
+mongodump --db=template_doctor --out="${BACKUP_DIR}/${DATE}"
+
+# Keep last 7 days only
+find "${BACKUP_DIR}" -type d -mtime +7 -exec rm -rf {} +
+
+echo "Backup completed: ${BACKUP_DIR}/${DATE}"
+```
+
+**Automated Backup (Cron):**
+```bash
+# Add to crontab: crontab -e
+# Run daily at 2 AM
+0 2 * * * /scripts/backup-mongodb.sh >> /var/log/mongodb-backup.log 2>&1
+```
+
+**Restore from Backup:**
+```bash
+# Restore specific backup
+mongorestore --db=template_doctor /backups/mongodb/20250115_020000/template_doctor
+
+# Restore specific collection
+mongorestore --db=template_doctor --collection=repos /backups/mongodb/20250115_020000/template_doctor/repos.bson
+```
+
+### Cosmos DB (Production)
+
+**Point-in-Time Restore (PITR):**
+1. Enable in Azure Portal:
+   - Navigate to Cosmos DB account
+   - Settings → Backup & Restore
+   - Enable "Point in Time Restore"
+   - Set retention period (7-35 days)
+
+2. Restore from PITR:
+   - Portal → Backup & Restore → Restore
+   - Select timestamp
+   - Choose collections to restore
+   - Create new Cosmos DB account (cannot restore to existing)
+
+**Periodic Exports for Long-Term Archival:**
+```bash
+# Export using Data Migration Tool
+dt.exe /s:DocumentDB /s.ConnectionString:"AccountEndpoint=https://...;AccountKey=...;Database=template_doctor" /s.Collection:repos /t:JsonFile /t.File:./exports/repos-export.json /t.Overwrite
+
+# Or use Azure Data Factory:
+# 1. Create pipeline with Cosmos DB source
+# 2. Set JSON sink to Azure Blob Storage
+# 3. Schedule monthly runs
+```
+
+**Backup Best Practices:**
+- Enable PITR for 30-day retention
+- Export to Azure Blob Storage monthly for long-term archival
+- Test restore process quarterly
+- Document restore procedures
+- Monitor backup job status with Azure Monitor alerts
+
+## Schema Validation (Optional)
+
+MongoDB schema validation can enforce data quality at the database level:
+
+```javascript
+// Create repos collection with validation
+db.createCollection("repos", {
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      required: ["repoUrl", "owner", "repo", "createdAt", "updatedAt"],
+      properties: {
+        repoUrl: {
+          bsonType: "string",
+          pattern: "^https://github.com/",
+          description: "must be a valid GitHub URL"
+        },
+        owner: {
+          bsonType: "string",
+          minLength: 1,
+          description: "must be a non-empty string"
+        },
+        repo: {
+          bsonType: "string",
+          minLength: 1,
+          description: "must be a non-empty string"
+        },
+        latestAnalysis: {
+          bsonType: "object",
+          properties: {
+            compliancePercentage: {
+              bsonType: "number",
+              minimum: 0,
+              maximum: 100,
+              description: "must be between 0 and 100"
+            },
+            passed: {
+              bsonType: "int",
+              minimum: 0
+            },
+            issues: {
+              bsonType: "int",
+              minimum: 0
+            }
+          }
+        }
+      }
+    }
+  }
+})
+
+// Create analysis collection with validation
+db.createCollection("analysis", {
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      required: ["repoUrl", "owner", "repo", "scanDate", "ruleSet", "compliance", "createdAt"],
+      properties: {
+        repoUrl: {
+          bsonType: "string",
+          pattern: "^https://github.com/"
+        },
+        compliance: {
+          bsonType: "object",
+          required: ["percentage", "passed", "issues"],
+          properties: {
+            percentage: {
+              bsonType: "number",
+              minimum: 0,
+              maximum: 100
+            }
+          }
+        }
+      }
+    }
+  }
+})
+```
+
+## See Also
+
+- [DATA_LAYER.md](./DATA_LAYER.md) - Comprehensive data layer documentation with setup guides
+- [database.ts](../../packages/server/src/services/database.ts) - Database service implementation
+- [analysis-storage.ts](../../packages/server/src/services/analysis-storage.ts) - Analysis storage service with upsert logic
+- [LOCAL_DATABASE_TESTING.md](./LOCAL_DATABASE_TESTING.md) - Local MongoDB testing with Compass
+- [ENVIRONMENT_VARIABLES.md](./ENVIRONMENT_VARIABLES.md) - Database connection configuration
