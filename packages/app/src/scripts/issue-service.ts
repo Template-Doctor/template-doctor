@@ -305,15 +305,14 @@ export function wireIssueButton() {
   }
 }
 
-// Auto-wire when report loads
-if (typeof document !== 'undefined') {
+// Auto-wire when report loads (SINGLE listener only - duplicate removed at line 706)
+if (typeof document !== 'undefined' && !(window as any).__IssueServiceWired) {
+  (window as any).__IssueServiceWired = true;
   document.addEventListener('template-report-rendered', () => wireIssueButton());
 }
 
 // Expose
 (window as any).TemplateDoctorIssueService = { wireIssueButton, createIssues };
-
-document.addEventListener('issue-service-ready', () => {});
 
 // ---------------- Legacy Compatibility Shim for existing tests -----------------
 // Re-implements a subset of legacy logic (labels + body + child issues) in TS.
@@ -699,14 +698,18 @@ function createGitHubIssue() {
       hide(b);
     }
   }
-  document.addEventListener('analysis-completed', () => {
-    (window as any).__LatestScanFresh = true;
-    update();
-  });
-  document.addEventListener('template-report-rendered', () => {
-    // render event from view of saved report; do not mark fresh
-    update();
-  });
+  // Use { once: false } to allow repeated events, but guard against multiple registrations
+  if (!(window as any).__IssueUpdateListenersAdded) {
+    (window as any).__IssueUpdateListenersAdded = true;
+    document.addEventListener('analysis-completed', () => {
+      (window as any).__LatestScanFresh = true;
+      update();
+    });
+    document.addEventListener('template-report-rendered', () => {
+      // render event from view of saved report; do not mark fresh
+      update();
+    });
+  }
   // Wrap analyzeRepo (when available) to mark fresh scans
   let attempts = 0;
   function tryWrap() {

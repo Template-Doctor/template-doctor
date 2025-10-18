@@ -777,16 +777,19 @@
             }
             container.innerHTML = items.map((item, index) => {
                 const rankClass = index === 0 ? 'rank-1' : index === 1 ? 'rank-2' : index === 2 ? 'rank-3' : 'rank-other';
+                // Safely handle undefined scores
+                const scoreValue = item[scoreKey] !== undefined && item[scoreKey] !== null ? item[scoreKey] : 0;
+                const detailsValue = item[detailsKey] !== undefined ? item[detailsKey] : '';
                 return `
                     <div class="leaderboard-item">
                         <div class="leaderboard-rank">
                             <div class="rank-number ${rankClass}">${index + 1}</div>
                             <div class="user-info">
-                                <div class="user-name">${item.avatar} ${item.name}</div>
-                                <div class="user-details">${item[detailsKey] || ''}</div>
+                                <div class="user-name">${item.avatar || ''} ${item.name || 'Unknown'}</div>
+                                <div class="user-details">${detailsValue}</div>
                             </div>
                         </div>
-                        <div class="score">${item[scoreKey]}</div>
+                        <div class="score">${scoreValue}</div>
                     </div>
                 `;
             }).join('');
