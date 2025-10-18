@@ -1,6 +1,7 @@
 // Admin configuration management endpoints
 import { Router, Request, Response } from "express";
 import { ConfigurationStorage } from "../services/configuration-storage.js";
+import { database } from "../services/database.js";
 
 export const adminRouter = Router();
 
@@ -147,3 +148,99 @@ adminRouter.post("/settings/initialize", async (req: Request, res: Response) => 
     });
   }
 });
+
+// Get database statistics
+adminRouter.get("/db-stats", async (req: Request, res: Response) => {
+  try {
+    const db = database['db'];
+    
+    if (!db) {
+      return res.status(503).json({
+        error: 'Database not connected'
+      });
+    }
+
+    // List all collections
+    const collections = await db.listCollections().toArray();
+    const stats = {
+      database: db.databaseName,
+      collections: [] as Array<{
+        name: string;
+        count: number;
+        sample: { keys: string[]; _id?: string } | null;
+      }>
+    };
+
+    // Get stats for each collection
+    for (const col of collections) {
+      const collection = db.collection(col.name);
+      const count = await collection.countDocuments();
+      
+      const collectionStats = {
+        name: col.name,
+        count,
+        sample: null as { keys: string[]; _id?: string } | null
+      };
+
+      // Get one sample document to show structure
+      if (count > 0) {
+        const sample = await collection.findOne();
+        if (sample) {
+          collectionStats.sample = {
+            keys: Object.keys(sample),
+            _id: sample._id?.toString()
+          };
+        }
+      }
+
+      stats.collections.push(collectionStats);
+    }
+
+    res.json(stats);
+  } catch (error) {
+    console.error('[admin] Failed to get database stats:', error);
+    res.status(500).json({ 
+      error: 'Failed to retrieve database stats',
+      message: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
+
+// Query specific collection
+adminRouter.get("/db-query/:collection", async (req: Request, res: Response) => {
+  try {
+    const db = database['db'];
+    
+    if (!db) {
+      return res.status(503).json({
+        error: 'Database not connected'
+      });
+    }
+
+    const { collection: collectionName } = req.params;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = parseInt(req.query.skip as string) || 0;
+
+    const collection = db.collection(collectionName);
+    const count = await collection.countDocuments();
+    const documents = await collection.find().skip(skip).limit(limit).toArray();
+
+    res.json({
+      collection: collectionName,
+      total: count,
+      limit,
+      skip,
+      documents: documents.map((doc: any) => ({
+        ...doc,
+        _id: doc._id?.toString()
+      }))
+    });
+  } catch (error) {
+    console.error('[admin] Failed to query collection:', error);
+    res.status(500).json({ 
+      error: 'Failed to query collection',
+      message: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
+
