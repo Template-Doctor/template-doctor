@@ -5,6 +5,34 @@ import { database } from "../services/database.js";
 
 export const adminRouter = Router();
 
+// Get database connection info (for debugging)
+adminRouter.get("/db-info", async (req: Request, res: Response) => {
+  try {
+    const mongoUri = process.env.MONGODB_URI || '(not set)';
+    const cosmosEndpoint = process.env.COSMOS_ENDPOINT || '(not set)';
+    const mongodbDatabase = process.env.MONGODB_DATABASE || '(not set)';
+    const cosmosDatabase = process.env.COSMOS_DATABASE_NAME || '(not set)';
+    
+    // Mask sensitive parts
+    const maskedUri = mongoUri.replace(/\/\/([^:]+):([^@]+)@/, '//***:***@');
+    
+    res.json({
+      mongoUri: maskedUri,
+      cosmosEndpoint,
+      mongodbDatabase,
+      cosmosDatabase,
+      actualDatabase: database['db']?.databaseName || '(not connected)',
+      connectionType: process.env.MONGODB_URI ? 'MongoDB' : (process.env.COSMOS_ENDPOINT ? 'Cosmos' : 'Unknown')
+    });
+  } catch (error) {
+    console.error('[admin] Failed to get DB info:', error);
+    res.status(500).json({ 
+      error: 'Failed to retrieve DB info',
+      message: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
+
 // Get all configuration settings
 adminRouter.get("/settings", async (req: Request, res: Response) => {
   try {
