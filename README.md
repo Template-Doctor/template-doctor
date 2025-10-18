@@ -141,10 +141,12 @@ For manual setup or local development only, see sections below.
     ```
 
 5. **Access the application**:
-    - Frontend: http://localhost:3000
-    - Backend API: http://localhost:3001
+    - Frontend + Backend: http://localhost:3000
 
-## Manual Development Setup
+> [!IMPORTANT]
+> **OAuth Requirement**: Both frontend and backend run on port 3000 in Docker. This matches the GitHub OAuth callback URL. The Docker setup handles this automatically - both services are accessible at http://localhost:3000.
+
+## Manual Development Setup (Not Recommended for OAuth)
 
 If you prefer running services without Docker:
 
@@ -171,6 +173,9 @@ If you prefer running services without Docker:
     ```
 
 4. **Access the application**: http://localhost:4000
+
+> [!WARNING]
+> **OAuth Limitation**: This manual setup runs frontend (port 4000) and backend (port 3001) on different ports. OAuth authentication will NOT work correctly unless you create a separate GitHub OAuth app configured for port 4000. For OAuth functionality, use the Docker Compose setup instead (port 3000 for both services).
 
 > [!IMPORTANT]
 > The Express backend MUST be running before using OAuth login or analysis features.
@@ -291,6 +296,38 @@ npm run test:debug # Run tests in debug mode
 ```bash
 npm run test -- "-g" "should handle search functionality" packages/app/tests/app.spec.js
 ```
+
+### Playwright Browser Guard (Fail‑Fast)
+
+End‑to‑end tests require Playwright browsers (Chromium at minimum). A misconfigured pipeline that sets `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` without restoring a cached browser directory used to fail late with a missing executable error. We added a proactive guard script `scripts/verify-playwright-browsers.js` (wired via the root `pretest` hook) that:
+
+1. Detects whether a Chromium installation exists in the Playwright cache.
+2. Fails fast (non‑zero) with remediation guidance if `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD` is set but browsers are absent.
+3. Allows intentional bypass (unit‑only jobs) via `PLAYWRIGHT_ALLOW_MISSING=1`.
+
+Typical GitHub Actions snippet (with cache):
+
+```yaml
+- uses: actions/cache@v4
+    with:
+        path: ~/.cache/ms-playwright
+        key: ${{ runner.os }}-playwright-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+            ${{ runner.os }}-playwright-
+- name: Install browsers (if cache miss)
+    run: |
+        if [ ! -d ~/.cache/ms-playwright ]; then npx playwright install chromium; fi
+- name: Tests
+    run: npm test
+```
+
+Unit‑only pipeline example (skip browser requirement deliberately):
+
+```bash
+PLAYWRIGHT_ALLOW_MISSING=1 npm run test:unit
+```
+
+Do NOT set `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD` for jobs that execute Playwright tests unless you guarantee a cache restore first.
 
 ### API Smoke Tests
 

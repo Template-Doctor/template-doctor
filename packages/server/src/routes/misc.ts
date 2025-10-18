@@ -823,10 +823,18 @@ async function loadOverridesFromGist(): Promise<ConfigOverride[]> {
     // Skip header if present
     const dataLines = lines[0].startsWith("key,") ? lines.slice(1) : lines;
 
-    return dataLines.map((line) => {
+    // Map raw lines to overrides
+    const parsed = dataLines.map((line) => {
         const [key, value, updatedBy, updatedAt] = parseCsvLine(line);
-        return { key, value, updatedBy, updatedAt };
+        return { key, value, updatedBy, updatedAt } as ConfigOverride;
     });
+
+    // Deduplicate by key (last occurrence wins to reflect most recent update)
+    const map = new Map<string, ConfigOverride>();
+    for (const ov of parsed) {
+        map.set(ov.key, ov); // later entries overwrite earlier ones
+    }
+    return Array.from(map.values());
 }
 
 // Helper: Save overrides to GitHub Gist

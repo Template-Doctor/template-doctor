@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
+import http from "http";
 
 // ESM equivalents for __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -12,8 +13,8 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.join(__dirname, "../.env.local") });
 dotenv.config(); // Also load from root .env as fallback
 
-const app: Express = express();
-const port = process.env.PORT || 3000; // Default to 3000 for OAuth compatibility
+export const app: Express = express();
+const defaultPort = process.env.PORT || 3000; // Default to 3000 for OAuth compatibility
 
 // Middleware
 app.use(cors());
@@ -129,24 +130,34 @@ app.get("*", (req: Request, res: Response) => {
     res.sendFile(path.join(staticPath, "index.html"));
 });
 
-// Start server
-app.listen(port, async () => {
-    console.log(`🚀 Template Doctor server running on port ${port}`);
-    console.log(`📊 Health check: http://localhost:${port}/api/health`);
-    console.log(
-        `🔑 GitHub Token configured: ${!!process.env.GH_WORKFLOW_TOKEN || !!process.env.GITHUB_TOKEN}`,
-    );
-    console.log(`📁 Serving static files from: ${staticPath}`);
-    
-    // Initialize default configuration settings
-    try {
-        console.log('📝 Initializing configuration defaults...');
-        const { ConfigurationStorage } = await import("./services/configuration-storage.js");
-        await ConfigurationStorage.initializeDefaults();
-        console.log('✅ Configuration initialized');
-    } catch (error) {
-        console.error('⚠️  Failed to initialize configuration:', error);
-    }
-});
+export function startServer(port: number = Number(defaultPort)): Promise<http.Server> {
+    return new Promise((resolve) => {
+        const server = app.listen(port, async () => {
+            console.log(`🚀 Template Doctor server running on port ${port}`);
+            console.log(`📊 Health check: http://localhost:${port}/api/health`);
+            console.log(
+                `🔑 GitHub Token configured: ${!!process.env.GH_WORKFLOW_TOKEN || !!process.env.GITHUB_TOKEN}`,
+            );
+            console.log(`📁 Serving static files from: ${staticPath}`);
+            
+            // Initialize default configuration settings
+            try {
+                console.log('📝 Initializing configuration defaults...');
+                const { ConfigurationStorage } = await import("./services/configuration-storage.js");
+                await ConfigurationStorage.initializeDefaults();
+                console.log('✅ Configuration initialized');
+            } catch (error) {
+                console.error('⚠️  Failed to initialize configuration:', error);
+            }
+            
+            resolve(server);
+        });
+    });
+}
+
+// Auto start unless under test environment
+if (process.env.NODE_ENV !== "test" && !process.env.VITEST_WORKER_ID) {
+    startServer();
+}
 
 export default app;
