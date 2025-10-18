@@ -13,10 +13,9 @@ Template Doctor analyzes and validates sample templates, with a focus on Azure D
 - **packages/analyzer-core**: Core analyzer functionality (shared)
 - **Docker**: Containerized deployment (multi-container and single-container options)
 
-### Architecture (Legacy - Separate Branch)
+### Legacy Azure Functions (Archived)
 
-- **packages/api**: Azure Functions (maintained in `legacy/azure-functions` branch)
-- **packages/parity-tests**: Legacy test suite
+Azure Functions code has been removed from the main branch and archived in `dev/api-legacy-azure-functions` for historical reference.
 
 ## Development Environment Setup
 
