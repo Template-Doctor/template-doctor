@@ -95,7 +95,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * update HTTP wrapper to enforce correct signature and return value ([5171351](https://github.com/Template-Doctor/template-doctor/commit/517135131052c0cbe2def2b2966a7e55a7b545a5))
 
-## [1.0.0] - 2025-10-07
 
 ### 🎉 Major Release - Express Architecture Migration
 
