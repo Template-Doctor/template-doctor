@@ -113,7 +113,9 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
           name: 'main'
           image: 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest' // Placeholder, will be updated by azd deploy
           resources: {
-            cpu: json(containerCpuCoreCount)  // Convert string to number (Azure Container Apps requires numeric type)
+            // Note: Bicep does not support 'number' or 'numeric' types (only int, string, bool, object, array)
+            // json() is the correct way to convert string decimal values to numbers for Azure resources
+            cpu: json(containerCpuCoreCount)
             memory: containerMemory
           }
           env: env
