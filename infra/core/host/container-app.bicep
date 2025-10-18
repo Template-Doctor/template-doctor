@@ -28,6 +28,10 @@ param githubClientSecret string = ''
 @secure()
 param githubToken string = ''
 
+@description('GitHub Workflow Token for workflow dispatch')
+@secure()
+param ghWorkflowToken string = ''
+
 @description('Target port for the container')
 param targetPort int = 3000
 
@@ -88,19 +92,19 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
           name: 'registry-password'
           value: containerRegistry.listCredentials().passwords[0].value
         }
-        {
-          name: 'github-client-id'
-          value: githubClientId
-        }
-        {
-          name: 'github-client-secret'
-          value: githubClientSecret
-        }
-        {
-          name: 'github-token'
-          value: githubToken
-        }
-      ], secrets)
+      ], githubClientId != '' ? [{
+        name: 'github-client-id'
+        value: githubClientId
+      }] : [], githubClientSecret != '' ? [{
+        name: 'github-client-secret'
+        value: githubClientSecret
+      }] : [], githubToken != '' ? [{
+        name: 'github-token'
+        value: githubToken
+      }] : [], ghWorkflowToken != '' ? [{
+        name: 'gh-workflow-token'
+        value: ghWorkflowToken
+      }] : [], secrets)
     }
     template: {
       containers: [

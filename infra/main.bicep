@@ -28,6 +28,17 @@ param githubClientSecret string = ''
 @description('GitHub Personal Access Token - set in .env as GITHUB_TOKEN (scopes: repo, workflow, read:org)')
 param githubToken string = ''
 
+@secure()
+@description('GitHub Workflow Token - set in .env as GH_WORKFLOW_TOKEN (for workflow dispatch)')
+param ghWorkflowToken string = ''
+
+@secure()
+@description('MongoDB connection string - set in .env as MONGODB_URI')
+param mongodbUri string
+
+@description('Comma-separated list of GitHub usernames with admin access')
+param adminGitHubUsers string = ''
+
 // Tags to apply to all resources
 var tags = {
   'azd-env-name': environmentName
@@ -45,7 +56,9 @@ resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
   tags: tags
 }
 
-// Cosmos DB Module
+// Cosmos DB Module - COMMENTED OUT: Using existing database
+// Uncomment this section if you want azd to provision a new Cosmos DB
+/*
 module cosmos './database.bicep' = {
   name: 'cosmos-db-deployment'
   scope: rg
@@ -55,6 +68,7 @@ module cosmos './database.bicep' = {
     principalId: principalId
   }
 }
+*/
 
 // Container Apps Environment
 module containerAppsEnvironment 'core/host/container-apps-environment.bicep' = {
@@ -91,10 +105,11 @@ module containerApp 'core/host/container-app.bicep' = {
     githubClientId: githubClientId
     githubClientSecret: githubClientSecret
     githubToken: githubToken
-    env: [
+    ghWorkflowToken: ghWorkflowToken
+    env: concat([
       {
         name: 'MONGODB_URI'
-        value: cosmos.outputs.cosmosConnectionString
+        value: mongodbUri
       }
       {
         name: 'MONGODB_DATABASE'
@@ -109,18 +124,58 @@ module containerApp 'core/host/container-app.bicep' = {
         value: '3000'
       }
       {
-        name: 'GITHUB_CLIENT_ID'
-        secretRef: 'github-client-id'
+        name: 'FRONTEND_DIST_PATH'
+        value: '/app/app/dist'
       }
       {
-        name: 'GITHUB_CLIENT_SECRET'
-        secretRef: 'github-client-secret'
-      }
-      {
-        name: 'GITHUB_TOKEN'
+        name: 'GITHUB_TOKEN_ANALYZER'
         secretRef: 'github-token'
       }
-    ]
+      {
+        name: 'ADMIN_GITHUB_USERS'
+        value: adminGitHubUsers
+      }
+      {
+        name: 'DEFAULT_RULE_SET'
+        value: 'dod'
+      }
+      {
+        name: 'REQUIRE_AUTH_FOR_RESULTS'
+        value: 'true'
+      }
+      {
+        name: 'AUTO_SAVE_RESULTS'
+        value: 'false'
+      }
+      {
+        name: 'ARCHIVE_ENABLED'
+        value: 'false'
+      }
+      {
+        name: 'ARCHIVE_COLLECTION'
+        value: 'aigallery'
+      }
+      {
+        name: 'DISPATCH_TARGET_REPO'
+        value: 'Template-Doctor/template-doctor'
+      }
+      {
+        name: 'ISSUE_AI_ENABLED'
+        value: 'false'
+      }
+    ], githubClientId != '' ? [{
+      name: 'GITHUB_CLIENT_ID'
+      secretRef: 'github-client-id'
+    }] : [], githubClientSecret != '' ? [{
+      name: 'GITHUB_CLIENT_SECRET'
+      secretRef: 'github-client-secret'
+    }] : [], githubToken != '' ? [{
+      name: 'GITHUB_TOKEN'
+      secretRef: 'github-token'
+    }] : [], ghWorkflowToken != '' ? [{
+      name: 'GH_WORKFLOW_TOKEN'
+      secretRef: 'gh-workflow-token'
+    }] : [])
     secrets: []
     targetPort: 3000
     enableIngress: true
@@ -130,10 +185,13 @@ module containerApp 'core/host/container-app.bicep' = {
 
 // Outputs
 output AZURE_LOCATION string = location
+output AZURE_RESOURCE_GROUP string = rg.name
 output AZURE_CONTAINER_REGISTRY_ENDPOINT string = containerRegistry.outputs.loginServer
 output AZURE_CONTAINER_REGISTRY_NAME string = containerRegistry.outputs.name
+output AZURE_CONTAINER_APPS_ENVIRONMENT_NAME string = containerAppsEnvironment.outputs.name
+output AZURE_CONTAINER_APPS_ENVIRONMENT_ID string = containerAppsEnvironment.outputs.id
 output SERVICE_WEB_NAME string = containerApp.outputs.name
 output SERVICE_WEB_URI string = containerApp.outputs.uri
-output MONGODB_URI string = cosmos.outputs.cosmosConnectionString
-output COSMOS_ENDPOINT string = cosmos.outputs.cosmosEndpoint
-output COSMOS_ACCOUNT_NAME string = cosmos.outputs.cosmosAccountName
+output SERVICE_WEB_IMAGE_NAME string = 'template-doctor/web-${environmentName}:latest'
+output SERVICE_WEB_IDENTITY_PRINCIPAL_ID string = containerApp.outputs.principalId
+// Using existing MongoDB database - connection string from MONGODB_URI parameter

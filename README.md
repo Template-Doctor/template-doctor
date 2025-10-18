@@ -81,6 +81,30 @@ Results live under `packages/app/results/`:
 
 # Installation and Setup
 
+## 🚀 New Users - Automated Setup (Recommended)
+
+For first-time setup, we provide a **comprehensive setup wizard** that guides you through everything:
+
+```bash
+git clone https://github.com/Template-Doctor/template-doctor.git
+cd template-doctor
+./scripts/full-setup.sh
+```
+
+The wizard will:
+- ✅ Check prerequisites (Azure CLI, azd, Docker)
+- ✅ Guide you through GitHub OAuth App creation
+- ✅ Help you create a GitHub Personal Access Token with correct scopes
+- ✅ Configure MongoDB (existing or new Cosmos DB)
+- ✅ Set up admin users and environment variables
+- ✅ Optionally configure UAMI for GitHub Actions CI/CD
+- ✅ Deploy to Azure with `azd provision` and `azd deploy`
+- ✅ Verify the deployment is working
+
+**This is the easiest way to get started!** The script is interactive, validates configuration at each step, and provides helpful troubleshooting tips.
+
+For manual setup or local development only, see sections below.
+
 ## Prerequisites
 
 - **Node.js LTS** (v20.x, enforced by guard script)

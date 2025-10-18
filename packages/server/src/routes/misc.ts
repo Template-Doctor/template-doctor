@@ -676,15 +676,22 @@ router.post(
         try {
             const { overrides, user } = req.body || {};
 
-            // Authorization check
-            const allowedUsers = (process.env.SETUP_ALLOWED_USERS || "")
+            // Authorization check - use both SETUP_ALLOWED_USERS and ADMIN_GITHUB_USERS
+            const setupUsers = (process.env.SETUP_ALLOWED_USERS || "")
                 .split(",")
                 .map((u) => u.trim())
                 .filter(Boolean);
+            
+            const adminUsers = (process.env.ADMIN_GITHUB_USERS || "")
+                .split(",")
+                .map((u) => u.trim())
+                .filter(Boolean);
+            
+            const allowedUsers = [...new Set([...setupUsers, ...adminUsers])];
 
             if (!user || !allowedUsers.includes(user)) {
                 return res.status(403).json({
-                    error: "Unauthorized: user not in SETUP_ALLOWED_USERS",
+                    error: "Unauthorized: user not in SETUP_ALLOWED_USERS or ADMIN_GITHUB_USERS",
                     requestedUser: user,
                 });
             }
@@ -766,10 +773,18 @@ router.get("/setup/check-access", (req: Request, res: Response) => {
         });
     }
 
-    const allowedUsers = (process.env.SETUP_ALLOWED_USERS || "")
+    // Check both SETUP_ALLOWED_USERS (legacy) and ADMIN_GITHUB_USERS
+    const setupUsers = (process.env.SETUP_ALLOWED_USERS || "")
         .split(",")
         .map((u) => u.trim())
         .filter(Boolean);
+    
+    const adminUsers = (process.env.ADMIN_GITHUB_USERS || "")
+        .split(",")
+        .map((u) => u.trim())
+        .filter(Boolean);
+    
+    const allowedUsers = [...new Set([...setupUsers, ...adminUsers])];
 
     const hasAccess = allowedUsers.includes(username);
 

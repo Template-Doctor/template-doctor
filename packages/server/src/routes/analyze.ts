@@ -260,8 +260,9 @@ export async function analyzeSingleRepository(
                 categories: result.compliance?.categories,
                 analysisResult: result,
                 archiveRequested: result.archiveRequested,
+                scannedBy: authenticatedUser ? [authenticatedUser] : undefined,
             });
-            console.log(`[analyze] Saved analysis to database for ${repoUrl}`);
+            console.log(`[analyze] Saved analysis to database for ${repoUrl}${authenticatedUser ? ` by ${authenticatedUser}` : ''}`);
         } catch (dbError: any) {
             console.error(`[analyze] Database save failed: ${dbError?.message}`);
             // Don't fail the request if database save fails
