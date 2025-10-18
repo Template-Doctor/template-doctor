@@ -5,6 +5,7 @@ let currentRunId: string | null = null;
 let currentGithubRunId: string | null = null;
 let currentWorkflowOrgRepo: string | null = null;
 let currentGithubRunUrl: string | null = null;
+let currentTemplateUrl: string | null = null;
 let pollingInterval: number | null = null;
 let logElement: HTMLPreElement | null = null;
 let stopButton: HTMLButtonElement | null = null;
@@ -207,6 +208,14 @@ async function runValidation(templateUrl: string) {
   // Set running flag
   isValidationRunning = true;
 
+  // Store template URL and start time for later use
+  currentTemplateUrl = templateUrl;
+  try {
+    localStorage.setItem('lastValidationStartTime', Date.now().toString());
+  } catch (e) {
+    console.warn('Failed to save validation start time:', e);
+  }
+
   // Create log container
   logElement = createLogContainer();
 
@@ -332,6 +341,24 @@ async function runValidation(templateUrl: string) {
     if (stopButton && currentRunId) {
       stopButton.disabled = false;
       stopButton.onclick = () => cancelValidation();
+    }
+
+    // Save initial test status to database
+    try {
+      appendLog(logElement, '💾 Saving test status to database...');
+      await fetch(`${apiBase}/api/v4/azd-test`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          repoUrl: templateUrl,
+          status: 'running',
+          startedAt: new Date().toISOString(),
+        }),
+      });
+      appendLog(logElement, '✓ Test status saved');
+    } catch (dbError: any) {
+      console.warn('Failed to save test status to database:', dbError);
+      appendLog(logElement, `⚠ Database save failed: ${dbError.message}`);
     }
 
     // Start polling for status
@@ -482,6 +509,32 @@ function startStatusPolling(apiBase: string, runId: string) {
         if (status.conclusion === 'success') {
           appendLog(logElement!, '✓ Validation completed successfully!');
 
+          // Save success status to database
+          try {
+            const startTime = localStorage.getItem('lastValidationStartTime');
+            const duration = startTime 
+              ? Date.now() - parseInt(startTime, 10)
+              : undefined;
+
+            await fetch(`${apiBase}/api/v4/azd-test`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                repoUrl: currentTemplateUrl,
+                status: 'success',
+                completedAt: new Date().toISOString(),
+                duration,
+                result: {
+                  deploymentTime: duration,
+                  githubRunUrl: currentGithubRunUrl,
+                },
+              }),
+            });
+            appendLog(logElement!, '💾 Success status saved to database');
+          } catch (dbError: any) {
+            console.warn('Failed to save success status:', dbError);
+          }
+
           // Show celebratory success tile
           const successTile = document.createElement('div');
           successTile.style.cssText =
@@ -500,6 +553,32 @@ function startStatusPolling(apiBase: string, runId: string) {
           showSuccess('Validation Complete', 'Template validation passed!');
         } else if (status.conclusion === 'failure') {
           appendLog(logElement!, '✗ Validation failed');
+
+          // Save failure status to database
+          try {
+            const startTime = localStorage.getItem('lastValidationStartTime');
+            const duration = startTime 
+              ? Date.now() - parseInt(startTime, 10)
+              : undefined;
+
+            await fetch(`${apiBase}/api/v4/azd-test`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                repoUrl: currentTemplateUrl,
+                status: 'failed',
+                completedAt: new Date().toISOString(),
+                duration,
+                error: {
+                  message: status.errorSummary || 'Validation failed',
+                  githubRunUrl: currentGithubRunUrl,
+                },
+              }),
+            });
+            appendLog(logElement!, '💾 Failure status saved to database');
+          } catch (dbError: any) {
+            console.warn('Failed to save failure status:', dbError);
+          }
 
           // Show error details if available
           if (status.errorSummary) {

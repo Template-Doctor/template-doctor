@@ -112,17 +112,22 @@ export async function analyzeSingleRepository(
 
     // Extract user from Authorization header if present (for fork-first strategy)
     const authHeader = req.headers.authorization || "";
+    console.log(`[analyze] Authorization header present: ${!!authHeader}, length: ${authHeader.length}`);
     const userToken = authHeader.replace(/^Bearer\s+/i, "") || undefined;
+    console.log(`[analyze] User token extracted: ${!!userToken}, same as server token: ${userToken === token}`);
     let authenticatedUser: string | undefined;
 
-    if (userToken && userToken !== token) {
+    // Always try to get username from user token if provided
+    if (userToken) {
         try {
             const userInfo = await gh("/user", userToken);
             authenticatedUser = userInfo.login;
-            console.log(`Authenticated user: ${authenticatedUser}`);
+            console.log(`[analyze] ✅ Authenticated user: ${authenticatedUser}`);
         } catch (e: any) {
-            console.log(`Failed to get authenticated user: ${e?.message}`);
+            console.log(`[analyze] ❌ Failed to get authenticated user: ${e?.message}`);
         }
+    } else {
+        console.log(`[analyze] ⚠️  No user token provided - scannedBy will be undefined`);
     }
 
     let owner: string;

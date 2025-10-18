@@ -239,6 +239,13 @@
   padding: 16px;
 }
 
+.badges {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
 .compliance-bar {
   height: 8px;
   background-color: #e0e0e0;
