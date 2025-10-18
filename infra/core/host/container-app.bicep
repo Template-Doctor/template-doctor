@@ -41,7 +41,8 @@ param enableIngress bool = true
 @description('External ingress')
 param external bool = true
 
-@description('CPU cores (0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0)')
+@description('CPU cores - Bicep requires string for decimal values (0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0)')
+@allowed(['0.25', '0.5', '0.75', '1.0', '1.25', '1.5', '1.75', '2.0'])
 param containerCpuCoreCount string = '0.5'
 
 @description('Memory in Gi (0.5, 1.0, 1.5, 2.0, 3.0, 3.5, 4.0)')
@@ -112,7 +113,7 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
           name: 'main'
           image: 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest' // Placeholder, will be updated by azd deploy
           resources: {
-            cpu: json(containerCpuCoreCount)
+            cpu: json(containerCpuCoreCount)  // Convert string to number (Azure Container Apps requires numeric type)
             memory: containerMemory
           }
           env: env
