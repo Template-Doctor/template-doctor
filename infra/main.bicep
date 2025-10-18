@@ -192,6 +192,6 @@ output AZURE_CONTAINER_APPS_ENVIRONMENT_NAME string = containerAppsEnvironment.o
 output AZURE_CONTAINER_APPS_ENVIRONMENT_ID string = containerAppsEnvironment.outputs.id
 output SERVICE_WEB_NAME string = containerApp.outputs.name
 output SERVICE_WEB_URI string = containerApp.outputs.uri
-output SERVICE_WEB_IMAGE_NAME string = 'template-doctor/web-${environmentName}:latest'
+output SERVICE_WEB_IMAGE_NAME string = '${containerRegistry.outputs.loginServer}/template-doctor/web-${environmentName}:latest'
 output SERVICE_WEB_IDENTITY_PRINCIPAL_ID string = containerApp.outputs.principalId
 // Using existing MongoDB database - connection string from MONGODB_URI parameter
