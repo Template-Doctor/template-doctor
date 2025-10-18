@@ -45,13 +45,12 @@ BUILD_TAG="build-${BUILD_TIMESTAMP}"
 echo "   Image tags: latest, ${BUILD_TAG}"
 echo ""
 
-# Build with unique tag AND latest
+# Build with unique tag AND latest (ACR doesn't support --no-cache, but uses fresh context by design)
 az acr build \
     --registry "$AZURE_CONTAINER_REGISTRY_NAME" \
     --image "template-doctor/web:latest" \
     --image "template-doctor/web:${BUILD_TAG}" \
     --file Dockerfile.combined \
-    --no-cache \
     .
 
 if [ $? -ne 0 ]; then
