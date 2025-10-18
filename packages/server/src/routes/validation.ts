@@ -604,7 +604,7 @@ router.get(
                         })),
                 })),
                 errorSummary,
-                azdValidation, // NEW: Add parsed validation data from artifact
+                azdValidation,
                 requestId,
             });
         } catch (err: any) {
