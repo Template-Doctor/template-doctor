@@ -10,7 +10,7 @@ RUN npm install
 COPY packages/app/ ./
 RUN npm run build
 
-# Build Backend
+# Build Backend (dev dependencies for TypeScript compilation)
 WORKDIR /app
 COPY packages/server/package*.json ./server/
 WORKDIR /app/server
@@ -19,17 +19,21 @@ COPY packages/server/tsconfig.json ./
 COPY packages/server/src ./src
 RUN npm run build
 
-# Clean install production dependencies only
-RUN rm -rf node_modules && npm install --omit=dev
+# Production dependencies stage (separate stage = better caching)
+FROM node:20-alpine AS prod-deps
 
-# Production stage
+WORKDIR /app
+COPY packages/server/package*.json ./
+RUN npm install --omit=dev
+
+# Production stage (minimal final image)
 FROM node:20-alpine
 
 WORKDIR /app
 
 # Copy backend
 COPY --from=builder /app/server/package*.json ./
-COPY --from=builder /app/server/node_modules ./node_modules
+COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=builder /app/server/dist ./dist
 
 # Copy frontend build to be served by Express
