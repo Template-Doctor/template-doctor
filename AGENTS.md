@@ -51,12 +51,12 @@ Azure Functions code has been removed from the main branch and archived in `dev/
 4. Start with Docker Compose:
 
     ```bash
-    docker-compose up
+    docker-compose --profile combined up
     ```
 
 5. Access the application:
     - Frontend: http://localhost:3000
-    - Backend API: http://localhost:3001
+    - Backend API: http://localhost:3001 (same as frontend in combined mode)
 
 ### Manual Development (Two-Terminal Approach)
 
@@ -105,6 +105,48 @@ If you prefer running services without Docker:
 - **Express Backend MUST be running** before using OAuth login or analysis features
 - **Hard refresh required** (Cmd+Shift+R / Ctrl+Shift+R) after any config changes
 - **Port conflicts**: If you see EADDRINUSE errors, kill processes: `lsof -ti :3000 | xargs kill -9` and `lsof -ti :3001 | xargs kill -9` and `lsof -ti :4000 | xargs kill -9`
+
+## Database Architecture
+
+**CRITICAL: Local vs Production Database Separation**
+
+### Local Development Database
+
+- **Database**: MongoDB running at `localhost:27017`
+- **Database Name**: `template-doctor` (with hyphen)
+- **Management Tool**: MongoDB Compass
+- **Docker Setup**: `docker-compose --profile combined up` starts local MongoDB container automatically
+- **Connection**: Docker container connects to `mongodb://mongodb:27017/template-doctor`
+- **Data**: Managed locally, separate from production
+
+### Production Database
+
+- **Database**: Azure Cosmos DB (MongoDB API)
+- **Database Name**: `template-doctor` (with hyphen)
+- **Environment**: Azure Container Apps
+- **Connection**: Configured via Azure Container App environment variables
+- **Security**: Connection string stored as Azure secret, never committed to repository
+
+### Database Configuration Rules
+
+1. **`.env` file** (gitignored):
+   - Local: DO NOT set `MONGODB_URI` - let docker-compose.yml default take over
+   - Production: Connection strings configured in Azure Container Apps environment variables
+
+2. **Docker Compose**:
+   - Automatically uses local MongoDB container if `MONGODB_URI` not set in `.env`
+   - Fallback: `mongodb://mongodb:27017/template-doctor`
+
+3. **Azure Container Apps**:
+   - Uses Cosmos DB connection string from environment variables
+   - Database name: `template-doctor` (set via `MONGODB_DATABASE`)
+
+### Database Troubleshooting
+
+- **"Database not connected" errors**: Check if `MONGODB_URI` is set in `.env` (it should NOT be for Docker)
+- **500 errors on `/api/v4/results/latest`**: Database connection failed
+- **Empty results in production**: Check Azure Container App environment variables
+- **Local data not showing**: Verify MongoDB Compass connected to `localhost:27017` and database is `template-doctor`
 
 ## Configuration Architecture (Express Migration)
 

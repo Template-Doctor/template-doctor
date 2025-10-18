@@ -179,13 +179,29 @@ export async function startBatch(repos: string[]) {
       const existingUrls = existing.map((p) => p.url);
       const matching = repos.filter((u) => existingUrls.includes(u));
       if (matching.length) {
-        // Ask user about resuming
-        const shouldResume = confirm(
-          `Found ${matching.length} previously scanned repositories. Resume and skip successful scans?`,
-        );
-        if (shouldResume) {
-          resumeMode = true;
+        // Ask user about resuming using notification system
+        const n = notify();
+        if (n?.confirm) {
+          await new Promise<void>((resolve) => {
+            n.confirm(
+              'Resume Batch Scan',
+              `Found ${matching.length} previously scanned repositories. Resume and skip successful scans?`,
+              {
+                confirmLabel: 'Resume',
+                cancelLabel: 'Start Fresh',
+                onConfirm: () => {
+                  resumeMode = true;
+                  resolve();
+                },
+                onCancel: () => {
+                  clearProgress().finally(() => resolve());
+                },
+              }
+            );
+          });
         } else {
+          // Fallback if notification system not available
+          resumeMode = true;
           await clearProgress();
         }
       } else {
@@ -203,6 +219,10 @@ export async function startBatch(repos: string[]) {
     if ($(progressBarId)) ($(progressBarId) as HTMLElement).style.width = '0%';
     if ($(progressTextId))
       ($(progressTextId) as HTMLElement).textContent = `0/${repos.length} Completed`;
+
+    // Show batch results container
+    const batchResults = document.getElementById('batch-results');
+    if (batchResults) batchResults.classList.add('active');
 
     // Show cancel button
     const cancelBtn = $(batchCancelId) as HTMLButtonElement | null;
@@ -308,7 +328,7 @@ async function processOneRepo(url: string, index: number, existing?: BatchProgre
     const analyzer = (window as any).TemplateAnalyzer;
     if (!analyzer) throw new Error('Analyzer unavailable');
 
-    const result = await analyzer.analyzeTemplate(url, 'azd');
+    const result = await analyzer.analyzeTemplate(url, 'dod');
 
     // Success
     item.className = 'batch-item success';
