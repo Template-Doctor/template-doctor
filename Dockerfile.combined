@@ -10,13 +10,17 @@ RUN npm install
 COPY packages/app/ ./
 RUN npm run build
 
-# Install Backend Dependencies
+# Build Backend
 WORKDIR /app
 COPY packages/server/package*.json ./server/
 WORKDIR /app/server
-RUN npm install --omit=dev
-# Copy pre-built dist from local build (validated by pre-deploy-checklist.sh)
-COPY packages/server/dist ./dist
+RUN npm install
+COPY packages/server/tsconfig.json ./
+COPY packages/server/src ./src
+RUN npm run build
+
+# Clean install production dependencies only
+RUN rm -rf node_modules && npm install --omit=dev
 
 # Production stage
 FROM node:20-alpine
