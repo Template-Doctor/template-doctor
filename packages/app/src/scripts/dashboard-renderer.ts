@@ -702,21 +702,17 @@ class DashboardRenderer {
           newCreateIssueButton.addEventListener('click', function () {
             console.log('Create GitHub Issue button clicked');
             if (typeof (window as any).createGitHubIssue === 'function') {
-              if (typeof (window as any).createGitHubIssue === 'function') {
-                (window as any).createGitHubIssue();
-              } else {
-                if ((window as any).NotificationSystem) {
-                  (window as any).NotificationSystem.showError(
-                    'Feature Unavailable',
-                    'GitHub issue creation is not available in this view.',
-                    5000,
-                  );
-                } else {
-                  console.error('GitHub issue creation is not available in this view');
-                }
-              }
+              (window as any).createGitHubIssue();
             } else {
-              alert('GitHub issue creation is not available in this view');
+              if ((window as any).NotificationSystem) {
+                (window as any).NotificationSystem.showError(
+                  'Feature Unavailable',
+                  'GitHub issue creation is not available in this view.',
+                  5000,
+                );
+              } else {
+                alert('GitHub issue creation is not available in this view');
+              }
             }
           });
         }
@@ -740,21 +736,17 @@ class DashboardRenderer {
           newTestProvisionButton.addEventListener('click', function () {
             console.log('Test AZD Provision button clicked');
             if (typeof (window as any).testAzdProvision === 'function') {
-              if (typeof (window as any).testAzdProvision === 'function') {
-                (window as any).testAzdProvision();
-              } else {
-                if ((window as any).NotificationSystem) {
-                  (window as any).NotificationSystem.showError(
-                    'Feature Unavailable',
-                    'AZD provision testing is not available in this view.',
-                    5000,
-                  );
-                } else {
-                  console.error('AZD provision testing is not available in this view');
-                }
-              }
+              (window as any).testAzdProvision();
             } else {
-              alert('AZD provision testing is not available in this view');
+              if ((window as any).NotificationSystem) {
+                (window as any).NotificationSystem.showError(
+                  'Feature Unavailable',
+                  'AZD provision testing is not available in this view.',
+                  5000,
+                );
+              } else {
+                alert('AZD provision testing is not available in this view');
+              }
             }
           });
         }
