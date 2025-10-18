@@ -47,7 +47,8 @@
 .validation-details {
     margin: 15px 0;
     padding: 15px;
-    background-color: rgba(0, 0, 0, 0.2);
+    background-color: #f3f2f1;
+    color: #000;
     border-radius: 4px;
 }
 
