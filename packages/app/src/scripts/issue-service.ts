@@ -168,10 +168,51 @@ interface ForkContext {
 }
 
 async function resolveForkContext(owner: string, repo: string): Promise<ForkContext> {
-  console.log(`[IssueService] Using original repository: ${owner}/${repo}`);
+  const gh = (window as any).GitHubClient;
+  
+  // Get authenticated user to ensure issues are created in THEIR fork, not the org repo
+  let authenticatedUser: string | null = null;
+  try {
+    const user = await gh.getAuthenticatedUser();
+    authenticatedUser = user?.login || null;
+  } catch (e) {
+    console.warn('[IssueService] Failed to get authenticated user:', e);
+  }
 
-  // Issues are created directly in the original repo (legacy behavior)
-  // If the repo is SAML-protected, the user's token must be authorized
+  // If the owner is the authenticated user, use it directly (it's their repo)
+  if (authenticatedUser && owner === authenticatedUser) {
+    console.log(`[IssueService] Using authenticated user's repository: ${owner}/${repo}`);
+    return { owner, repo, forked: false, hasIssues: true };
+  }
+
+  // If owner is different (org repo), ensure we use the user's fork
+  if (authenticatedUser && owner !== authenticatedUser) {
+    console.log(`[IssueService] Original repo is ${owner}/${repo}, checking for ${authenticatedUser}'s fork...`);
+    
+    try {
+      // Check if user's fork exists
+      const forkExists = await gh.repositoryExists(authenticatedUser, repo);
+      
+      if (forkExists) {
+        console.log(`[IssueService] Using existing fork: ${authenticatedUser}/${repo}`);
+        return { owner: authenticatedUser, repo, forked: true, hasIssues: true };
+      } else {
+        // Fork doesn't exist, create it
+        console.log(`[IssueService] Creating fork of ${owner}/${repo} for ${authenticatedUser}...`);
+        await gh.forkRepository(owner, repo);
+        console.log(`[IssueService] Fork created: ${authenticatedUser}/${repo}`);
+        return { owner: authenticatedUser, repo, forked: true, hasIssues: true };
+      }
+    } catch (e) {
+      console.error('[IssueService] Fork operation failed:', e);
+      // Fallback to org repo (may fail with 403 if no permission)
+      console.warn(`[IssueService] Falling back to original repo: ${owner}/${repo} (may fail if no permission)`);
+      return { owner, repo, forked: false, hasIssues: true };
+    }
+  }
+
+  // Fallback: use original repo (legacy behavior for unauthenticated or edge cases)
+  console.log(`[IssueService] Using original repository (fallback): ${owner}/${repo}`);
   return { owner, repo, forked: false, hasIssues: true };
 }
 
