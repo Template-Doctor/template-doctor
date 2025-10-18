@@ -30,3 +30,10 @@ gallery.jsonpackages/server/config/
 
 .nuxt
 .nuxt/
+
+.azure
+.azure/
+
+.azdo
+
+

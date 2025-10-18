@@ -22,8 +22,8 @@ services:
       - GITHUB_TOKEN_ANALYZER=${GITHUB_TOKEN_ANALYZER}
       # Admin Access
       - ADMIN_GITHUB_USERS=${ADMIN_GITHUB_USERS}
-      # Database
-      - MONGODB_URI=${MONGODB_URI}
+      # Database - respects .env settings, falls back to local MongoDB if not set
+      - MONGODB_URI=${MONGODB_URI:-mongodb://mongodb:27017/template-doctor}
       - COSMOS_ENDPOINT=${COSMOS_ENDPOINT}
       - COSMOS_KEY=${COSMOS_KEY}
       - COSMOS_DATABASE_NAME=${COSMOS_DATABASE_NAME:-template-doctor}
