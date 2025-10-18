@@ -124,11 +124,14 @@ resource diagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-pr
 }
 
 // Outputs for application configuration
+// SECURITY: Only expose non-sensitive metadata
+// Connection strings should be retrieved securely via Key Vault or Managed Identity
 output cosmosAccountName string = cosmosAccount.name
-output cosmosEndpoint string = cosmosAccount.properties.documentEndpoint
 output cosmosDatabaseName string = mongoDatabase.name
-output cosmosConnectionString string = cosmosAccount.listConnectionStrings().connectionStrings[0].connectionString
+output cosmosAccountId string = cosmosAccount.id
 
-// MongoDB connection string format for Managed Identity
-// Note: Application will use DefaultAzureCredential with this endpoint
-output mongoEndpoint string = 'mongodb://${cosmosAccount.name}.mongo.cosmos.azure.com:10255/?ssl=true&replicaSet=globaldb&retrywrites=false&maxIdleTimeMS=120000'
+// NOTE: Connection strings are NOT exposed as outputs for security reasons
+// Use one of these secure methods instead:
+// 1. Managed Identity with DefaultAzureCredential (recommended)
+// 2. Store connection string in Key Vault and reference as secret
+// 3. Use Azure CLI: az cosmosdb keys list --type connection-strings
