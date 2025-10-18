@@ -10,11 +10,12 @@ RUN npm install
 COPY packages/app/ ./
 RUN npm run build
 
-# Build Backend
+# Install Backend Dependencies
 WORKDIR /app
 COPY packages/server/package*.json ./server/
 WORKDIR /app/server
 RUN npm install --omit=dev
+# Copy pre-built dist from local build (validated by pre-deploy-checklist.sh)
 COPY packages/server/dist ./dist
 
 # Production stage

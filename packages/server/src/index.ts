@@ -40,6 +40,8 @@ app.get("/api/health", async (req: Request, res: Response) => {
             hasAnalyzerToken: !!process.env.GITHUB_TOKEN_ANALYZER,
             hasMongoDbUri: !!process.env.MONGODB_URI,
             hasCosmosEndpoint: !!process.env.COSMOS_ENDPOINT,
+            BUILD_TAG: process.env.BUILD_TAG || 'unknown',
+            BUILD_TIMESTAMP: process.env.BUILD_TIMESTAMP || 'unknown',
         },
     });
 });
@@ -91,13 +93,36 @@ app.use("/api/v4", resultsRouter);
 app.use("/api/v4/admin", adminConfigRouter); // Admin configuration endpoints
 app.use("/api/v4/leaderboards", leaderboardsRouter); // Leaderboards analytics
 
-// Fallback to serve index.html for client-side routing (SPA)
+// Explicit routes for HTML pages (without .html extension)
+app.get("/leaderboards", (req: Request, res: Response) => {
+    res.sendFile(path.join(staticPath, "leaderboards.html"));
+});
+
+app.get("/setup", (req: Request, res: Response) => {
+    res.sendFile(path.join(staticPath, "setup.html"));
+});
+
+app.get("/callback", (req: Request, res: Response) => {
+    res.sendFile(path.join(staticPath, "callback.html"));
+});
+
+// Fallback to serve index.html ONLY for routes that look like pages (no file extension)
+// This allows static files (.json, .js, .css, etc.) to be served by express.static
 app.get("*", (req: Request, res: Response) => {
-    if (!req.path.startsWith("/api")) {
-        res.sendFile(path.join(staticPath, "index.html"));
-    } else {
-        res.status(404).json({ error: "API endpoint not found" });
+    // If path starts with /api, return 404
+    if (req.path.startsWith("/api")) {
+        return res.status(404).json({ error: "API endpoint not found" });
     }
+    
+    // If path has a file extension (e.g., .json, .js, .css), let static middleware handle it
+    // by passing to next middleware (which will 404 if file doesn't exist)
+    const hasFileExtension = /\.[a-zA-Z0-9]+$/.test(req.path);
+    if (hasFileExtension) {
+        return res.status(404).send("File not found");
+    }
+    
+    // Otherwise, serve index.html for client-side routing
+    res.sendFile(path.join(staticPath, "index.html"));
 });
 
 // Start server
