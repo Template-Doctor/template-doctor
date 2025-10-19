@@ -1,6 +1,6 @@
 /* Batch scan with backend + cancel/resume support */
 import { ApiClient } from './api-client';
-import { sanitizeHtml, sanitizeAttribute, sanitizeGitHubUrl } from '../shared/sanitize';
+import { sanitizeHtml, sanitizeAttribute, sanitizeGitHubUrl, containsXssAttempt } from '../shared/sanitize';
 
 interface BatchProgressEntry {
   id: string;
@@ -113,24 +113,50 @@ function wireUI() {
     btn.addEventListener('click', () => {
       const ta = document.getElementById('batch-urls') as HTMLTextAreaElement | null;
       if (!ta) return;
-      const repos = ta.value
+      
+      // Reset border
+      ta.style.border = '';
+      
+      const lines = ta.value
         .split(/\n|,/)
         .map((s) => s.trim())
-        .filter(Boolean)
+        .filter(Boolean);
+      
+      if (!lines.length) {
+        ta.style.border = '2px solid #dc3545';
+        showError('Batch Scan', 'Enter at least one repository URL');
+        return;
+      }
+      
+      // Check for XSS attempts first
+      const hasXss = lines.some(line => containsXssAttempt(line));
+      if (hasXss) {
+        ta.style.border = '2px solid #dc3545';
+        showError('Invalid Input', "Oops! That's not allowed!");
+        return;
+      }
+      
+      // Validate and sanitize GitHub URLs
+      const repos = lines
         .map((url) => {
-          // Validate and sanitize GitHub URLs
           const sanitized = sanitizeGitHubUrl(url);
           if (!sanitized) {
-            showError('Invalid URL', `Skipping invalid URL: ${sanitizeHtml(url)}`);
+            ta.style.border = '2px solid #dc3545';
+            showError('Invalid URL', `Invalid URL: ${sanitizeHtml(url)}`);
             return null;
           }
           return sanitized;
         })
         .filter((url): url is string => url !== null);
+        
       if (!repos.length) {
-        showError('Batch Scan', 'Enter at least one valid repository URL');
+        ta.style.border = '2px solid #dc3545';
+        showError('Batch Scan', 'No valid repository URLs found');
         return;
       }
+      
+      // Reset border on success
+      ta.style.border = '';
       startBatch(repos);
     });
   }
