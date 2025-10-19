@@ -277,14 +277,34 @@ async function performSearch(query: string): Promise<void> {
   
   // Reset border on valid input
   const searchInput = document.getElementById('repo-search') as HTMLInputElement | null;
-  if (searchInput) {
-    searchInput.style.border = '';
-  }
   
   if (!q) {
     console.log('[Search DEBUG] Empty query, showing prompt');
     container.innerHTML = '<div class="no-results">Enter a search term</div>';
     return;
+  }
+
+  // Check if this looks like a URL attempt (contains http, https, or ://)
+  const looksLikeUrlAttempt = /^https?:\/\/|:\/\//.test(q);
+  
+  // If it looks like a URL attempt, validate it as a GitHub URL
+  if (looksLikeUrlAttempt) {
+    const validUrl = sanitizeGitHubUrl(q);
+    if (!validUrl) {
+      if (searchInput) {
+        searchInput.style.border = '2px solid #dc3545';
+      }
+      if ((window as any).NotificationSystem) {
+        (window as any).NotificationSystem.showError('Invalid URL', `Not a valid GitHub repository URL`, 5000);
+      }
+      container.innerHTML = '<div class="no-results error-message">Invalid GitHub repository URL</div>';
+      return;
+    }
+  }
+  
+  // Reset border when validation passes
+  if (searchInput) {
+    searchInput.style.border = '';
   }
 
   log('Performing search with query:', q);
@@ -705,7 +725,27 @@ async function performSearch(query: string): Promise<void> {
   }
 
   // No results found
-  container.innerHTML = '<div class="no-results">No matching templates found</div>';
+  // Check if this might be an invalid repository format
+  const hasSlash = q.includes('/');
+  const firstPart = q.split('/')[0] || '';
+  const looksLikeRepoAttempt = hasSlash || /^[a-zA-Z0-9_-]+$/.test(firstPart);
+  
+  // If it looks like they're trying to enter a repo but it's invalid format
+  if (looksLikeRepoAttempt && !hasSlash) {
+    if (searchInput) {
+      searchInput.style.border = '2px solid #dc3545';
+    }
+    if ((window as any).NotificationSystem) {
+      (window as any).NotificationSystem.showError(
+        'Invalid Repository', 
+        'GitHub repositories must be in "owner/repo" format (e.g., "microsoft/template-doctor")', 
+        6000
+      );
+    }
+    container.innerHTML = '<div class="no-results error-message">Use "owner/repo" format for GitHub repositories</div>';
+  } else {
+    container.innerHTML = '<div class="no-results">No matching templates found</div>';
+  }
 
   // Signal to tests that results are ready (with zero count)
   window.__lastSearchResultsCount = 0;

@@ -78,6 +78,18 @@ describe('Input Validation UX - Consistent Behavior', () => {
       expect(sanitizeGitHubUrl('')).toBeNull();
     });
 
+    it('should reject single words without slash', () => {
+      expect(sanitizeGitHubUrl('hello')).toBeNull();
+      expect(sanitizeGitHubUrl('randomword')).toBeNull();
+      expect(sanitizeGitHubUrl('test123')).toBeNull();
+    });
+
+    it('should reject malformed URL attempts', () => {
+      expect(sanitizeGitHubUrl('htt://something.com')).toBeNull();
+      expect(sanitizeGitHubUrl('http://something.com')).toBeNull();
+      expect(sanitizeGitHubUrl('https://evil.com/repo')).toBeNull();
+    });
+
     it('should reject URLs with dangerous characters', () => {
       expect(sanitizeGitHubUrl('owner/<script>/repo')).toBeNull();
       expect(sanitizeGitHubUrl('owner/../repo')).toBeNull();
@@ -101,18 +113,35 @@ describe('Input Validation UX - Consistent Behavior', () => {
       });
     });
 
-    it('should show "Invalid URL" for non-GitHub URLs', () => {
-      const invalidUrls = [
-        'not-a-url',
+    it('should show "Invalid URL" for malformed URL attempts', () => {
+      const malformedUrls = [
+        'htt://something.com',
         'http://evil.com/repo',
-        'random text',
-        '123456',
+        'https://notgithub.com/owner/repo',
       ];
 
-      invalidUrls.forEach(url => {
+      malformedUrls.forEach(url => {
+        const isUrlAttempt = /^https?:\/\/|:\/\//.test(url);
         const sanitized = sanitizeGitHubUrl(url);
+        expect(isUrlAttempt).toBe(true);
         expect(sanitized).toBeNull();
-        // In real implementation, this triggers: showError('Invalid URL', `Invalid URL: ${sanitizeHtml(url)}`)
+        // In real implementation, this triggers: showError('Invalid URL', 'Not a valid GitHub repository URL')
+      });
+    });
+
+    it('should show format guidance for single words', () => {
+      const singleWords = [
+        'hello',
+        'randomword',
+        'test123',
+      ];
+
+      singleWords.forEach(word => {
+        const hasSlash = word.includes('/');
+        const sanitized = sanitizeGitHubUrl(word);
+        expect(hasSlash).toBe(false);
+        expect(sanitized).toBeNull();
+        // In real implementation, this triggers: showError('Invalid Repository', 'Use "owner/repo" format')
       });
     });
   });
