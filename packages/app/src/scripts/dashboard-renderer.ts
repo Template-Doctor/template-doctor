@@ -704,14 +704,13 @@ class DashboardRenderer {
             if (typeof (window as any).createGitHubIssue === 'function') {
               (window as any).createGitHubIssue();
             } else {
+              // Use notification system (required - no fallback to alert)
               if ((window as any).NotificationSystem) {
                 (window as any).NotificationSystem.showError(
                   'Feature Unavailable',
                   'GitHub issue creation is not available in this view.',
                   5000,
                 );
-              } else {
-                alert('GitHub issue creation is not available in this view');
               }
             }
           });
@@ -738,14 +737,13 @@ class DashboardRenderer {
             if (typeof (window as any).testAzdProvision === 'function') {
               (window as any).testAzdProvision();
             } else {
+              // Use notification system (required - no fallback to alert)
               if ((window as any).NotificationSystem) {
                 (window as any).NotificationSystem.showError(
                   'Feature Unavailable',
                   'AZD provision testing is not available in this view.',
                   5000,
                 );
-              } else {
-                alert('AZD provision testing is not available in this view');
               }
             }
           });

@@ -388,14 +388,13 @@ async function performSearch(query: string): Promise<void> {
         e.stopPropagation(); // Prevent event bubbling
         console.log('[Search DEBUG] Validate button clicked:', matchedTemplate.repoUrl);
 
+        // Use notification system (required - no fallback to alert)
         if ((window as any).NotificationSystem) {
           (window as any).NotificationSystem.showInfo(
             'Validation',
             'Template validation feature coming soon!',
             3000,
           );
-        } else {
-          alert('Template validation feature coming soon!');
         }
       });
     }
@@ -527,14 +526,13 @@ async function performSearch(query: string): Promise<void> {
           validateBtn.addEventListener('click', (e) => {
             e.stopPropagation();
 
+            // Use notification system (required - no fallback to alert)
             if ((window as any).NotificationSystem) {
               (window as any).NotificationSystem.showInfo(
                 'Validation',
                 'Template validation feature coming soon!',
                 3000,
               );
-            } else {
-              alert('Template validation feature coming soon!');
             }
           });
         }
@@ -638,14 +636,13 @@ async function performSearch(query: string): Promise<void> {
       validateBtn.addEventListener('click', (e) => {
         e.stopPropagation();
 
+        // Use notification system (required - no fallback to alert)
         if ((window as any).NotificationSystem) {
           (window as any).NotificationSystem.showInfo(
             'Validation',
             'Template validation feature coming soon!',
             3000,
           );
-        } else {
-          alert('Template validation feature coming soon!');
         }
       });
     }

@@ -57,13 +57,14 @@ function showInfo(title: string, msg: string) {
 
 function confirmCreate(cb: () => void) {
   const n = notification();
+  // Use notification system (required - no fallback to window.confirm)
   if (n?.confirm) {
     n.confirm(
       'Create GitHub Issues',
       'This will create GitHub issues for all compliance problems. Proceed?',
       { confirmLabel: 'Create', cancelLabel: 'Cancel', onConfirm: cb },
     );
-  } else if (window.confirm('Create GitHub issues for all problems?')) cb();
+  }
 }
 
 function parseOwnerRepo(url: string) {
@@ -504,6 +505,7 @@ async function processIssueCreation(github: any) {
       // Show confirmation to proceed
       const proceed = await new Promise<boolean>((resolve) => {
         const n = (window as any).NotificationSystem || (window as any).Notifications;
+        // Use notification system (required - no fallback to window.confirm)
         if (n?.confirm) {
           n.confirm(
             'Existing Issue Found',
@@ -515,12 +517,6 @@ async function processIssueCreation(github: any) {
               onCancel: () => resolve(false),
             },
           );
-        } else if (
-          window.confirm(
-            `Existing Template Doctor issue found: #${firstIssue.number}\n\nCreate a new issue anyway?`,
-          )
-        ) {
-          resolve(true);
         } else {
           resolve(false);
         }
