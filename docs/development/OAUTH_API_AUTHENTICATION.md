@@ -29,7 +29,7 @@ sequenceDiagram
     GitHub->>API: Return access_token
     API->>Frontend: Return access_token
     Frontend->>Frontend: Store token in localStorage
-    
+
     Frontend->>API: POST /analyze-template + Bearer token
     API->>GitHub: Validate token
     GitHub->>API: Return user info
@@ -42,11 +42,11 @@ sequenceDiagram
 
 These endpoints are accessible without authentication:
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/health` | GET | Health check endpoint |
-| `/api/v4/client-settings` | GET | Runtime configuration for frontend |
-| `/api/v4/github-oauth-token` | POST | OAuth token exchange (used during login) |
+| Endpoint                     | Method | Description                              |
+| ---------------------------- | ------ | ---------------------------------------- |
+| `/api/health`                | GET    | Health check endpoint                    |
+| `/api/v4/client-settings`    | GET    | Runtime configuration for frontend       |
+| `/api/v4/github-oauth-token` | POST   | OAuth token exchange (used during login) |
 
 ---
 
@@ -55,22 +55,26 @@ These endpoints are accessible without authentication:
 All other API endpoints require a valid GitHub OAuth token in the `Authorization` header.
 
 ### Template Analysis
+
 - `POST /api/v4/analyze-template` - Analyze a template repository
 - `POST /api/v4/batch-scan-start` - Start batch analysis
 - `GET /api/v4/batch-scan-status/:batchId` - Get batch status
 
 ### Validation
+
 - `POST /api/v4/validation-template` - Trigger validation workflow
 - `GET /api/v4/validation-status/:runId` - Check validation status
 - `POST /api/v4/validation-cancel/:runId` - Cancel validation
 
 ### GitHub Integration
+
 - `POST /api/v4/issue-create` - Create GitHub issue
 - `POST /api/v4/repo-fork` - Fork repository
 - `POST /api/v4/action-trigger` - Trigger GitHub Action
 - `GET /api/v4/action-run-status/:owner/:repo/:runId` - Check action status
 
 ### Analysis Management
+
 - `POST /api/v4/add-template-pr` - Submit analysis as PR
 - `POST /api/v4/archive-collection` - Archive analysis
 
@@ -80,14 +84,14 @@ All other API endpoints require a valid GitHub OAuth token in the `Authorization
 
 Admin endpoints require both authentication AND admin privileges (user must be in `ADMIN_GITHUB_USERS` list).
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/admin/db-info` | GET | Database connection info |
-| `/api/admin/settings` | GET | Configuration settings |
-| `/api/v4/admin/config` | GET | Get all configuration |
-| `/api/v4/admin/config/:key` | GET | Get specific setting |
-| `/api/v4/admin/config/:key` | PUT | Update setting |
-| `/api/v4/admin/config/:key` | DELETE | Delete setting |
+| Endpoint                    | Method | Description              |
+| --------------------------- | ------ | ------------------------ |
+| `/api/admin/db-info`        | GET    | Database connection info |
+| `/api/admin/settings`       | GET    | Configuration settings   |
+| `/api/v4/admin/config`      | GET    | Get all configuration    |
+| `/api/v4/admin/config/:key` | GET    | Get specific setting     |
+| `/api/v4/admin/config/:key` | PUT    | Update setting           |
+| `/api/v4/admin/config/:key` | DELETE | Delete setting           |
 
 ---
 
@@ -104,7 +108,7 @@ await GitHubAuth.login();
 // After successful login, token is automatically included in API calls
 const result = await TemplateAnalyzer.analyzeTemplate(
   'https://github.com/Azure-Samples/todo-nodejs-mongo',
-  'dod'
+  'dod',
 );
 ```
 
@@ -115,6 +119,7 @@ const result = await TemplateAnalyzer.analyzeTemplate(
 Go to GitHub Settings → Developer settings → Personal access tokens → Generate new token
 
 Required scopes:
+
 - `public_repo` - Access public repositories
 - `read:user` - Read user profile
 
@@ -150,19 +155,19 @@ async function analyzeTemplate(repoUrl, ruleSet = 'dod') {
     { repoUrl, ruleSet },
     {
       headers: {
-        'Authorization': `Bearer ${GITHUB_TOKEN}`,
-        'Content-Type': 'application/json'
-      }
-    }
+        Authorization: `Bearer ${GITHUB_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+    },
   );
-  
+
   return response.data;
 }
 
 // Usage
 analyzeTemplate('https://github.com/Azure-Samples/todo-nodejs-mongo')
-  .then(result => console.log(result))
-  .catch(error => console.error('Error:', error.response?.data));
+  .then((result) => console.log(result))
+  .catch((error) => console.error('Error:', error.response?.data));
 ```
 
 **Python Example:**
@@ -219,7 +224,8 @@ print(result)
 }
 ```
 
-**Solution**: 
+**Solution**:
+
 - Verify token is correct
 - Check token hasn't expired
 - Ensure token has required scopes (`public_repo`, `read:user`)
@@ -346,12 +352,14 @@ No changes needed! The frontend handles authentication automatically.
 ### For API Users (scripts, CI/CD, etc.)
 
 **Before** (no authentication):
+
 ```bash
 curl -X POST http://localhost:3000/api/v4/analyze-template \
   -d '{"repoUrl":"...", "ruleSet":"dod"}'
 ```
 
 **After** (with authentication):
+
 ```bash
 curl -X POST http://localhost:3000/api/v4/analyze-template \
   -H "Authorization: Bearer $GITHUB_TOKEN" \

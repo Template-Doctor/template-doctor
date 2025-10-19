@@ -29,34 +29,34 @@ Azure Functions code has been removed from the main branch and archived in `dev/
 
 1. Clone the repository:
 
-    ```bash
-    git clone https://github.com/Template-Doctor/template-doctor.git
-    cd template-doctor
-    ```
+   ```bash
+   git clone https://github.com/Template-Doctor/template-doctor.git
+   cd template-doctor
+   ```
 
 2. Install dependencies:
 
-    ```bash
-    npm ci
-    ```
+   ```bash
+   npm ci
+   ```
 
 3. Environment setup:
 
-    ```bash
-    cp .env.example .env
-    ```
+   ```bash
+   cp .env.example .env
+   ```
 
-    Edit the `.env` file with appropriate values. **CRITICAL**: You must set `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` in `.env`.
+   Edit the `.env` file with appropriate values. **CRITICAL**: You must set `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` in `.env`.
 
 4. Start with Docker Compose:
 
-    ```bash
-    docker-compose --profile combined up
-    ```
+   ```bash
+   docker-compose --profile combined up
+   ```
 
 5. Access the application:
-    - Frontend: http://localhost:3000
-    - Backend API: http://localhost:3001 (same as frontend in combined mode)
+   - Frontend: http://localhost:3000
+   - Backend API: http://localhost:3001 (same as frontend in combined mode)
 
 ### Manual Development (Two-Terminal Approach)
 
@@ -66,26 +66,26 @@ If you prefer running services without Docker:
 
 2. Build both packages:
 
-    ```bash
-    npm run build -w packages/server
-    npm run build -w packages/app
-    ```
+   ```bash
+   npm run build -w packages/server
+   npm run build -w packages/app
+   ```
 
 3. **IMPORTANT**: Start services in SEPARATE terminals (do not use background processes):
 
-    **Terminal 1 - Express Backend (on port 3001):**
+   **Terminal 1 - Express Backend (on port 3001):**
 
-    ```bash
-    cd packages/server
-    npm run dev
-    ```
+   ```bash
+   cd packages/server
+   npm run dev
+   ```
 
-    **Terminal 2 - Vite dev server (on port 4000):**
+   **Terminal 2 - Vite dev server (on port 4000):**
 
-    ```bash
-    cd packages/app
-    npm run dev
-    ```
+   ```bash
+   cd packages/app
+   npm run dev
+   ```
 
 4. Access the application at http://localhost:4000
 
@@ -155,25 +155,25 @@ If you prefer running services without Docker:
 The configuration system has three layers optimized for the containerized architecture:
 
 1. **Backend** (`packages/server/.env`): Express server configuration
-    - Required: `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GH_WORKFLOW_TOKEN`
-    - Copied from root `.env` during Docker build
-    - Used by OAuth token exchange and API endpoints
-    - Port configured via `PORT` (must match frontend port for OAuth - default: 3000)
+   - Required: `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GH_WORKFLOW_TOKEN`
+   - Copied from root `.env` during Docker build
+   - Used by OAuth token exchange and API endpoints
+   - Port configured via `PORT` (must match frontend port for OAuth - default: 3000)
 
 2. **Frontend** (`packages/app/config.json`): Client configuration
-    - Required: `githubOAuth.clientId` (must match server's `GITHUB_CLIENT_ID`)
-    - OAuth callback URL must match the port where both frontend and backend are served
-    - Backend URLs (deprecated - both run on same port now):
-        - Docker/Preview: Same port as frontend (port 3000)
-        - Production: Same origin
-    - Three-tier override system:
-        - `config.json` - Base configuration
-        - `config.local.json` - Local overrides (not committed)
-        - `config.preview.json` - Preview/production overrides
+   - Required: `githubOAuth.clientId` (must match server's `GITHUB_CLIENT_ID`)
+   - OAuth callback URL must match the port where both frontend and backend are served
+   - Backend URLs (deprecated - both run on same port now):
+     - Docker/Preview: Same port as frontend (port 3000)
+     - Production: Same origin
+   - Three-tier override system:
+     - `config.json` - Base configuration
+     - `config.local.json` - Local overrides (not committed)
+     - `config.preview.json` - Preview/production overrides
 
 3. **Environment** (`.env` at repo root): Shared configuration
-    - Used by build tools, Docker Compose, and copied to backend
-    - Single source of truth for GitHub tokens and OAuth credentials
+   - Used by build tools, Docker Compose, and copied to backend
+   - Single source of truth for GitHub tokens and OAuth credentials
 
 **OAuth Flow (Port 3000):**
 
@@ -203,11 +203,13 @@ npm run test -- "-g" "should handle search functionality" packages/app/tests/app
 ### OAuth Authentication Tests
 
 **Unit Tests** (`packages/server/src/middleware/__tests__/auth.test.ts`):
+
 - Tests requireAuth, optionalAuth, and requireAdmin middleware
 - Mocks Octokit GitHub API client
 - Verifies error codes, messages, and user attachment to request
 
 **Integration Tests** (`packages/app/tests/oauth-authentication.spec.js`):
+
 - End-to-end OAuth flow testing with Playwright
 - Tests public vs protected endpoints
 - Requires `GITHUB_TOKEN` environment variable for authenticated tests
@@ -258,10 +260,11 @@ The script exits non‑zero on the first critical failure (missing endpoint / un
 
 ## Commit Guidelines
 
+- **Format code before committing**: Always run `npm run format` before opening a PR
 - Add/update tests for features and fixes
-- Format code before committing
 - Don't commit generated artifacts like `node_modules/` or large reports
 - Update docs and workflows when changing paths or behavior
+- Verify tests pass: `npm test`
 
 ## Important Files to Understand
 
@@ -285,6 +288,7 @@ The script exits non‑zero on the first critical failure (missing endpoint / un
 **All API endpoints are now protected by OAuth 2.0 authentication** except for public health checks and configuration endpoints.
 
 **Authentication Architecture:**
+
 - **Middleware**: `requireAuth`, `optionalAuth`, `requireAdmin` in `packages/server/src/middleware/auth.ts`
 - **Token Validation**: Every request validates GitHub token via Octokit (`GET /user`)
 - **User Context**: Authenticated user info attached to `req.user` (login, id, name, email, avatar)
@@ -327,6 +331,7 @@ The script exits non‑zero on the first critical failure (missing endpoint / un
 - Required scopes: `public_repo`, `read:user`
 
 **See Also:**
+
 - [OAuth API Authentication](docs/development/OAUTH_API_AUTHENTICATION.md) - Complete authentication guide
 - [OAuth Configuration](docs/development/OAUTH_CONFIGURATION.md) - OAuth app setup
 

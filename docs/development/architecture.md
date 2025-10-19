@@ -38,7 +38,7 @@ sequenceDiagram
 
     U->>FE: Trigger protected operation (e.g., analyze template)
     FE->>EX: POST /api/v4/analyze-template + Bearer token
-    
+
     EX->>EX: Auth Middleware: Extract token from header
     EX->>GH: Validate token (GET /user)
     GH-->>EX: Return user info (login, id, name, email, avatar)
