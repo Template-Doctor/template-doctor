@@ -16,7 +16,11 @@ dotenv.config(); // Also load from root .env as fallback
 export const app: Express = express();
 const defaultPort = process.env.PORT || 3000; // Default to 3000 for OAuth compatibility
 
+// Structured logging middleware
+import { httpLogger } from "./shared/logger.js";
+
 // Middleware
+app.use(httpLogger); // HTTP request/response logging
 app.use(cors());
 app.use(express.json());
 
@@ -64,22 +68,25 @@ import { azdTestRouter } from "./routes/azd-test.js";
 
 // Initialize database connection
 import { database } from "./services/database.js";
+import { createLogger } from "./shared/logger.js";
+
+const startupLogger = createLogger('startup');
 
 (async () => {
     try {
         // Connect to database if MongoDB URI or Cosmos endpoint is configured
         if (process.env.MONGODB_URI || process.env.COSMOS_ENDPOINT) {
             const dbType = process.env.MONGODB_URI ? 'Local MongoDB' : 'Cosmos DB';
-            console.log(`🔌 Connecting to ${dbType}...`);
+            startupLogger.info({ dbType }, 'Connecting to database...');
             await database.connect();
-            console.log('✅ Database connected');
+            startupLogger.info('Database connected');
         } else {
-            console.log('⚠️  No database configured - database features disabled');
-            console.log('   Set MONGODB_URI (local) or COSMOS_ENDPOINT (Cosmos DB)');
+            startupLogger.warn('No database configured - database features disabled');
+            startupLogger.warn('Set MONGODB_URI (local) or COSMOS_ENDPOINT (Cosmos DB)');
         }
     } catch (error: any) {
-        console.error('❌ Database connection failed:', error?.message);
-        console.error('   Database features will be unavailable');
+        startupLogger.error({ err: error }, 'Database connection failed');
+        startupLogger.error('Database features will be unavailable');
     }
 })();
 
@@ -133,21 +140,22 @@ app.get("*", (req: Request, res: Response) => {
 export function startServer(port: number = Number(defaultPort)): Promise<http.Server> {
     return new Promise((resolve) => {
         const server = app.listen(port, async () => {
-            console.log(`🚀 Template Doctor server running on port ${port}`);
-            console.log(`📊 Health check: http://localhost:${port}/api/health`);
-            console.log(
-                `🔑 GitHub Token configured: ${!!process.env.GH_WORKFLOW_TOKEN || !!process.env.GITHUB_TOKEN}`,
+            startupLogger.info({ port }, 'Template Doctor server running');
+            startupLogger.info({ url: `http://localhost:${port}/api/health` }, 'Health check endpoint');
+            startupLogger.info(
+                { configured: !!process.env.GH_WORKFLOW_TOKEN || !!process.env.GITHUB_TOKEN },
+                'GitHub Token configured'
             );
-            console.log(`📁 Serving static files from: ${staticPath}`);
+            startupLogger.info({ staticPath }, 'Serving static files');
             
             // Initialize default configuration settings
             try {
-                console.log('📝 Initializing configuration defaults...');
+                startupLogger.info('Initializing configuration defaults...');
                 const { ConfigurationStorage } = await import("./services/configuration-storage.js");
                 await ConfigurationStorage.initializeDefaults();
-                console.log('✅ Configuration initialized');
+                startupLogger.info('Configuration initialized');
             } catch (error) {
-                console.error('⚠️  Failed to initialize configuration:', error);
+                startupLogger.error({ err: error }, 'Failed to initialize configuration');
             }
             
             resolve(server);

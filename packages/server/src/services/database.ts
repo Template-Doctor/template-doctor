@@ -13,6 +13,9 @@
 
 import { MongoClient, Db, Collection, ObjectId } from 'mongodb';
 import { DefaultAzureCredential } from '@azure/identity';
+import { createLogger } from '../shared/logger.js';
+
+const logger = createLogger('database');
 
 // ===== TypeScript Interfaces =====
 
@@ -182,7 +185,7 @@ class DatabaseService {
    */
   async connect(): Promise<void> {
     if (this.isConnected && this.client && this.db) {
-      console.log('[Database] Already connected');
+      logger.info('Already connected');
       return;
     }
 
@@ -192,7 +195,7 @@ class DatabaseService {
 
     // Local MongoDB (e.g., MongoDB Compass)
     if (mongoUri) {
-      console.log(`[Database] Connecting to local MongoDB: ${mongoUri.replace(/\/\/.*@/, '//***@')}`);
+      logger.info({ endpoint: mongoUri.replace(/\/\/.*@/, '//***@') }, 'Connecting to local MongoDB');
       
       try {
         this.client = new MongoClient(mongoUri, {
@@ -205,11 +208,11 @@ class DatabaseService {
         this.db = this.client.db(databaseName);
         this.isConnected = true;
 
-        console.log(`[Database] Connected to local MongoDB database: ${databaseName}`);
+        logger.info({ databaseName }, 'Connected to local MongoDB database');
 
         // Create indexes (async, non-blocking)
         this.createIndexes().catch((err) =>
-          console.error('[Database] Index creation failed:', err)
+          logger.error({ err }, 'Index creation failed')
         );
 
         // Graceful shutdown handlers
@@ -219,14 +222,14 @@ class DatabaseService {
         return;
       } catch (error: any) {
         this.isConnected = false;
-        console.error('[Database] Local MongoDB connection failed:', error?.message);
+        logger.error({ err: error }, 'Local MongoDB connection failed');
         throw error;
       }
     }
 
     // Cosmos DB with Managed Identity
     if (cosmosEndpoint) {
-      console.log(`[Database] Connecting to Cosmos DB: ${cosmosEndpoint}`);
+      logger.info({ cosmosEndpoint }, 'Connecting to Cosmos DB');
 
       try {
         // Acquire access token using Managed Identity
@@ -256,11 +259,11 @@ class DatabaseService {
         this.db = this.client.db(databaseName);
         this.isConnected = true;
 
-        console.log(`[Database] Connected to Cosmos DB database: ${databaseName}`);
+        logger.info({ databaseName }, 'Connected to Cosmos DB database');
 
         // Create indexes (async, non-blocking)
         this.createIndexes().catch((err) =>
-          console.error('[Database] Index creation failed:', err)
+          logger.error({ err }, 'Index creation failed')
         );
 
         // Set up token refresh (every 1 hour)
@@ -273,7 +276,7 @@ class DatabaseService {
         return;
       } catch (error: any) {
         this.isConnected = false;
-        console.error('[Database] Cosmos DB connection failed:', error?.message);
+        logger.error({ err: error }, 'Cosmos DB connection failed');
         throw error;
       }
     }
@@ -287,7 +290,7 @@ class DatabaseService {
   private async createIndexes(): Promise<void> {
     if (!this.db) return;
 
-    console.log('[Database] Creating indexes...');
+    logger.info('Creating indexes...');
 
     try {
       // Repos collection indexes (V2 schema - primary collection)
@@ -314,9 +317,9 @@ class DatabaseService {
       await this.configuration.createIndex({ key: 1 }, { unique: true, background: true });
       await this.configuration.createIndex({ category: 1 }, { background: true });
 
-      console.log('[Database] Indexes created successfully');
+      logger.info('Indexes created successfully');
     } catch (error: any) {
-      console.error('[Database] Index creation error:', error?.message);
+      logger.error({ err: error }, 'Index creation error');
     }
   }
 
@@ -325,13 +328,13 @@ class DatabaseService {
    */
   private scheduleTokenRefresh(): void {
     setInterval(async () => {
-      console.log('[Database] Refreshing MI token...');
+      logger.info('Refreshing MI token...');
       try {
         await this.disconnect();
         await this.connect();
-        console.log('[Database] Token refreshed and reconnected');
+        logger.info('Token refreshed and reconnected');
       } catch (error: any) {
-        console.error('[Database] Token refresh failed:', error?.message);
+        logger.error({ err: error }, 'Token refresh failed');
       }
     }, 3600000); // 1 hour
   }
@@ -345,7 +348,7 @@ class DatabaseService {
       this.client = null;
       this.db = null;
       this.isConnected = false;
-      console.log('[Database] Disconnected');
+      logger.info('Disconnected');
     }
   }
 
