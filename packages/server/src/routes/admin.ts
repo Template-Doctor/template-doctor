@@ -2,8 +2,13 @@
 import { Router, Request, Response } from "express";
 import { ConfigurationStorage } from "../services/configuration-storage.js";
 import { database } from "../services/database.js";
+import { requireAuth, requireAdmin } from "../middleware/auth.js";
 
 export const adminRouter = Router();
+
+// Apply authentication and admin check to all admin endpoints
+adminRouter.use(requireAuth);
+adminRouter.use(requireAdmin);
 
 // Get database connection info (for debugging)
 adminRouter.get("/db-info", async (req: Request, res: Response) => {

@@ -1,6 +1,7 @@
 import express, { Request, Response, NextFunction } from "express";
 import { v4 as uuidv4 } from "uuid";
 import { Octokit } from "@octokit/rest";
+import { requireAuth, optionalAuth } from "../middleware/auth.js";
 
 const router = express.Router();
 
@@ -43,8 +44,10 @@ async function runSingleAnalysis(
 
 // POST /api/v4/batch-scan-start
 // Starts a batch scan of multiple repositories
+// Requires authentication
 router.post(
     "/batch-scan-start",
+    requireAuth,
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { repos, mode } = req.body || {};

@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { runAnalyzer } from "../analyzer-core/index.js";
 import { analysisStorage } from "../services/analysis-storage.js";
+import { requireAuth } from "../middleware/auth.js";
 
 export const analyzeRouter = Router();
 
@@ -32,7 +33,8 @@ interface BatchAnalyzeResult {
 }
 
 // POST /api/v4/analyze-template
-analyzeRouter.post("/analyze-template", async (req: Request, res: Response) => {
+// Requires authentication - users must be logged in to analyze templates
+analyzeRouter.post("/analyze-template", requireAuth, async (req: Request, res: Response) => {
     try {
         const requestBody: AnalyzeRequest = req.body || {};
         const {

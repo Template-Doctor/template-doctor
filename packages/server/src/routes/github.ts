@@ -1,11 +1,13 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { Octokit } from "@octokit/rest";
+import { requireAuth } from "../middleware/auth.js";
 
 const router = Router();
 
 /**
  * POST /api/v4/issue-create
  * Create a GitHub issue with labels and optional child issues
+ * Requires authentication
  *
  * Body:
  * - owner: Repository owner (required)
@@ -27,6 +29,7 @@ const router = Router();
  */
 router.post(
     "/issue-create",
+    requireAuth,
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const token = process.env.GH_WORKFLOW_TOKEN;

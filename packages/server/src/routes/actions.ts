@@ -1,7 +1,11 @@
 import express, { Request, Response, NextFunction } from "express";
 import { v4 as uuidv4 } from "uuid";
+import { requireAuth } from "../middleware/auth.js";
 
 const router = express.Router();
+
+// Apply authentication to all GitHub Actions endpoints
+router.use(requireAuth);
 
 interface TriggerBody {
     workflowOrgRep?: string;

@@ -5,6 +5,7 @@ import {
     parseAzdValidationResult,
     AzdValidationResult,
 } from "../services/azd-validation.js";
+import { requireAuth } from "../middleware/auth.js";
 
 /**
  * Interface for AZD validation results parsed from artifact
@@ -13,9 +14,13 @@ import {
 
 const router = Router();
 
+// Apply authentication to all validation endpoints
+router.use(requireAuth);
+
 /**
  * POST /api/v4/validation-template
  * Triggers a GitHub workflow to validate an azd template
+ * Requires authentication
  */
 router.post(
     "/validation-template",
