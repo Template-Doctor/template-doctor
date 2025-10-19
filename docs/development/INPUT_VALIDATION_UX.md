@@ -57,7 +57,8 @@ Returns: Normalized URL or null if invalid
 | Scenario | Error Title | Error Message | Visual Feedback |
 |----------|-------------|---------------|-----------------|
 | XSS Attempt | `Invalid Input` | `Oops! That's not allowed!` | Red border (2px solid #dc3545) |
-| Invalid URL | `Invalid URL` | `Invalid URL: <url>` | Red border (2px solid #dc3545) |
+| Malformed URL | `Invalid URL` | `Not a valid GitHub repository URL` | Red border (2px solid #dc3545) |
+| Single Word | `Invalid Repository` | `GitHub repositories must be in "owner/repo" format (e.g., "microsoft/template-doctor")` | Red border (2px solid #dc3545) |
 | Empty Input | `Batch Scan` | `Enter at least one repository URL` | Red border (2px solid #dc3545) |
 | Valid Input | N/A | N/A | Border reset (removed) |
 
@@ -79,10 +80,45 @@ if (containsXssAttempt(query)) {
   return;
 }
 
-// Reset border on valid input
-const searchInput = document.getElementById('repo-search') as HTMLInputElement | null;
-if (searchInput) {
-  searchInput.style.border = '';
+// Check if this looks like a URL attempt (contains http, https, or ://)
+const looksLikeUrlAttempt = /^https?:\/\/|:\/\//.test(q);
+
+// If it looks like a URL attempt, validate it as a GitHub URL
+if (looksLikeUrlAttempt) {
+  const validUrl = sanitizeGitHubUrl(q);
+  if (!validUrl) {
+    if (searchInput) {
+      searchInput.style.border = '2px solid #dc3545';
+    }
+    if ((window as any).NotificationSystem) {
+      (window as any).NotificationSystem.showError('Invalid URL', `Not a valid GitHub repository URL`, 5000);
+    }
+    container.innerHTML = '<div class="no-results error-message">Invalid GitHub repository URL</div>';
+    return;
+  }
+}
+
+// At end of search when no results found:
+// Check if this might be an invalid repository format
+const hasSlash = q.includes('/');
+const firstPart = q.split('/')[0] || '';
+const looksLikeRepoAttempt = hasSlash || /^[a-zA-Z0-9_-]+$/.test(firstPart);
+
+// If it looks like they're trying to enter a repo but it's invalid format
+if (looksLikeRepoAttempt && !hasSlash) {
+  if (searchInput) {
+    searchInput.style.border = '2px solid #dc3545';
+  }
+  if ((window as any).NotificationSystem) {
+    (window as any).NotificationSystem.showError(
+      'Invalid Repository', 
+      'GitHub repositories must be in "owner/repo" format (e.g., "microsoft/template-doctor")', 
+      6000
+    );
+  }
+  container.innerHTML = '<div class="no-results error-message">Use "owner/repo" format for GitHub repositories</div>';
+} else {
+  container.innerHTML = '<div class="no-results">No matching templates found</div>';
 }
 ```
 
@@ -160,7 +196,7 @@ textarea[style*="border: 2px solid #dc3545"] {
 
 **Location**: `tests/unit/input-validation-ux.spec.ts`
 
-**20 comprehensive tests** covering:
+**26 comprehensive tests** covering:
 
 ### XSS Detection (6 tests)
 - ✅ Script tags (`<script>`, `</script>`)
@@ -170,15 +206,18 @@ textarea[style*="border: 2px solid #dc3545"] {
 - ✅ Data URI attacks (`data:text/html`)
 - ✅ Safe input validation
 
-### URL Validation (4 tests)
+### URL Validation (6 tests)
 - ✅ Valid GitHub URLs (https, .git, owner/repo)
 - ✅ XSS rejection in URLs
 - ✅ Invalid URL pattern rejection
+- ✅ Single-word rejection (hello, randomword, test123)
+- ✅ Malformed URL rejection (htt://something.com)
 - ✅ Dangerous character rejection
 
-### Error Message Consistency (2 tests)
+### Error Message Consistency (3 tests)
 - ✅ "Oops! That's not allowed!" for XSS
-- ✅ "Invalid URL" for non-GitHub URLs
+- ✅ "Invalid URL" for malformed URL attempts
+- ✅ Format guidance for single words
 
 ### Visual Feedback (4 tests)
 - ✅ Red border determination for XSS
@@ -186,11 +225,14 @@ textarea[style*="border: 2px solid #dc3545"] {
 - ✅ Border reset for valid input
 - ✅ Batch scan mixed input handling
 
-### Edge Cases (4 tests)
+### Edge Cases (7 tests)
 - ✅ Empty input handling
 - ✅ Whitespace-only input
 - ✅ Mixed valid/invalid URLs in batch
 - ✅ Case-insensitive XSS detection
+- ✅ Single-word format guidance
+- ✅ Malformed URL detection
+- ✅ URL vs search term disambiguation
 
 ## Attack Prevention Examples
 
@@ -210,17 +252,40 @@ textarea[style*="border: 2px solid #dc3545"] {
 // Result: "Oops! That's not allowed!" + red border
 ```
 
+### Malformed URLs
+
+```javascript
+// Input: htt://something.com
+// Result: "Invalid URL: Not a valid GitHub repository URL" + red border
+
+// Input: http://evil.com/repo
+// Result: "Invalid URL: Not a valid GitHub repository URL" + red border
+
+// Input: https://notgithub.com/owner/repo
+// Result: "Invalid URL: Not a valid GitHub repository URL" + red border
+```
+
+### Single Words (Invalid Format)
+
+```javascript
+// Input: hello
+// Result: "Invalid Repository: GitHub repositories must be in 'owner/repo' format" + red border
+
+// Input: randomword
+// Result: "Invalid Repository: GitHub repositories must be in 'owner/repo' format" + red border
+
+// Input: test123
+// Result: "Invalid Repository: GitHub repositories must be in 'owner/repo' format" + red border
+```
+
 ### Invalid URLs
 
 ```javascript
-// Input: not-a-url
-// Result: "Invalid URL: not-a-url" + red border
-
-// Input: http://evil.com/repo
-// Result: "Invalid URL: http://evil.com/repo" + red border
-
 // Input: owner/<script>/repo
 // Result: "Oops! That's not allowed!" + red border (XSS detected first)
+
+// Input: not-a-url (if it doesn't match single-word pattern)
+// Result: "No matching templates found" (allowed as search term)
 ```
 
 ### Valid Input
@@ -325,5 +390,5 @@ it('should detect new XSS pattern', () => {
 ---
 
 **Status**: ✅ Complete  
-**Test Coverage**: 20/20 tests passing  
+**Test Coverage**: 26/26 tests passing  
 **Production Ready**: Yes
