@@ -57,14 +57,24 @@ export function containsXssAttempt(input: string): boolean {
   if (!input) return false;
   
   const xssPatterns = [
-    /<script[\s>]/i,
-    /<\/script>/i,
-    /javascript:/i,
-    /on\w+\s*=/i,  // Event handlers like onclick=, onload=
-    /<iframe/i,
-    /<object/i,
-    /<embed/i,
-    /data:text\/html/i,
+    /<script[\s>]/i,           // Script tags
+    /<\/script>/i,             // Closing script
+    /javascript:/i,            // JavaScript protocol
+    /on\w+\s*=/i,             // Event handlers (onclick=, onload=, etc.)
+    /<iframe/i,                // Iframes
+    /<object/i,                // Objects
+    /<embed/i,                 // Embeds
+    /<applet/i,                // Applets (legacy but still dangerous)
+    /data:text\/html/i,        // Data URIs with HTML
+    /vbscript:/i,              // VBScript protocol
+    /<meta[\s>]/i,             // Meta tags (can do redirects)
+    /<link[\s>]/i,             // Link tags (can load external resources)
+    /<base[\s>]/i,             // Base tags (can hijack relative URLs)
+    /<form[\s>]/i,             // Forms (can submit data to attacker)
+    /expression\s*\(/i,        // CSS expressions (IE)
+    /import\s+/i,              // CSS/JS imports
+    /<svg[\s>]/i,              // SVG (can contain scripts)
+    /<math[\s>]/i,             // MathML (can contain scripts)
   ];
   
   return xssPatterns.some(pattern => pattern.test(input));

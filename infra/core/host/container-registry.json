@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.15.31.15270",
-      "templateHash": "5888893575794979158"
+      "templateHash": "7512766676125926072"
     }
   },
   "parameters": {
@@ -44,7 +44,7 @@
         "name": "[parameters('sku')]"
       },
       "properties": {
-        "adminUserEnabled": true,
+        "adminUserEnabled": false,
         "publicNetworkAccess": "Enabled",
         "networkRuleBypassOptions": "AzureServices"
       }
