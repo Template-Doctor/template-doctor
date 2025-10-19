@@ -84,16 +84,10 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
       registries: [
         {
           server: containerRegistry.properties.loginServer
-          username: containerRegistry.listCredentials().username
-          passwordSecretRef: 'registry-password'
+          identity: 'system'
         }
       ]
-      secrets: concat([
-        {
-          name: 'registry-password'
-          value: containerRegistry.listCredentials().passwords[0].value
-        }
-      ], githubClientId != '' ? [{
+      secrets: concat(githubClientId != '' ? [{
         name: 'github-client-id'
         value: githubClientId
       }] : [], githubClientSecret != '' ? [{
