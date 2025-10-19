@@ -1,5 +1,6 @@
 /* Batch scan with backend + cancel/resume support */
 import { ApiClient } from './api-client';
+import { sanitizeHtml, sanitizeAttribute, sanitizeGitHubUrl } from '../shared/sanitize';
 
 interface BatchProgressEntry {
   id: string;
@@ -115,9 +116,19 @@ function wireUI() {
       const repos = ta.value
         .split(/\n|,/)
         .map((s) => s.trim())
-        .filter(Boolean);
+        .filter(Boolean)
+        .map((url) => {
+          // Validate and sanitize GitHub URLs
+          const sanitized = sanitizeGitHubUrl(url);
+          if (!sanitized) {
+            showError('Invalid URL', `Skipping invalid URL: ${sanitizeHtml(url)}`);
+            return null;
+          }
+          return sanitized;
+        })
+        .filter((url): url is string => url !== null);
       if (!repos.length) {
-        showError('Batch Scan', 'Enter at least one repository URL');
+        showError('Batch Scan', 'Enter at least one valid repository URL');
         return;
       }
       startBatch(repos);
@@ -284,11 +295,13 @@ function createBatchItem(url: string, index: number, existing?: BatchProgressEnt
   }
 
   const repoName = url.includes('github.com/') ? url.split('github.com/')[1] : url;
+  const safeRepoName = sanitizeHtml(repoName);
+  const safeRepoNameAttr = sanitizeAttribute(repoName);
 
   item.className = className;
   item.innerHTML = `
     <div class="batch-item-header">
-      <div class="batch-item-title">${repoName}</div>
+      <div class="batch-item-title" title="${safeRepoNameAttr}">${safeRepoName}</div>
       <div class="batch-item-status">${status}</div>
     </div>
     <div class="batch-item-message">${message}</div>
@@ -455,10 +468,13 @@ function displayResult(result: any) {
   if (errorSection) errorSection.style.display = 'none';
 
   const repoName = result.repoUrl?.split('github.com/')[1] || result.repoUrl || 'Repository';
+  const safeRepoName = sanitizeHtml(repoName);
+  const safeRepoUrl = sanitizeHtml(result.repoUrl || '');
+  
   const rnEl = document.getElementById('repo-name');
-  if (rnEl) rnEl.textContent = repoName;
+  if (rnEl) rnEl.textContent = safeRepoName;
   const ruEl = document.getElementById('repo-url');
-  if (ruEl) ruEl.textContent = result.repoUrl;
+  if (ruEl) ruEl.textContent = safeRepoUrl;
 
   try {
     const dash = (window as any).DashboardRenderer;
