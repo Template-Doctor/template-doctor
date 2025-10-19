@@ -199,14 +199,63 @@ If you prefer running services without Docker:
 
 ## Authentication Setup
 
-### GitHub OAuth Authentication
+### GitHub OAuth Authentication (Required for API Access)
 
-1. Create a GitHub OAuth app with appropriate callback URL
-2. Configure environment variables or config.json settings
-3. See [OAuth Configuration Guide](docs/development/OAUTH_CONFIGURATION.md) for detailed instructions
+**Template Doctor v2.1.0+ requires OAuth 2.0 authentication** for all API endpoints except public health checks and configuration.
+
+**What you need:**
+1. GitHub OAuth App (for frontend login)
+2. GitHub Personal Access Token (for API access)
+3. Environment variables configured
+
+**Quick Setup:**
+
+1. **Create GitHub OAuth App**:
+   - Go to GitHub Settings → Developer settings → OAuth Apps → New OAuth App
+   - **Application name**: Template Doctor
+   - **Homepage URL**: `http://localhost:3000` (or your domain)
+   - **Authorization callback URL**: `http://localhost:3000/callback.html`
+   - Copy Client ID and Client Secret
+
+2. **Create GitHub Personal Access Token**:
+   - Go to GitHub Settings → Developer settings → Personal access tokens → Generate new token
+   - Required scopes: `public_repo`, `read:user`
+   - Copy the generated token
+
+3. **Configure environment variables**:
+   ```bash
+   cp .env.example .env
+   ```
+   
+   Edit `.env`:
+   ```bash
+   # OAuth (for frontend login)
+   GITHUB_CLIENT_ID=your_oauth_app_client_id
+   GITHUB_CLIENT_SECRET=your_oauth_app_client_secret
+   
+   # API Access
+   GH_WORKFLOW_TOKEN=your_personal_access_token
+   
+   # Admin Users (optional - comma-separated GitHub usernames)
+   ADMIN_GITHUB_USERS=username1,username2
+   ```
+
+**For detailed instructions**, see:
+- [OAuth API Authentication](docs/development/OAUTH_API_AUTHENTICATION.md) - Complete authentication guide
+- [OAuth Configuration](docs/development/OAUTH_CONFIGURATION.md) - OAuth app setup details
+
+**Endpoint Protection:**
+- ✅ **Public**: Health check, client settings, OAuth token exchange
+- 🔒 **Protected**: Template analysis, validation, GitHub integration, batch scanning
+- 🔐 **Admin**: Configuration management, database info, debugging endpoints
 
 > [!WARNING]
-> You will need different app registrations for local and production environments.
+> You will need different OAuth app registrations for local (localhost:3000) and production (yourdomain.com) environments.
+
+> [!IMPORTANT]
+> **Frontend users**: Authentication happens automatically when you click "Login"  
+> **API users**: Include `Authorization: Bearer <github_token>` header in all requests  
+> **Admin access**: Configure `ADMIN_GITHUB_USERS` to enable admin endpoints
 
 ### Azure Managed Identity Setup (for AZD deployment)
 
