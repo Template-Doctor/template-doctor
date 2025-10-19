@@ -1,7 +1,5 @@
-# Leaderboards Implementation Guide# Leaderboards Database Query Analysis
-
-
-
+# Leaderboards Implementation Guide
+## Leaderboards Database Query Analysis
 ## Overview
 
 
