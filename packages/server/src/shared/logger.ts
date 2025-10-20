@@ -90,6 +90,6 @@ export const httpLogger = pinoHttp({
   },
   // Don't log health check spam
   autoLogging: {
-    ignore: (req) => req.url === '/api/v4/health',
+    ignore: (req) => req.url === '/api/health',
   },
 });

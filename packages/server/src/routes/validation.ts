@@ -4,8 +4,8 @@ import {
   downloadValidationArtifact,
   parseAzdValidationResult,
   AzdValidationResult,
-} from '../services/azd-validation.js';
-import { requireAuth } from '../middleware/auth.js';
+} from '../services/azd-validation';
+import { requireAuth } from '../middleware/auth';
 
 /**
  * Interface for AZD validation results parsed from artifact

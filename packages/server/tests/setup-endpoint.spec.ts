@@ -3,11 +3,10 @@
  * Tests GET/POST /api/v4/setup with Git CSV persistence
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import fs from 'fs/promises';
 import path from 'path';
 import type http from 'http';
-import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 // IMPORTANT: set test env flags BEFORE importing server module (dynamic import later)
 process.env.NODE_ENV = 'test';
 

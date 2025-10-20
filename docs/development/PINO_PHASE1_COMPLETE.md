@@ -40,7 +40,7 @@ Successfully implemented structured logging using Pino for the Template Doctor s
   - `warn`: Client errors (4xx)
   - `error`: Server errors (5xx)
 - **Redacted fields**: Authorization, cookies, GitHub tokens
-- **Health check spam filtered**: `/api/v4/health` not logged
+- **Health check spam filtered**: `/api/health` not logged
 
 ## 📊 Migration Progress
 
