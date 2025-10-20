@@ -1,6 +1,7 @@
 import express, { Request, Response, NextFunction } from "express";
 import { v4 as uuidv4 } from "uuid";
 import { Octokit } from "@octokit/rest";
+import { strictRateLimit } from "../middleware/rate-limit.js";
 
 const router = express.Router();
 
@@ -43,8 +44,10 @@ async function runSingleAnalysis(
 
 // POST /api/v4/batch-scan-start
 // Starts a batch scan of multiple repositories
+// Apply strict rate limiting for expensive batch operations
 router.post(
     "/batch-scan-start",
+    strictRateLimit,
     async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { repos, mode } = req.body || {};

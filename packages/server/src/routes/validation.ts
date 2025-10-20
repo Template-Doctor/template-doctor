@@ -5,6 +5,7 @@ import {
     parseAzdValidationResult,
     AzdValidationResult,
 } from "../services/azd-validation.js";
+import { strictRateLimit } from "../middleware/rate-limit.js";
 
 /**
  * Interface for AZD validation results parsed from artifact
@@ -16,9 +17,11 @@ const router = Router();
 /**
  * POST /api/v4/validation-template
  * Triggers a GitHub workflow to validate an azd template
+ * Apply strict rate limiting for expensive validation operations
  */
 router.post(
     "/validation-template",
+    strictRateLimit,
     async (req: Request, res: Response, next: NextFunction) => {
         const requestId = `req-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 

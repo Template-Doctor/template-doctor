@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { runAnalyzer } from "../analyzer-core/index.js";
 import { analysisStorage } from "../services/analysis-storage.js";
+import { strictRateLimit } from "../middleware/rate-limit.js";
 
 export const analyzeRouter = Router();
 
@@ -32,7 +33,8 @@ interface BatchAnalyzeResult {
 }
 
 // POST /api/v4/analyze-template
-analyzeRouter.post("/analyze-template", async (req: Request, res: Response) => {
+// Apply strict rate limiting for expensive analysis operations
+analyzeRouter.post("/analyze-template", strictRateLimit, async (req: Request, res: Response) => {
     try {
         const requestBody: AnalyzeRequest = req.body || {};
         const {
