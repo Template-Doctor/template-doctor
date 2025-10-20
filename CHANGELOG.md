@@ -5,6 +5,24 @@ All notable changes to Template Doctor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0](https://github.com/Template-Doctor/template-doctor/compare/template-doctor-v2.0.1...template-doctor-v2.1.0) (2025-10-20)
+
+
+### Features
+
+* Add OAuth 2.0 API Authentication ([#147](https://github.com/Template-Doctor/template-doctor/issues/147)) ([d312ec7](https://github.com/Template-Doctor/template-doctor/commit/d312ec781d96b4f2882083b0351f23d1f3d031a8))
+* Add rate limiting to API endpoints with UI improvements ([#150](https://github.com/Template-Doctor/template-doctor/issues/150)) ([7944293](https://github.com/Template-Doctor/template-doctor/commit/79442932c83834168afd224c83ddb8c578c1ab6b))
+
+
+### Bug Fixes
+
+* update MongoDB connection string placeholder to avoid secret scanning ([#148](https://github.com/Template-Doctor/template-doctor/issues/148)) ([cab4c85](https://github.com/Template-Doctor/template-doctor/commit/cab4c85e247ba63b23b303d77293fa2281af9ba2))
+
+
+### Documentation
+
+* Fix README port references, architecture, and Docker commands ([#149](https://github.com/Template-Doctor/template-doctor/issues/149)) ([d8cd612](https://github.com/Template-Doctor/template-doctor/commit/d8cd612347aeae0657287faebcf9dfe2bb87bbe7))
+
 ## [Unreleased]
 
 ### ⚠ BREAKING CHANGES
