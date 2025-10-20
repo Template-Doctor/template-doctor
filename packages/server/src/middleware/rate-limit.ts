@@ -56,7 +56,7 @@ export const standardRateLimit = rateLimit({
   keyGenerator,
   handler,
   standardHeaders: true, // Return rate limit info in `RateLimit-*` headers
-  legacyHeaders: false, // Disable `X-RateLimit-*` headers
+  legacyHeaders: false, // Disable legacy `X-RateLimit-*` headers; use standard `RateLimit-*` headers instead
   // Skip rate limiting for health checks
   skip: (req) => req.path === '/api/health',
   // Disable IPv6 validation since we handle X-Forwarded-For
