@@ -65,7 +65,7 @@ import './scripts/dashboard-renderer.ts';
 // TS migration: templates data loader
 import './data/templates-loader.ts';
 // DELETED: tooltips.js, ruleset-modal.js (migrated to TS)
-// DELETED: github-action-hook.js, azd-provision.js, github-workflow-validation.js, enable-demo-mode.js
+// DELETED: github-action-hook.js (submitAnalysisToGitHub functionality was unused and is no longer required), azd-provision.js, github-workflow-validation.js, enable-demo-mode.js
 // Transitional TS wrapper for legacy app logic
 import './app.ts';
 // DELETED: action-buttons-fallback.js, action-buttons-direct.js, docs-validation-badge.js, github-fork-patch-fix.js, app-fork-patch.js, github-fork-patch.js, saml-batch-patch-loader.js
