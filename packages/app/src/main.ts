@@ -62,8 +62,6 @@ import './scripts/dashboard-renderer.ts';
 // TS migration: templates data loader
 import './data/templates-loader.ts';
 // DELETED: tooltips.js, ruleset-modal.js (migrated to TS)
-// Load TS action hook first (provides submitAnalysisToGitHub)
-import './scripts/github-action-hook.ts';
 // DELETED: github-action-hook.js, azd-provision.js, github-workflow-validation.js, enable-demo-mode.js
 // Transitional TS wrapper for legacy app logic
 import './app.ts';
