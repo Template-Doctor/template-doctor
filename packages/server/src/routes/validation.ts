@@ -8,13 +8,33 @@ import {
 import { requireAuth } from '../middleware/auth';
 
 /**
+ * BREAKING CHANGE NOTICE (v3.0.0):
+ * All validation endpoints now require OAuth authentication.
+ * 
+ * This is an API breaking change - existing clients that do not send authentication tokens will receive 401 errors.
+ * 
+ * Migration Required:
+ * - Clients must implement GitHub OAuth flow to obtain access tokens
+ * - Include `Authorization: Bearer <github_token>` header in all validation requests
+ * - See OAUTH_CONFIGURATION.md for OAuth setup details
+ * 
+ * Affected Endpoints:
+ * - POST /api/v4/validation-template
+ * - POST /api/v4/validation-docker-image
+ * - POST /api/v4/validation-ossf
+ * - GET /api/v4/validation-status
+ * - POST /api/v4/validation-cancel
+ * - POST /api/v4/validation-callback
+ */
+
+/**
  * Interface for AZD validation results parsed from artifact
  */
 // (Parser & artifact download logic moved to services/azd-validation.ts)
 
 const router = Router();
 
-// Apply authentication to all validation endpoints
+// Apply authentication to all validation endpoints (BREAKING CHANGE)
 router.use(requireAuth);
 
 /**

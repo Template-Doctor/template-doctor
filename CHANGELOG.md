@@ -5,6 +5,26 @@ All notable changes to Template Doctor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### ⚠ BREAKING CHANGES
+
+- **API Authentication**: All validation endpoints now require OAuth authentication. Existing clients that do not send authentication tokens will receive 401 errors. Migration required:
+  - Clients must implement GitHub OAuth flow to obtain access tokens
+  - Include `Authorization: Bearer <github_token>` header in all requests to validation endpoints
+  - Affected endpoints: `/api/v4/validation-template`, `/api/v4/validation-docker-image`, `/api/v4/validation-ossf`, `/api/v4/validation-status`, `/api/v4/validation-cancel`, `/api/v4/validation-callback`
+  - See `docs/development/OAUTH_CONFIGURATION.md` for OAuth setup details
+
+### Features
+
+- Add OAuth 2.0 authentication to all API endpoints (except public health/config endpoints)
+- Add three-tier rate limiting (standard: 100/min, strict: 10/min, auth: 20/min)
+
+### Bug Fixes
+
+- Fix health endpoint path in logger configuration (was `/api/v4/health`, corrected to `/api/health`)
+- Remove duplicate vitest imports in test files
+
 ## 1.0.0 (2025-10-07)
 
 ### ⚠ BREAKING CHANGES
