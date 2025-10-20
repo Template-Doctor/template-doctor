@@ -14,7 +14,7 @@ export function parseOwnerRepo(value: string | undefined, requestId: string) {
       error: {
         status: 400,
         body: {
-          error: 'workflowOrgRep is required',
+          error: 'workflowOrgRepo is required',
           errorType: 'MISSING_PARAMETER',
           requestId,
         },
@@ -27,7 +27,7 @@ export function parseOwnerRepo(value: string | undefined, requestId: string) {
       error: {
         status: 400,
         body: {
-          error: 'workflowOrgRep must be in owner/repo format',
+          error: 'workflowOrgRepo must be in owner/repo format',
           errorType: 'INVALID_FORMAT',
           requestId,
         },
