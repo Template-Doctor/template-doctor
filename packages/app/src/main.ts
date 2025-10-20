@@ -6,6 +6,9 @@
 import './notifications/notification-system.ts';
 import './notifications/notifications.ts';
 
+// SAML banner (dismissible warning)
+import './scripts/saml-banner.ts';
+
 // UI Controller MUST load early to manage section visibility
 import './app/ui-controller.ts';
 
