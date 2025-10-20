@@ -1,5 +1,5 @@
 import rateLimit from 'express-rate-limit';
-import type { Request, Response } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 
 /**
  * Rate limiting configuration for API endpoints
@@ -102,6 +102,6 @@ export const authRateLimit = rateLimit({
 /**
  * No rate limit (for testing or admin endpoints)
  */
-export const noRateLimit = (req: Request, res: Response, next: Function) => {
+export const noRateLimit = (req: Request, res: Response, next: NextFunction) => {
   next();
 };
