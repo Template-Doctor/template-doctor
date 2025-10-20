@@ -257,9 +257,51 @@ The script exits non‑zero on the first critical failure (missing endpoint / un
 - No native browser dialogs (use notifications) to keep tests stable
 - Test files are stored in `packages/app/tests/`
 
+## Frontend Logging Guidelines
+
+**CRITICAL**: The frontend uses an environment-aware logger utility, NOT `console.log`.
+
+### Logger Usage
+
+**Always use the logger** for frontend logging:
+
+```typescript
+import { logger } from '../utils/logger.js';
+
+// Development: All logs visible
+// Production: Only errors logged
+logger.debug('module-name', 'Debug message', data);
+logger.info('module-name', 'Info message', data);
+logger.warn('module-name', 'Warning message', data);
+logger.error('module-name', 'Error message', error);
+```
+
+### Module Naming Convention
+
+- Use kebab-case for module names
+- File: `src/scripts/search.ts` → Module: `'search'`
+- File: `src/app/ui-controller.ts` → Module: `'app/ui-controller'`
+
+### Migration Status
+
+- ✅ Logger utility created: `packages/app/src/utils/logger.ts`
+- ✅ Tests passing (6/6)
+- ⏳ **In Progress**: Replacing 391 console statements across 60+ files
+- 📋 See `docs/development/CONSOLE_LOG_CLEANUP.md` for implementation plan
+
+### DO NOT Use console.log
+
+**Never** add new `console.log`, `console.debug`, `console.warn`, or `console.error` statements in frontend code. Always use the logger utility to ensure:
+
+- Clean production builds (errors only)
+- Consistent log formatting
+- Module-based filtering
+- Environment-aware verbosity
+
 ## Commit Guidelines
 
 - **Format code before committing**: Always run `npm run format` before opening a PR
+- **Use logger, not console.log**: Frontend logging must use the logger utility
 - Add/update tests for features and fixes
 - Don't commit generated artifacts like `node_modules/` or large reports
 - Update docs and workflows when changing paths or behavior
