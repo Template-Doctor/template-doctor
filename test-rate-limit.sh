@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 # Test Rate Limiting Script
 # This script tests the rate limiting by making multiple requests to various endpoints
