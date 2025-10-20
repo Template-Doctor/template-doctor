@@ -10,14 +10,14 @@ import { requireAuth } from '../middleware/auth';
 /**
  * BREAKING CHANGE NOTICE (v3.0.0):
  * All validation endpoints now require OAuth authentication.
- * 
+ *
  * This is an API breaking change - existing clients that do not send authentication tokens will receive 401 errors.
- * 
+ *
  * Migration Required:
  * - Clients must implement GitHub OAuth flow to obtain access tokens
  * - Include `Authorization: Bearer <github_token>` header in all validation requests
  * - See OAUTH_CONFIGURATION.md for OAuth setup details
- * 
+ *
  * Affected Endpoints:
  * - POST /api/v4/validation-template
  * - POST /api/v4/validation-docker-image

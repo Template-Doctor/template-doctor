@@ -63,25 +63,27 @@ GITHUB_CLIENT_SECRET=your_oauth_app_client_secret
 ##### 3. Update API Clients
 
 **Before (v2.x):**
+
 ```javascript
 // No authentication required
 const response = await fetch('/api/v4/analyze-template', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ repository: 'owner/repo' })
+  body: JSON.stringify({ repository: 'owner/repo' }),
 });
 ```
 
 **After (v3.0):**
+
 ```javascript
 // Authentication required - include GitHub token
 const response = await fetch('/api/v4/analyze-template', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${githubToken}` // Add this header
+    Authorization: `Bearer ${githubToken}`, // Add this header
   },
-  body: JSON.stringify({ repository: 'owner/repo' })
+  body: JSON.stringify({ repository: 'owner/repo' }),
 });
 ```
 
@@ -101,7 +103,7 @@ const code = new URLSearchParams(window.location.search).get('code');
 const response = await fetch('/api/v4/github-oauth-token', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ code })
+  body: JSON.stringify({ code }),
 });
 const { access_token } = await response.json();
 
@@ -143,7 +145,7 @@ Only users in `ADMIN_GITHUB_USERS` can access `/api/v4/admin/*` endpoints.
 v3.0.0 also introduces three-tier rate limiting:
 
 - **Standard endpoints** (config): 100 requests/minute
-- **Authenticated endpoints** (analyze, validate): 20 requests/minute  
+- **Authenticated endpoints** (analyze, validate): 20 requests/minute
 - **Strict endpoints** (OAuth token exchange): 10 requests/minute
 
 Rate limit exceeded returns `429 Too Many Requests`.
@@ -152,12 +154,14 @@ Rate limit exceeded returns `429 Too Many Requests`.
 
 1. Start the server with OAuth configured
 2. Test public endpoints (should work without auth):
+
    ```bash
    curl http://localhost:3000/api/health
    curl http://localhost:3000/api/v4/client-settings
    ```
 
 3. Test protected endpoints without auth (should return 401):
+
    ```bash
    curl -X POST http://localhost:3000/api/v4/analyze-template \
      -H "Content-Type: application/json" \
@@ -178,7 +182,8 @@ Rate limit exceeded returns `429 Too Many Requests`.
 
 **Problem**: Getting 401 errors even with token
 
-**Solution**: 
+**Solution**:
+
 - Verify token is valid: `curl -H "Authorization: Bearer ${TOKEN}" https://api.github.com/user`
 - Check token has required scopes: `public_repo`, `read:user`
 - Ensure `Authorization` header format is exactly: `Bearer <token>` (with space)
@@ -186,6 +191,7 @@ Rate limit exceeded returns `429 Too Many Requests`.
 **Problem**: OAuth callback not working
 
 **Solution**:
+
 - Verify callback URL in GitHub OAuth app matches exactly: `http://localhost:3000/callback.html`
 - Check `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` are set correctly
 - Ensure frontend and backend run on same port (3000) for OAuth to work
@@ -193,6 +199,7 @@ Rate limit exceeded returns `429 Too Many Requests`.
 **Problem**: Admin endpoints returning 403
 
 **Solution**:
+
 - Verify your GitHub username is in `ADMIN_GITHUB_USERS` environment variable
 - Check token belongs to admin user: Token username must match one in the list
 - Restart server after changing `ADMIN_GITHUB_USERS`

@@ -43,17 +43,17 @@ Template Doctor is a **containerized monorepo** with independently deployable pa
 ### Current Architecture (Express-based)
 
 - **packages/app**: Vite SPA (TypeScript frontend)
-    - Built with Vite for fast development and optimized production builds
-    - Development server at http://localhost:4000 with HMR
-    - Production served by Express at http://localhost:3000
-    - Loads scan results from database via REST API
+  - Built with Vite for fast development and optimized production builds
+  - Development server at http://localhost:4000 with HMR
+  - Production served by Express at http://localhost:3000
+  - Loads scan results from database via REST API
 
 - **packages/server**: Express backend (TypeScript REST API)
-    - RESTful API and frontend hosting at http://localhost:3000 (OAuth-compatible)
-    - Handles OAuth token exchange, template validation, and GitHub integration
-    - CORS-enabled for cross-origin development
-    - Serves static frontend assets in production
-    - MongoDB/Cosmos DB for persistent storage
+  - RESTful API and frontend hosting at http://localhost:3000 (OAuth-compatible)
+  - Handles OAuth token exchange, template validation, and GitHub integration
+  - CORS-enabled for cross-origin development
+  - Serves static frontend assets in production
+  - MongoDB/Cosmos DB for persistent storage
 
 - **packages/analyzer-core**: Core analyzer functionality (shared library)
   - Shared validation logic used by both server and legacy API
@@ -141,16 +141,16 @@ For manual setup or local development only, see sections below.
 
 4. **Start with Docker Compose**:
 
-    ```bash
-    # Start the combined profile (frontend + backend in one container)
-    docker-compose --profile combined up
-    
-    # Or run in detached mode
-    docker-compose --profile combined up -d
-    
-    # Rebuild and start
-    docker-compose --profile combined up --build
-    ```
+   ```bash
+   # Start the combined profile (frontend + backend in one container)
+   docker-compose --profile combined up
+
+   # Or run in detached mode
+   docker-compose --profile combined up -d
+
+   # Rebuild and start
+   docker-compose --profile combined up --build
+   ```
 
 5. **Access the application**:
    - Frontend + Backend: http://localhost:3000
@@ -173,7 +173,7 @@ If you prefer running services without Docker:
 
 3. **Start services in SEPARATE terminals**:
 
-    **Terminal 1 - Express Backend (port 3000)**:
+   **Terminal 1 - Express Backend (port 3000)**:
 
    ```bash
    cd packages/server
@@ -312,13 +312,13 @@ See the [Environment Variables Documentation](docs/development/ENVIRONMENT_VARIA
 
 2. **Start all services**:
 
-    ```bash
-    docker-compose --profile combined up
-    ```
+   ```bash
+   docker-compose --profile combined up
+   ```
 
 3. **Access the application**:
-    - Frontend: http://localhost:3000
-    - Backend API: http://localhost:3000/api
+   - Frontend: http://localhost:3000
+   - Backend API: http://localhost:3000/api
 
 ### Manual Development (Two-Terminal Approach)
 
@@ -499,12 +499,12 @@ Access at http://localhost:3000
 ### Common Issues
 
 - **OAuth redirect issues**: Ensure ports match between GitHub OAuth app settings and local server
-    - Development: Frontend 4000, Backend 3000
-    - Docker/Production: Both services on port 3000
+  - Development: Frontend 4000, Backend 3000
+  - Docker/Production: Both services on port 3000
 
 - **Express server not starting**:
-    - Check `.env` file exists with required variables
-    - Verify port 3000 is not in use: `lsof -i :3000`
+  - Check `.env` file exists with required variables
+  - Verify port 3000 is not in use: `lsof -i :3000`
 
 - **Docker issues**:
   - Ensure Docker and Docker Compose are installed and running
@@ -512,10 +512,10 @@ Access at http://localhost:3000
 
 - **Port conflicts**: Kill processes if needed:
 
-    ```bash
-    lsof -ti :3000 | xargs kill -9  # Express server / frontend
-    lsof -ti :4000 | xargs kill -9  # Vite dev server
-    ```
+  ```bash
+  lsof -ti :3000 | xargs kill -9  # Express server / frontend
+  lsof -ti :4000 | xargs kill -9  # Vite dev server
+  ```
 
 - **Configuration mismatch**: Verify `config.json` has correct `githubOAuth.clientId` matching `.env`
 
@@ -526,8 +526,8 @@ Access at http://localhost:3000
 Located in `.github/workflows/`:
 
 - **validate-docker-images.yml**: Docker image validation
-    - Validates Docker builds and image integrity
-    - Ensures containers can be built successfully
+  - Validates Docker builds and image integrity
+  - Ensures containers can be built successfully
 
 - **Nightly Deploy**: Automated deployment
   - Runs nightly at 02:15 UTC
