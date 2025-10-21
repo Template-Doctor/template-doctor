@@ -35,6 +35,54 @@ it('should handle API request', async () => {
 
 **Before adding ANY testing dependency, check this policy first.**
 
+## ⛔ FORBIDDEN - User Interface Policy
+
+**CRITICAL: NEVER USE alert(), confirm(), OR prompt()**
+
+- ✅ **USE NOTIFICATION SYSTEM ONLY** - showNotification() for all user feedback
+- ❌ **FORBIDDEN: alert(), confirm(), prompt()**
+- ❌ **FORBIDDEN: window.alert, window.confirm, window.prompt**
+- ❌ **FORBIDDEN: Native browser dialogs of any kind**
+
+**Why No Native Dialogs:**
+- Block the entire browser tab (terrible UX)
+- Cannot be styled or controlled
+- Break automated testing (Playwright cannot handle them reliably)
+- Look unprofessional and outdated
+- No way to test behavior programmatically
+
+**Notification System Pattern:**
+```typescript
+import { showNotification } from './src/notifications/notifications.ts';
+
+// Success message
+showNotification('success', 'Operation Complete', 'Your changes were saved successfully.');
+
+// Error message  
+showNotification('error', 'Operation Failed', error.message);
+
+// Warning message
+showNotification('warning', 'Missing Input', 'Please enter a template URL.');
+
+// Info message
+showNotification('info', 'Configuration Preview', 'See console for details.');
+```
+
+**For confirmations, use custom modal dialogs (not confirm()):**
+```typescript
+// WRONG ❌
+if (confirm('Delete this?')) { ... }
+
+// RIGHT ✅
+showConfirmDialog({
+  title: 'Confirm Deletion',
+  message: 'Are you sure you want to delete this?',
+  onConfirm: () => { ... }
+});
+```
+
+**Before writing ANY user-facing message, use the notification system.**
+
 ## Project Overview
 
 Template Doctor analyzes and validates sample templates, with a focus on Azure Developer CLI (azd) templates. It runs as a containerized application with Express backend and Vite frontend.
