@@ -147,7 +147,10 @@ async function loadConfigJson(): Promise<ConfigJsonShape> {
     try {
       const resp = await fetch(url, { cache: 'no-store' });
       if (!resp.ok) {
-        console.debug('[config-loader] config.json candidate not ok', url, resp.status);
+        // Only log if not a 404 for config.local.json (which is optional)
+        if (!(resp.status === 404 && url.includes('config.local.json'))) {
+          console.debug('[config-loader] config.json candidate not ok', url, resp.status);
+        }
         continue;
       }
 
