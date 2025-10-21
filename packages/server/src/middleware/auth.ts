@@ -9,6 +9,11 @@ import { createLogger } from '../shared/logger.js';
 
 const authLogger = createLogger('auth');
 
+// Log warning once if auth is disabled
+if (process.env.DISABLE_AUTH === 'true') {
+  authLogger.warn('⚠️  AUTH DISABLED - All requests will use mock test user. NEVER use in production!');
+}
+
 // Extend Express Request to include user info
 declare global {
   namespace Express {
@@ -69,7 +74,6 @@ async function getGitHubUserInfo(token: string): Promise<{
 export async function requireAuth(req: Request, res: Response, next: NextFunction) {
   // FOR TESTING ONLY: Allow disabling auth with environment variable
   if (process.env.DISABLE_AUTH === 'true') {
-    authLogger.warn({ path: req.path }, '⚠️  AUTH DISABLED - Using mock user for testing');
     req.user = {
       login: 'test-user',
       id: 1,
