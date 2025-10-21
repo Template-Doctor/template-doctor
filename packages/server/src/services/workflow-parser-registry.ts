@@ -215,7 +215,7 @@ function extractCodeBlocks(content: string): Array<{ language: string; code: str
 }
 
 function extractLogErrors(content: string): string[] {
-  const errorRegex = /^.*\b(error|err|fatal|failed|failure)\b.*$/gim;
+  const errorRegex = /^.*(\berror\b|\berr\b|\bfatal\b|\bfailed\b|\bfailure\b).*$/gim;
   const errors: string[] = [];
   let match;
 
@@ -227,7 +227,7 @@ function extractLogErrors(content: string): string[] {
 }
 
 function extractLogWarnings(content: string): string[] {
-  const warningRegex = /^.*\b(warning|warn|caution)\b.*$/gim;
+  const warningRegex = /^.*(\bwarning\b|\bwarn\b|\bcaution\b).*$/gim;
   const warnings: string[] = [];
   let match;
 
