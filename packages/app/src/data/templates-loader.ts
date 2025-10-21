@@ -88,7 +88,7 @@
 
       // Transform API response to match expected window.templatesData format
       if (data.results && Array.isArray(data.results)) {
-        const templates = r.results.map((r: any) => ({
+        const templates = data.results.map((r: any) => ({
           repoUrl: r.repoUrl,
           owner: r.owner,
           repo: r.repo,
