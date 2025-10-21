@@ -114,7 +114,7 @@
         window.startValidation = function() {
             const templateUrl = document.getElementById('template-url').value.trim();
             if (!templateUrl) {
-                alert('Please enter a template URL');
+                showNotification('warning', 'Missing Template URL', 'Please enter a template URL to validate.');
                 return;
             }
 

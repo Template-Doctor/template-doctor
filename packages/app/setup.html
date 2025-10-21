@@ -635,8 +635,9 @@
             };
             
             // For demo purposes, just show the JSON
-            alert('Configuration would be saved:\\n\\n' + JSON.stringify(formData, null, 2));
+            showNotification('info', 'Configuration Preview', 'Configuration would be saved (see console for details)');
             console.log('Configuration to save:', formData);
+            console.log('Configuration JSON:', JSON.stringify(formData, null, 2));
         }
         
         async function testConnection() {
@@ -644,13 +645,13 @@
                 const response = await fetch('/api/v4/client-settings');
                 if (response.ok) {
                     const data = await response.json();
-                    alert('✅ Connection successful!\\n\\nReceived configuration with ' + Object.keys(data).length + ' settings.');
+                    showNotification('success', 'Connection Successful', `Received configuration with ${Object.keys(data).length} settings.`);
                     updateConnectionStatus(true, 'Connection test successful');
                 } else {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
             } catch (error) {
-                alert('❌ Connection failed:\\n\\n' + error.message);
+                showNotification('error', 'Connection Failed', error.message);
                 updateConnectionStatus(false, 'Connection test failed: ' + error.message);
             }
         }
@@ -658,7 +659,7 @@
         function refreshDeprecatedModels() {
             // For demo purposes, simulate a workflow trigger
             if (confirm('This will trigger a workflow to update deprecated models. Continue?')) {
-                alert('🔄 Deprecated models refresh initiated!\\n\\nThis would normally trigger a GitHub workflow to update the list.');
+                showNotification('info', 'Deprecated Models Refresh', 'Workflow initiated to update the list.');
                 // In a real implementation, this would call an API endpoint
                 console.log('Would trigger deprecated models workflow');
             }
@@ -670,11 +671,11 @@
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
-                const workflows = await response.json();
+                const { workflows, count } = await response.json();
                 populateWorkflows(workflows);
-                alert(`✅ Loaded ${workflows.length} workflow configuration(s)`);
+                showNotification('success', 'Workflows Loaded', `Loaded ${count} workflow configuration(s)`);
             } catch (error) {
-                alert('❌ Failed to load workflows:\\n\\n' + error.message);
+                showNotification('error', 'Failed to Load Workflows', error.message);
                 console.error('Failed to load workflows:', error);
             }
         }
