@@ -1,8 +1,12 @@
 /**
  * Workflow Artifact Parser Registry
  * 
- * Provides default parsers for common artifact formats and allows
- * registration of custom parsers for specific workflow types.
+ * Provides two types of parsers:
+ * 1. Format Parsers (markdown, json, log) - handle file formats
+ * 2. Content Parsers (azd-validation, etc.) - handle validation-specific structure
+ * 
+ * Format parsers extract basic structure from files.
+ * Content parsers interpret validation results and can use format parsers internally.
  */
 
 import { ArtifactParser, ParserRegistryEntry, WorkflowConfig } from '../types/workflow.js';
@@ -11,7 +15,7 @@ import { parseAzdValidationResult } from './azd-validation.js';
 const parserRegistry = new Map<string, ParserRegistryEntry>();
 
 /**
- * Default markdown parser - extracts common patterns
+ * Format Parser: Markdown - extracts common markdown patterns
  */
 export const markdownParser: ArtifactParser = (content: string, config: WorkflowConfig) => {
   return {
@@ -28,7 +32,7 @@ export const markdownParser: ArtifactParser = (content: string, config: Workflow
 };
 
 /**
- * Default log parser - extracts log patterns
+ * Format Parser: Log - extracts log file patterns
  */
 export const logParser: ArtifactParser = (content: string, config: WorkflowConfig) => {
   return {
@@ -42,7 +46,7 @@ export const logParser: ArtifactParser = (content: string, config: WorkflowConfi
 };
 
 /**
- * JSON parser - parses JSON artifacts
+ * Format Parser: JSON - parses JSON artifacts
  */
 export const jsonParser: ArtifactParser = (content: string, config: WorkflowConfig) => {
   try {
@@ -63,7 +67,8 @@ export const jsonParser: ArtifactParser = (content: string, config: WorkflowConf
 };
 
 /**
- * AZD validation parser - wraps existing azd-validation parser
+ * Content Parser: AZD Validation - parses AZD validation results
+ * Uses markdown parser internally for preprocessing
  */
 export const azdValidationParser: ArtifactParser = (content: string, config: WorkflowConfig) => {
   const parsed = parseAzdValidationResult(content);
@@ -75,30 +80,35 @@ export const azdValidationParser: ArtifactParser = (content: string, config: Wor
 
 /**
  * Register default parsers
+ * 
+ * Format Parsers: Handle file formats (markdown, json, log)
+ * Content Parsers: Handle validation-specific structure (azd-validation, ossf-scorecard, trivy-scanner, etc.)
  */
 function registerDefaultParsers() {
+  // Format Parsers
   parserRegistry.set('markdown', {
     name: 'markdown',
     parser: markdownParser,
-    description: 'Default markdown artifact parser',
+    description: 'Format Parser: Markdown file structure extraction',
   });
 
   parserRegistry.set('log', {
     name: 'log',
     parser: logParser,
-    description: 'Default log file parser',
+    description: 'Format Parser: Log file pattern extraction',
   });
 
   parserRegistry.set('json', {
     name: 'json',
     parser: jsonParser,
-    description: 'JSON artifact parser',
+    description: 'Format Parser: JSON parsing',
   });
 
+  // Content Parsers
   parserRegistry.set('azd-validation', {
     name: 'azd-validation',
     parser: azdValidationParser,
-    description: 'AZD template validation parser',
+    description: 'Content Parser: AZD template validation results',
   });
 }
 

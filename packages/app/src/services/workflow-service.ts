@@ -99,18 +99,18 @@ async function httpJson<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const WorkflowService = {
   /**
-   * Get all available workflow configurations
+   * Get all workflow configurations
    */
-  async getWorkflows(): Promise<WorkflowConfig[]> {
-    return httpJson<WorkflowConfig[]>('/workflows');
+  async getWorkflows(): Promise<{ workflows: WorkflowConfig[]; count: number }> {
+    return httpJson<{ workflows: WorkflowConfig[]; count: number }>('/workflows');
   },
 
   /**
    * Get a specific workflow configuration
    */
   async getWorkflow(workflowId: string): Promise<WorkflowConfig | null> {
-    const workflows = await this.getWorkflows();
-    return workflows.find((w) => w.id === workflowId) || null;
+    const { workflows } = await this.getWorkflows();
+    return workflows.find((w: { id: string; }) => w.id === workflowId) || null;
   },
 
   /**
