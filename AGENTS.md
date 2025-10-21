@@ -277,9 +277,77 @@ The script exits non‑zero on the first critical failure (missing endpoint / un
 - `docs/development/OAUTH_CONFIGURATION.md`: OAuth setup details
 - `docs/development/EXPRESS_MIGRATION_MATRIX.md`: Azure Functions → Express migration tracking
 - `docs/development/AZD_VALIDATION_ARTIFACT_PARSING.md`: **CRITICAL** - Implementation plan for accurate AZD validation (ACTIVE WORK)
+- `docs/development/GENERIC_WORKFLOW_SYSTEM.md`: **NEW** - Generic workflow execution system documentation
+- `docs/development/NEW_WORKFLOW_GUIDE.md`: **NEW** - Guide for adding new workflows
 - `docs/usage/GITHUB_ACTION_SETUP.md`: GitHub Action setup guide
 - `docker-compose.yml`: Multi-container development setup
 - `Dockerfile.combined`: Single-container production build
+
+## Adding New Workflows (CRITICAL GUIDANCE FOR AGENTS)
+
+**When a user requests triggering a new GitHub Actions workflow, use the Generic Workflow Execution System.**
+
+### DO NOT create new specific endpoints
+
+❌ **WRONG**: Creating new specific endpoints like `/api/v4/validation-xyz`
+✅ **CORRECT**: Configure the workflow and use `/api/v4/workflow-execute`
+
+### Quick Steps:
+
+1. **Create the GitHub Actions workflow** in `.github/workflows/my-workflow.yml`
+   - Must support `workflow_dispatch` trigger
+   - Must accept `run_id` input parameter
+   - Should upload artifacts with results
+
+2. **Configure the workflow** by adding to MongoDB `workflow_configs` collection:
+   ```javascript
+   {
+     id: "my-workflow",
+     name: "My Workflow",
+     workflowFile: "my-workflow.yml",
+     artifactCompressed: true,
+     streamLogs: true,
+     customParser: "markdown",  // or "json", "log", or custom
+     defaultInputs: { param: "value" },
+     timeout: 300000
+   }
+   ```
+
+3. **Use the generic endpoints**:
+   - Trigger: `POST /api/v4/workflow-execute`
+   - Status: `GET /api/v4/workflow-status`
+   - Cancel: `POST /api/v4/workflow-cancel`
+
+4. **(Optional) Register custom parser** if artifact format is non-standard:
+   ```typescript
+   import { registerParser } from './services/workflow-parser-registry';
+   registerParser('my-parser', (content, config) => { /* parse logic */ });
+   ```
+
+### Built-in Features:
+
+- ✅ Automatic ZIP artifact detection and decompression
+- ✅ Real-time job log streaming (if `streamLogs: true`)
+- ✅ Built-in parsers: markdown, JSON, log, azd-validation
+- ✅ OAuth authentication required
+- ✅ Rate limiting applied
+- ✅ Workflow-specific result templates
+
+### References:
+
+- **Complete Guide**: `docs/development/NEW_WORKFLOW_GUIDE.md`
+- **System Documentation**: `docs/development/GENERIC_WORKFLOW_SYSTEM.md`
+- **Example Workflows**: See `packages/server/src/services/workflow-config-loader.ts` for defaults
+
+### Key Files:
+
+- `packages/server/src/types/workflow.ts` - Type definitions
+- `packages/server/src/services/workflow-service.ts` - Core logic (trigger/status/cancel/artifacts)
+- `packages/server/src/services/workflow-parser-registry.ts` - Parser plugins
+- `packages/server/src/services/workflow-config-loader.ts` - Configuration management
+- `packages/server/src/routes/generic-workflow.ts` - API endpoints
+
+**REMEMBER**: The generic system is designed to make adding workflows trivial. DO NOT duplicate functionality by creating new specific endpoints. Configure, don't code.
 
 ## Security Considerations
 
