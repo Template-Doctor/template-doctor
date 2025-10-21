@@ -115,9 +115,13 @@ declare global {
 
             if (owner && repo) {
               debug('report-loader', `Attempting API load for ${owner}/${repo}`);
+              const token = localStorage.getItem('gh_access_token');
               const response = await fetch(`/api/v4/results/repo/${owner}/${repo}`, {
                 cache: 'no-store',
-                headers: { Accept: 'application/json' },
+                headers: {
+                  Accept: 'application/json',
+                  ...(token && { Authorization: `Bearer ${token}` }),
+                },
               });
 
               if (response.ok) {
