@@ -2,6 +2,39 @@
 
 This document provides specific guidance for AI agents working with the Template Doctor codebase. It complements the README.md with focused information for automated assistance.
 
+## ⛔ FORBIDDEN - Testing Framework Policy
+
+**CRITICAL: DO NOT ADD ANY TEST FRAMEWORKS OTHER THAN VITEST**
+
+- ✅ **USE VITEST ONLY** - All tests (unit, integration, API, E2E) use Vitest
+- ❌ **FORBIDDEN: supertest, jest, mocha, chai, jasmine, ava, tap**
+- ❌ **FORBIDDEN: Any additional test runners or assertion libraries**
+
+**Why Vitest Only:**
+- Already installed and configured for the entire project
+- Handles unit tests, integration tests, AND API endpoint testing
+- No need for supertest - Vitest can test Express routes directly
+- Playwright handles browser E2E tests (separate from Vitest)
+
+**API Testing Pattern (Use Vitest, NOT supertest):**
+```typescript
+import { describe, it, expect, vi } from 'vitest';
+import { Request, Response } from 'express';
+import { someRouteHandler } from '../routes/my-route';
+
+it('should handle API request', async () => {
+  const req = { body: { data: 'test' } } as Request;
+  const res = { json: vi.fn(), status: vi.fn().mockReturnThis() } as unknown as Response;
+  
+  await someRouteHandler(req, res);
+  
+  expect(res.status).toHaveBeenCalledWith(200);
+  expect(res.json).toHaveBeenCalledWith({ success: true });
+});
+```
+
+**Before adding ANY testing dependency, check this policy first.**
+
 ## Project Overview
 
 Template Doctor analyzes and validates sample templates, with a focus on Azure Developer CLI (azd) templates. It runs as a containerized application with Express backend and Vite frontend.
