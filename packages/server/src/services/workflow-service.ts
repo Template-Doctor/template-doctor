@@ -455,7 +455,7 @@ async function fetchJobLogs(
  */
 function isZipFile(buffer: Buffer): boolean {
   // ZIP files start with 'PK' (0x50 0x4B)
-  return buffer.length >= 2 && buffer[0] === 0x50 && buffer[1] === 0x4b;
+  return buffer.length >= 2 && buffer[0] === 0x50 && buffer[1] === 0x4B;
 }
 
 /**
