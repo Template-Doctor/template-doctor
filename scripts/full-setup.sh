@@ -543,7 +543,7 @@ setup_dispatch_repo() {
             echo ""
             read -p "Repository (format: owner/repo): " DISPATCH_TARGET_REPO
             
-            if [[ ! "$DISPATCH_TARGET_REPO" =~ ^[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+$ ]]; then
+            if [[ ! "$DISPATCH_TARGET_REPO" =~ ^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$ ]]; then
                 print_error "Invalid format - must be owner/repo"
                 exit 1
             fi
