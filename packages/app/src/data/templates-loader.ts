@@ -84,7 +84,7 @@
 
       // Transform API response to match expected window.templatesData format
       if (data.results && Array.isArray(data.results)) {
-        const templates = data.results.map((r: any) => ({
+        const templates = r.results.map((r: any) => ({
           repoUrl: r.repoUrl,
           owner: r.owner,
           repo: r.repo,
@@ -100,6 +100,7 @@
             issues: r.latestAnalysis?.issues || 0,
             passed: r.latestAnalysis?.passed || 0,
           },
+          createdBy: r.latestAnalysis?.createdBy,
           tags: r.tags || [],
           // AZD test data (if available)
           azdTest: r.latestAzdTest

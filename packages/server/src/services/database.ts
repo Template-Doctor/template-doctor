@@ -84,6 +84,7 @@ export interface Repo {
     passed: number;
     issues: number;
     analysisId: ObjectId; // Reference to full analysis document
+    createdBy?: string; // GitHub username of last scanner
   };
 
   // Latest AZD test result (embedded, only keep most recent)
