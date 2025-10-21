@@ -58,6 +58,8 @@ async function getGitHubUserInfo(token: string): Promise<{
  * Middleware: Require authentication via GitHub token
  * Adds req.user and req.githubToken if authenticated
  *
+ * Can be disabled for testing by setting DISABLE_AUTH=true environment variable
+ *
  * @example
  * router.post('/protected', requireAuth, async (req, res) => {
  *   const { user, githubToken } = req;
@@ -65,6 +67,21 @@ async function getGitHubUserInfo(token: string): Promise<{
  * });
  */
 export async function requireAuth(req: Request, res: Response, next: NextFunction) {
+  // FOR TESTING ONLY: Allow disabling auth with environment variable
+  if (process.env.DISABLE_AUTH === 'true') {
+    authLogger.warn({ path: req.path }, '⚠️  AUTH DISABLED - Using mock user for testing');
+    req.user = {
+      login: 'test-user',
+      id: 1,
+      name: 'Test User',
+      email: 'test@example.com',
+      avatar_url: 'https://avatars.githubusercontent.com/u/0',
+    };
+    req.githubToken = 'mock-token';
+    req.githubUser = 'test-user';
+    return next();
+  }
+
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
