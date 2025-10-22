@@ -1,6 +1,6 @@
 {
   "name": "template-doctor",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "An Azure template analysis and healing app",
   "main": "bin/cli.js",
   "private": true,
