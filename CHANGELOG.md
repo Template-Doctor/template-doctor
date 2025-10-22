@@ -5,6 +5,25 @@ All notable changes to Template Doctor will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0](https://github.com/Template-Doctor/template-doctor/compare/v2.1.0...v2.2.0) (2025-10-22)
+
+
+### Features
+
+* Add DISABLE_AUTH environment variable for testing ([#155](https://github.com/Template-Doctor/template-doctor/issues/155)) ([46cd3b4](https://github.com/Template-Doctor/template-doctor/commit/46cd3b47ea12731c65088f8a47866ef58d5941e5))
+* Improve setup script with enhanced UX and critical UAMI deploym… ([#160](https://github.com/Template-Doctor/template-doctor/issues/160)) ([a370114](https://github.com/Template-Doctor/template-doctor/commit/a37011463aa531d8157482b7bfd1dde954b76b83))
+* release v2.2.0 with security fixes ([f2e88e4](https://github.com/Template-Doctor/template-doctor/commit/f2e88e42b8138211e28abd4dd860766b13cc0b3a))
+* reset release-please to calculate from v2.0.1 ([315d715](https://github.com/Template-Doctor/template-doctor/commit/315d715e24d531e78d44760f4a17cf023468f2e2))
+* trigger v2.2.0 release after establishing v2.1.0 baseline ([c6b9b5f](https://github.com/Template-Doctor/template-doctor/commit/c6b9b5f2943cffa3250e70d95f0270331796152a))
+
+
+### Bug Fixes
+
+* Add critical MongoDB connection guidance for Docker Compose users ([8d1aa95](https://github.com/Template-Doctor/template-doctor/commit/8d1aa9501494d8a5ab9bf55dcb5061f8f70a7c5c))
+* scannedby createdby clean ([#158](https://github.com/Template-Doctor/template-doctor/issues/158)) ([bb5ab04](https://github.com/Template-Doctor/template-doctor/commit/bb5ab042239111421c5b312607c3aabdab37c7aa))
+* trigger release-please workflow ([095b8cf](https://github.com/Template-Doctor/template-doctor/commit/095b8cf4404aa3294f6130ca4a52f459bb6cd9c1))
+* update release-please manifest to force 2.2.0 release ([2de5e6b](https://github.com/Template-Doctor/template-doctor/commit/2de5e6b5cf6995bc220803236eb35b82e6b8ab1d))
+
 ## [2.1.0](https://github.com/Template-Doctor/template-doctor/compare/v2.0.0...v2.1.0) (2025-10-22)
 
 
