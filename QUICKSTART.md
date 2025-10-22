@@ -213,14 +213,13 @@ You should see:
 
 For deploying to Azure Container Apps:
 
-1. **CRITICAL**: Set up User-Assigned Managed Identity (UAMI) FIRST
-2. Create Azure Cosmos DB (MongoDB API)
-3. Create production GitHub OAuth app
-4. Run: `azd init && azd up`
+1. Create production GitHub OAuth app (callback: `https://your-app.azurewebsites.net/callback.html`)
+2. Run: `azd init && azd up`
+3. Bicep automatically provisions Cosmos DB with System-Assigned Managed Identity (SAMI)
 
-See [Production Deployment Guide](../deployment/COSMOS_DB_PORTAL_SETUP.md) for details.
+See [Production Deployment Guide](docs/deployment/PRODUCTION_DATABASE_MANAGED_IDENTITY.md) for details.
 
-**Without UAMI, deployment WILL FAIL!**
+> **Note:** The Bicep templates automatically configure System-Assigned Managed Identity (SAMI) for the Container App to access Cosmos DB. If you're using `azd provision` and need to grant azd access to your existing Cosmos DB, you'll need a User-Assigned Managed Identity (UAMI) - see the deployment guide for details.
 
 ---
 
