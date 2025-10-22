@@ -12,9 +12,6 @@ param environmentName string
 @description('Primary location for all resources')
 param location string
 
-@description('Id of the principal (user or service principal) to grant database access')
-param principalId string = ''
-
 // GitHub configuration (read from .env file by azd)
 @secure()
 @description('GitHub OAuth Client ID - set in .env as GITHUB_CLIENT_ID')
@@ -59,7 +56,6 @@ module cosmos './database.bicep' = {
   params: {
     location: location
     environmentName: environmentName
-    principalId: '' // Will grant access after Container App is created
   }
 }
 
