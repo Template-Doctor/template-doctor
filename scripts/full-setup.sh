@@ -394,12 +394,18 @@ setup_mongodb() {
             echo ""
             print_success "No configuration needed - docker-compose handles this automatically!"
             echo ""
+            print_warning "${BOLD}CRITICAL:${NC} Do NOT set MONGODB_URI in .env for local development!"
+            echo -e "  • The .env file will have MONGODB_URI commented out"
+            echo -e "  • Docker Compose automatically connects to the mongodb container"
+            echo -e "  • If you see connection errors, make sure MONGODB_URI is NOT set"
+            echo ""
             print_info "To start local development:"
             echo -e "  ${BOLD}docker-compose --profile combined up${NC}"
+            echo -e "  This starts BOTH the app and MongoDB containers"
             echo ""
             
             # Don't set MONGODB_URI for local - let docker-compose default handle it
-            MONGODB_URI=""
+            MONGODB_URI="UNSET_FOR_LOCAL_DEV"
             MONGODB_DONE=true
             ;;
             
@@ -585,7 +591,11 @@ create_env_file() {
     print_step "Creating .env file with your configuration..."
     
     # Prepare MongoDB line based on whether URI was set
-    if [[ -n "$MONGODB_URI" ]]; then
+    if [[ "$MONGODB_URI" == "UNSET_FOR_LOCAL_DEV" ]]; then
+        # For local dev, we must NOT set MONGODB_URI at all
+        # Docker Compose will use its default: mongodb://mongodb:27017/template-doctor
+        MONGODB_LINE="# MONGODB_URI - DO NOT SET for local dev! Docker Compose handles this automatically."
+    elif [[ -n "$MONGODB_URI" ]]; then
         MONGODB_LINE="MONGODB_URI=$MONGODB_URI"
     else
         MONGODB_LINE="# MONGODB_URI - Leave unset for local dev (docker-compose default)"
@@ -708,6 +718,27 @@ print_summary() {
     echo "     • Authorize the app"
     echo ""
     
+    echo ""
+    print_warning "${BOLD}TROUBLESHOOTING: MongoDB Connection Errors${NC}"
+    echo ""
+    echo "  If you see 'connect ECONNREFUSED ::1:27017' or 'localhost:27017' errors:"
+    echo ""
+    echo -e "  ${BOLD}1. Check your .env file:${NC}"
+    echo "     • MONGODB_URI should be COMMENTED OUT (starts with #)"
+    echo "     • If you see MONGODB_URI=mongodb://localhost:27017, DELETE that line"
+    echo "     • The correct line should be:"
+    echo -e "       ${CYAN}# MONGODB_URI - DO NOT SET for local dev!${NC}"
+    echo ""
+    echo -e "  ${BOLD}2. Verify MongoDB container is running:${NC}"
+    echo -e "     ${CYAN}docker ps | grep mongodb${NC}"
+    echo "     • You should see 'template-doctor-mongodb' running"
+    echo ""
+    echo -e "  ${BOLD}3. Restart Docker Compose:${NC}"
+    echo -e "     ${CYAN}docker-compose down${NC}"
+    echo -e "     ${CYAN}docker-compose --profile combined up${NC}"
+    echo ""
+    echo "  Docker Compose automatically connects containers via the service name 'mongodb',"
+    echo "  NOT 'localhost'. The MONGODB_URI environment variable should be unset for local dev."
     echo ""
     print_info "For PRODUCTION deployment:"
     echo ""
