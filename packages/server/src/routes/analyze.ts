@@ -52,6 +52,17 @@ analyzeRouter.post('/analyze-template', requireAuth, strictRateLimit, async (req
 
     // Handle batch analysis
     if (repos && Array.isArray(repos) && repos.length > 0) {
+      // SECURITY: Enforce batch size limit to prevent DoS attacks
+      const MAX_BATCH_SIZE = 50;
+      if (repos.length > MAX_BATCH_SIZE) {
+        return res.status(400).json({
+          error: 'Batch size limit exceeded',
+          message: `Maximum ${MAX_BATCH_SIZE} repositories per batch. Received: ${repos.length}`,
+          limit: MAX_BATCH_SIZE,
+          received: repos.length,
+        });
+      }
+
       console.log(`Batch analysis requested for ${repos.length} repositories`);
       const result = await handleBatchAnalysis(
         req,
