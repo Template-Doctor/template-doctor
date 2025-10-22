@@ -329,6 +329,16 @@ async function handleBatchAnalysis(
   };
 }
 
+/**
+ * Create AbortController with timeout to prevent hanging requests
+ * @param timeoutMs - Timeout in milliseconds (default: 30 seconds)
+ */
+function createTimeoutSignal(timeoutMs: number = 30000): AbortSignal {
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), timeoutMs);
+  return controller.signal;
+}
+
 function extractRepoInfo(url: string): { owner: string; repo: string } {
   const m = url.match(/github\.com\/([^/]+)\/([^/]+)(\.git)?/i);
   if (!m) throw new Error('Invalid GitHub URL');
@@ -341,6 +351,7 @@ function createGitHubClient(defaultToken?: string) {
     const url = base + path;
     const token = overrideToken || defaultToken;
     const res = await fetch(url, {
+      signal: createTimeoutSignal(30000),
       headers: {
         Accept: 'application/vnd.github+json',
         'User-Agent': 'template-doctor-analyzer',
