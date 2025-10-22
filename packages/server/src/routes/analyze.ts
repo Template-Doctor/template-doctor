@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { runAnalyzer } from '../analyzer-core/index.js';
 import { analysisStorage } from '../services/analysis-storage.js';
 import { requireAuth } from '../middleware/auth.js';
-import { strictRateLimit } from '../middleware/rate-limit.js';
+import { strictRateLimit, batchRateLimit } from '../middleware/rate-limit.js';
 
 export const analyzeRouter = Router();
 
@@ -34,8 +34,22 @@ interface BatchAnalyzeResult {
 }
 
 // POST /api/v4/analyze-template
-// Requires authentication and strict rate limiting for expensive analysis operations
-analyzeRouter.post('/analyze-template', requireAuth, strictRateLimit, async (req: Request, res: Response) => {
+// Requires authentication
+// Rate limiting applied conditionally: batch (3/hour) vs single (10/15min)
+analyzeRouter.post(
+  '/analyze-template',
+  requireAuth,
+  // Apply appropriate rate limit based on request type
+  (req: Request, res: Response, next: any) => {
+    const { repos } = req.body || {};
+    const isBatch = repos && Array.isArray(repos) && repos.length > 0;
+    
+    // Batch requests: 3 per hour (very expensive)
+    // Single requests: 10 per 15 minutes (expensive)
+    const rateLimiter = isBatch ? batchRateLimit : strictRateLimit;
+    return rateLimiter(req, res, next);
+  },
+  async (req: Request, res: Response) => {
   try {
     const requestBody: AnalyzeRequest = req.body || {};
     const {
@@ -100,7 +114,8 @@ analyzeRouter.post('/analyze-template', requireAuth, strictRateLimit, async (req
       details: error?.message,
     });
   }
-});
+},
+);
 
 export async function analyzeSingleRepository(
   req: Request,
