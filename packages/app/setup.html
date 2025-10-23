@@ -36,22 +36,98 @@
         }
         
         .header {
-            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-            color: white;
+            background: #f8fafc;
+            color: #64748b;
             padding: 30px;
             text-align: center;
+            border-bottom: 1px solid #e2e8f0;
         }
         
         .header h1 {
             margin: 0;
             font-size: 2rem;
             font-weight: 600;
+            color: #1e293b;
         }
         
         .header p {
             margin: 8px 0 0;
-            opacity: 0.9;
+            color: #64748b;
             font-size: 1rem;
+        }
+        
+        .nav-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: #64748b;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px;
+        }
+        
+        nav {
+            display: flex;
+            gap: 20px;
+        }
+        
+        nav a {
+            text-decoration: none;
+            color: #64748b;
+            font-weight: 500;
+            padding: 8px 16px;
+            border-radius: 8px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        nav a:hover {
+            background: #f1f5f9;
+            color: #1e293b;
+        }
+        
+        nav a.active {
+            background: #f1f5f9;
+            color: #1e293b;
+            font-weight: 600;
+        }
+        
+        @media (max-width: 768px) {
+            .nav-toggle {
+                display: block;
+            }
+            
+            nav {
+                position: absolute;
+                top: 100%;
+                right: 20px;
+                background: white;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+                flex-direction: column;
+                gap: 0;
+                min-width: 200px;
+                display: none;
+            }
+            
+            nav.open {
+                display: flex;
+            }
+            
+            nav a {
+                border-radius: 0;
+                padding: 12px 20px;
+            }
+            
+            nav a:first-child {
+                border-radius: 8px 8px 0 0;
+            }
+            
+            nav a:last-child {
+                border-radius: 0 0 8px 8px;
+            }
         }
         
         .content {
@@ -256,15 +332,18 @@
 <body>
     <!-- Header with Navigation -->
     <header style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); padding: 20px 0; box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1); position: sticky; top: 0; z-index: 1000;">
-        <div style="max-width: 1200px; margin: 0 auto; padding: 0 20px; display: flex; align-items: center; justify-content: space-between;">
+        <div style="max-width: 1200px; margin: 0 auto; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; position: relative;">
             <a href="/" style="display: flex; align-items: center; gap: 12px; text-decoration: none; color: #1e293b;">
                 <img src="assets/images/templatedoctor.svg" alt="Template Doctor Logo" style="width: 40px; height: 40px;" />
                 <h1 style="margin: 0; font-size: 24px; font-weight: 700;">Template Doctor</h1>
             </a>
-            <nav style="display: flex; gap: 20px;">
-                <a href="/" style="text-decoration: none; color: #64748b; font-weight: 500; padding: 8px 16px; border-radius: 8px; transition: all 0.2s;">Dashboard</a>
-                <a href="/leaderboards" style="text-decoration: none; color: #64748b; font-weight: 500; padding: 8px 16px; border-radius: 8px; transition: all 0.2s;">🏆 Leaderboards</a>
-                <a href="/setup" style="text-decoration: none; background: #3b82f6; color: white; font-weight: 500; padding: 8px 16px; border-radius: 8px; transition: all 0.2s;">⚙️ Setup</a>
+            <button class="nav-toggle" onclick="toggleNav()" aria-label="Toggle navigation">
+                <i class="fas fa-bars"></i>
+            </button>
+            <nav id="main-nav">
+                <a href="/"><i class="fas fa-home"></i> Dashboard</a>
+                <a href="/leaderboards"><i class="fas fa-trophy"></i> Leaderboards</a>
+                <a href="/setup" class="active"><i class="fas fa-cog"></i> Setup</a>
             </nav>
         </div>
     </header>
@@ -670,6 +749,14 @@
                 alert('🔄 Deprecated models refresh initiated!\\n\\nThis would normally trigger a GitHub workflow to update the list.');
                 // In a real implementation, this would call an API endpoint
                 console.log('Would trigger deprecated models workflow');
+            }
+        }
+
+        // Toggle navigation menu on mobile
+        function toggleNav() {
+            const nav = document.getElementById('main-nav');
+            if (nav) {
+                nav.classList.toggle('open');
             }
         }
     </script>
