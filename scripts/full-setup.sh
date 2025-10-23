@@ -246,10 +246,6 @@ select_deployment_target() {
         read -p "Your choice [1-2] (Press Enter for 1): " -r
         # Default to 1 (local) if empty
         REPLY="${REPLY:-1}"
-        # Default to 1 (local) if empty
-        REPLY="${REPLY:-1}"
-        # Default to 1 (minimal) if empty
-        REPLY="${REPLY:-1}"
         
         case "$REPLY" in
             1)
