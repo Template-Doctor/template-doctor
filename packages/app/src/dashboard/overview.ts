@@ -57,10 +57,12 @@ function computeMode(data: AdaptedData): { label: string; color: string; title: 
 }
 
 export function renderOverview(data: AdaptedData): DocumentFragment {
+  console.log('[renderOverview] 🎨 Rendering with data.ruleSet:', data.ruleSet);
   const frag = document.createDocumentFragment();
   const meta = findMetaDetails(data);
   const compliancePercentage = meta.percentageCompliant || 0;
   const ruleSet = data.ruleSet || meta.ruleSet || 'dod';
+  console.log('[renderOverview] 🏷️  Final ruleSet for display:', ruleSet);
   const ruleSetDisplay =
     ruleSet === 'dod'
       ? 'DoD'

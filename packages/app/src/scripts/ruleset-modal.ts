@@ -696,11 +696,13 @@ window.showRulesetModal = showRulesetModal;
 
     try {
       console.log('[AnalyzeRepoIntegr] Step 5: Calling analyzeTemplateServerSide...');
+      console.log('[AnalyzeRepoIntegr]   🎯 Using ruleSet:', ruleSet);
       const result = await (window as any).TemplateAnalyzer.analyzeTemplateServerSide(
         repoUrl,
         ruleSet,
       );
       console.log('[AnalyzeRepoIntegr] ✓ Analysis complete');
+      console.log('[AnalyzeRepoIntegr]   📊 Result ruleSet:', result?.ruleSet);
 
       console.log('[AnalyzeRepoIntegr] Step 6: Showing results...');
       showResults(containers);

@@ -166,6 +166,7 @@ class DashboardRenderer {
       }
 
       (window as any).reportData = adaptedData;
+      console.log('[DashboardRenderer.render] 🎨 Calling renderOverview with adaptedData.ruleSet:', adaptedData.ruleSet);
       this.renderOverview(adaptedData, container);
       this.renderIssuesPanel(adaptedData, container);
       this.renderPassedPanel(adaptedData, container);
@@ -196,6 +197,7 @@ class DashboardRenderer {
     }
   }
   adaptResultData(result: any): AdaptedData {
+    console.log('[DashboardRenderer.adaptResultData] 🔍 Input result.ruleSet:', result?.ruleSet);
     try {
       // If HTML fallback only, surface a minimal placeholder message
       if (result && result.rawHtml && !result.compliance) {
@@ -304,6 +306,7 @@ class DashboardRenderer {
         totalIssues: issuesDeduped.length,
         totalPassed: compliantDeduped.length,
       };
+      console.log('[DashboardRenderer.adaptResultData] ✅ Output adaptedData.ruleSet:', adaptedData.ruleSet);
       if (result.customConfig) adaptedData.customConfig = result.customConfig;
       return adaptedData;
     } catch (e: any) {
@@ -363,10 +366,16 @@ class DashboardRenderer {
       if (changeRulesetBtn) {
         changeRulesetBtn.addEventListener('click', () => {
           const repoUrl = data.repoUrl;
-          if (repoUrl && typeof (window as any).analyzeRepo === 'function') {
-            (window as any).analyzeRepo(repoUrl, 'show-modal');
+          const currentRuleset = data.ruleSet || 'dod';
+          if (repoUrl) {
+            // Pass current ruleset to modal so it can be pre-selected
+            if (typeof (window as any).showRulesetModal === 'function') {
+              (window as any).showRulesetModal(repoUrl, currentRuleset);
+            } else if (typeof (window as any).analyzeRepo === 'function') {
+              (window as any).analyzeRepo(repoUrl, 'show-modal');
+            }
           } else {
-            console.error('Unable to get repository URL or analyzeRepo function');
+            console.error('Unable to get repository URL');
           }
         });
       }

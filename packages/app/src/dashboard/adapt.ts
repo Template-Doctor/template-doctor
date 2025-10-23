@@ -25,6 +25,7 @@ export interface AdaptedData {
 }
 
 export function adaptResultData(result: any): AdaptedData {
+  console.log('[adaptResultData] 🔍 Input result.ruleSet:', result?.ruleSet);
   const issues: AdaptedIssue[] = [];
   const compliant: AdaptedCompliant[] = [];
 
@@ -89,6 +90,7 @@ export function adaptResultData(result: any): AdaptedData {
     totalIssues: issues.length,
     totalPassed: compliant.length,
   };
+  console.log('[adaptResultData] ✅ Output adapted.ruleSet:', adapted.ruleSet);
   if (result.__analysisMode) adapted.__analysisMode = result.__analysisMode;
   if (result?.compliance?.categories) adapted.compliance.categories = result.compliance.categories;
   if (result.customConfig) adapted.customConfig = result.customConfig;
