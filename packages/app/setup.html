@@ -215,38 +215,45 @@
         }
         
         .status-indicator {
-            width: 8px;
-            height: 8px;
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
             display: inline-block;
-            margin-right: 8px;
+            margin-right: 10px;
         }
         
         .status-connected {
             background: #10b981;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
         }
         
         .status-disconnected {
             background: #ef4444;
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
         }
         
         .info-box {
-            background: #eff6ff;
-            border: 1px solid #bfdbfe;
-            border-radius: 6px;
-            padding: 15px;
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            border: 1px solid #93c5fd;
+            border-radius: 8px;
+            padding: 16px 20px;
             margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
         }
         
         .info-box .title {
             font-weight: 600;
-            color: #1e40af;
-            margin-bottom: 8px;
+            color: #1e3a8a;
+            font-size: 15px;
+            display: flex;
+            align-items: center;
         }
         
         .info-box .content {
             color: #1e40af;
-            font-size: 14px;
+            font-size: 15px;
             line-height: 1.5;
         }
     </style>
@@ -281,12 +288,12 @@
         <div class="content">
             <!-- Connection Status -->
             <div class="info-box">
-                <div class="title">
+                <div style="flex: 0 0 auto;">
                     <span id="connection-status" class="status-indicator status-disconnected"></span>
-                    System Status
                 </div>
-                <div class="content" id="status-text">
-                    Loading configuration...
+                <div style="flex: 1;">
+                    <div class="title" style="margin-bottom: 4px;">System Status</div>
+                    <div class="content" id="status-text">Loading configuration...</div>
                 </div>
             </div>
             
