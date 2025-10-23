@@ -3,12 +3,18 @@
  *
  * Provides endpoints to query analysis results from database
  * Replaces the legacy filesystem-based results loading
+ * 
+ * SECURITY: Requires authentication for all endpoints
  */
 
 import { Router, Request, Response, NextFunction } from 'express';
 import { analysisStorage } from '../services/analysis-storage.js';
+import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
+
+// All results endpoints require authentication
+router.use(requireAuth);
 
 /**
  * Build categories object from issues and compliant items

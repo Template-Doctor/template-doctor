@@ -83,6 +83,91 @@ class TemplateAnalyzer {
   }
   async loadRuleSetConfigs(): Promise<void> {
     try {
+      // Load rulesets from database API instead of static JSON files
+      const token = localStorage.getItem('gh_access_token');
+      const headers: Record<string, string> = {
+        Accept: 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch('/api/v4/rulesets', {
+        headers,
+        cache: 'no-store',
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to load rulesets from API: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const rulesets = data.rulesets || [];
+
+      // Map rulesets to the expected format
+      for (const ruleset of rulesets) {
+        if (!ruleset.enabled) continue; // Skip disabled rulesets
+
+        // Convert rules array to the legacy config format
+        const config: any = {
+          requiredFiles: [],
+          requiredFolders: [],
+          requiredWorkflowFiles: [],
+        };
+
+        // Process rules and build config structure
+        if (ruleset.rules && Array.isArray(ruleset.rules)) {
+          for (const rule of ruleset.rules) {
+            if (!rule.enabled) continue;
+
+            if (rule.type === 'file' && rule.action === 'required') {
+              config.requiredFiles.push(rule.pattern);
+            } else if (rule.type === 'folder' && rule.action === 'required') {
+              config.requiredFolders.push(rule.pattern);
+            } else if (rule.type === 'workflow' && rule.action === 'required') {
+              config.requiredWorkflowFiles.push({
+                pattern: new RegExp(rule.pattern, 'i'),
+                message: rule.message || `Missing required workflow: ${rule.pattern}`,
+              });
+            }
+          }
+        }
+
+        // Store in ruleSetConfigs using ruleset name
+        this.ruleSetConfigs[ruleset.name] = config;
+      }
+
+      console.log(`Loaded ${rulesets.length} rulesets from database`);
+
+      // Fallback to DoD if API fails or no rulesets loaded
+      if (Object.keys(this.ruleSetConfigs).length === 0) {
+        console.warn('No rulesets loaded from API, falling back to DoD static config');
+        await this.loadDoDFallback();
+        
+        // Notify user
+        if (typeof (window as any).showNotification === 'function') {
+          (window as any).showNotification(
+            'Using fallback configuration: DoD ruleset loaded from static file. Database rulesets unavailable.',
+            'warning'
+          );
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load rulesets from API, falling back to DoD:', error);
+      await this.loadDoDFallback();
+      
+      // Notify user
+      if (typeof (window as any).showNotification === 'function') {
+        (window as any).showNotification(
+          'Using fallback configuration: DoD ruleset loaded from static file. Database connection failed.',
+          'warning'
+        );
+      }
+    }
+  }
+
+  async loadDoDFallback(): Promise<void> {
+    try {
       const dodResponse = await fetch('./configs/dod-config.json');
       if (!dodResponse.ok) throw new Error(`Failed to load DoD config: ${dodResponse.status}`);
       this.ruleSetConfigs.dod = await dodResponse.json();
@@ -93,32 +178,11 @@ class TemplateAnalyzer {
             message: item.message,
           }));
       }
-      const partnerResponse = await fetch('./configs/partner-config.json');
-      if (!partnerResponse.ok)
-        throw new Error(`Failed to load Partner config: ${partnerResponse.status}`);
-      this.ruleSetConfigs.partner = await partnerResponse.json();
-      if (this.ruleSetConfigs.partner.requiredWorkflowFiles) {
-        this.ruleSetConfigs.partner.requiredWorkflowFiles =
-          this.ruleSetConfigs.partner.requiredWorkflowFiles.map((item: any) => ({
-            pattern: new RegExp(item.pattern, 'i'),
-            message: item.message,
-          }));
-      }
-      this.ruleSetConfigs.docs = await (TemplateAnalyzerDocs as any).prototype.getConfig();
-      const customResponse = await fetch('./configs/custom-config.json');
-      if (!customResponse.ok)
-        throw new Error(`Failed to load Custom config: ${customResponse.status}`);
-      this.ruleSetConfigs.custom = await customResponse.json();
-      if (this.ruleSetConfigs.custom.requiredWorkflowFiles) {
-        this.ruleSetConfigs.custom.requiredWorkflowFiles =
-          this.ruleSetConfigs.custom.requiredWorkflowFiles.map((item: any) => ({
-            pattern: new RegExp(item.pattern, 'i'),
-            message: item.message,
-          }));
-      }
-      console.log('Rule set configurations loaded');
+      console.log('DoD fallback configuration loaded');
     } catch (error) {
-      console.error('Failed to load rule set configurations:', error);
+      console.error('Failed to load DoD fallback configuration:', error);
+      
+      // Ultimate fallback: hardcoded DoD config
       this.ruleSetConfigs.dod = {
         requiredFiles: ['README.md', 'azure.yaml', 'LICENSE'],
         requiredFolders: ['infra', '.github'],

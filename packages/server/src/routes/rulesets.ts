@@ -3,7 +3,7 @@
  *
  * Provides endpoints to query and manage analysis rulesets from database
  * 
- * SECURITY: Requires authentication (used by both setup page and ruleset modal)
+ * SECURITY: Requires authentication for all endpoints
  */
 
 import { Router, Request, Response, NextFunction } from 'express';
@@ -12,7 +12,7 @@ import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
 
-// Apply authentication to ALL routes
+// All ruleset endpoints require authentication
 router.use(requireAuth);
 
 /**

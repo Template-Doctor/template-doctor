@@ -348,9 +348,7 @@
                         <div class="form-group">
                             <label for="default-rule-set">Default Rule Set</label>
                             <select id="default-rule-set">
-                                <option value="dod">DoD (Definition of Done)</option>
-                                <option value="basic">Basic</option>
-                                <option value="comprehensive">Comprehensive</option>
+                                <option value="">Loading rulesets...</option>
                             </select>
                         </div>
                         <div class="form-group">
@@ -521,7 +519,13 @@
         
         async function loadRulesets() {
             try {
-                const response = await fetch('/api/v4/rulesets');
+                const token = localStorage.getItem('gh_access_token');
+                const headers = {};
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
+                
+                const response = await fetch('/api/v4/rulesets', { headers });
                 if (response.ok) {
                     const data = await response.json();
                     const rulesets = data.rulesets || [];
