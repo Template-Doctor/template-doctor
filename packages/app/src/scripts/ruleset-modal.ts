@@ -720,6 +720,20 @@ window.showRulesetModal = showRulesetModal;
       }
 
       showNotification('success', 'Analysis complete!');
+      
+      // Update the main report view if it exists (when rescanning from an existing report)
+      const mainReportDiv = document.getElementById('report');
+      if (mainReportDiv && mainReportDiv !== containers.reportDiv) {
+        console.log('[AnalyzeRepoIntegr] 🔄 Updating main report view with new result');
+        if (
+          (window as any).DashboardRenderer &&
+          typeof (window as any).DashboardRenderer.render === 'function'
+        ) {
+          (window as any).DashboardRenderer.render(result, mainReportDiv);
+          console.log('[AnalyzeRepoIntegr] ✓ Main report view updated');
+        }
+      }
+      
       document.dispatchEvent(
         new CustomEvent('analysis-completed', { detail: { repoUrl, result } }),
       );

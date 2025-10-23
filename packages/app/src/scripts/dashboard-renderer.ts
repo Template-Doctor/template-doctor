@@ -332,15 +332,23 @@ class DashboardRenderer {
     }
   }
   renderOverview(data: AdaptedData, container: HTMLElement) {
+    console.log('[renderOverview] 📋 Received data:', { 
+      'data.ruleSet': data.ruleSet,
+      'data type': typeof data,
+      'full data': data
+    });
     const overviewSection = document.createElement('section');
     overviewSection.className = 'overview';
     const compliancePercentage =
       data.compliance.compliant.find((item) => item.category === 'meta')?.details
         ?.percentageCompliant || 0;
+    const metaRuleSet = data.compliance.compliant.find((item) => item.category === 'meta')?.details?.ruleSet;
+    console.log('[renderOverview] 🔍 Meta ruleset from compliant:', metaRuleSet);
     const ruleSet =
       data.ruleSet ||
-      data.compliance.compliant.find((item) => item.category === 'meta')?.details?.ruleSet ||
+      metaRuleSet ||
       'dod';
+    console.log('[renderOverview] 🏷️ Final ruleset for pill:', ruleSet);
     const ruleSetDisplay =
       ruleSet === 'dod'
         ? 'DoD'

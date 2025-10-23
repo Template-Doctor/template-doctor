@@ -43,6 +43,11 @@
   color: white;
 }
 
+.docs-badge {
+  background-color: #00a4ef;
+  color: white;
+}
+
 .custom-badge {
   background-color: #5c2d91;
   color: white;
@@ -50,6 +55,7 @@
 
 .partner-badge,
 .dod-badge,
+.docs-badge,
 .custom-badge {
   padding: 2px 8px;
   border-radius: 8px;

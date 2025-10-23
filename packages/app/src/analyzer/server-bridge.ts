@@ -27,6 +27,12 @@ export {};
         if (typeof ruleSetOrOptions === 'string') ruleSet = ruleSetOrOptions;
         else if (ruleSetOrOptions && typeof ruleSetOrOptions.ruleSet === 'string')
           ruleSet = ruleSetOrOptions.ruleSet;
+        console.log('[server-bridge] 📤 Sending to server:', {
+          repoUrl,
+          ruleSet,
+          'ruleSetOrOptions type': typeof ruleSetOrOptions,
+          ruleSetOrOptions
+        });
         const apiBase = cfg.apiBase || window.location.origin;
         const primaryEndpoint =
           (window as any).ApiRoutes && (window as any).ApiRoutes.build
@@ -78,6 +84,11 @@ export {};
               );
             }
             const json = await resp.json();
+            console.log('[server-bridge] 🔍 Raw server response:', {
+              'json.ruleSet': json.ruleSet,
+              'full json keys': Object.keys(json),
+              endpoint: ep
+            });
             if (ep !== primaryEndpoint) {
               console.info(
                 '[server-bridge] analyze-template fallback succeeded via',
@@ -87,6 +98,7 @@ export {};
               );
             }
             if (!json.timestamp) (json as any).timestamp = new Date().toISOString();
+            console.log('[server-bridge] ✅ Returning json with ruleSet:', json.ruleSet);
             return json as any;
           } catch (e: any) {
             lastErr = e;
