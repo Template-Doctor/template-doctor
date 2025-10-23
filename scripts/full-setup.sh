@@ -866,7 +866,7 @@ load_and_validate_config() {
         
         # Store values in script variables (with defaults to prevent unbound errors)
         GITHUB_CLIENT_ID="${GITHUB_CLIENT_ID:-${GITHUB_CLIENT_ID:-}}"
-        GITHUB_CLIENT_SECRET="${GITHUB_CLIENT_SECRET:-${GITHUB_CLIENT_SECRET:-}}"
+        GITHUB_CLIENT_SECRET="${GITHUB_CLIENT_SECRET:-}"
         GITHUB_CLIENT_ID_PROD="${GITHUB_CLIENT_ID_PROD:-}"
         GITHUB_CLIENT_SECRET_PROD="${GITHUB_CLIENT_SECRET_PROD:-}"
         GITHUB_TOKEN="${GITHUB_TOKEN:-${GITHUB_TOKEN:-}}"
