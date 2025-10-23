@@ -243,7 +243,7 @@ select_deployment_target() {
         echo "     • Opens your Azure app URL"
         echo ""
         
-        read -p "Your choice [1-2] (Press Enter for 1) (Press Enter for 1) (Press Enter for 1): " -r
+        read -p "Your choice [1-2] (Press Enter for 1): " -r
         # Default to 1 (local) if empty
         REPLY="${REPLY:-1}"
         # Default to 1 (local) if empty
