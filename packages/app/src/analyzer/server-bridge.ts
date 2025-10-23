@@ -24,7 +24,7 @@ export {};
       try {
         const cfg = (window as any).TemplateDoctorConfig || {};
         let ruleSet = 'dod';
-        if (typeof ruleSetOrOptions === 'string') ruleSet = 'dod';
+        if (typeof ruleSetOrOptions === 'string') ruleSet = ruleSetOrOptions;
         else if (ruleSetOrOptions && typeof ruleSetOrOptions.ruleSet === 'string')
           ruleSet = ruleSetOrOptions.ruleSet;
         const apiBase = cfg.apiBase || window.location.origin;
