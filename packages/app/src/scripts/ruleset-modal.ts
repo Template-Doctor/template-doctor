@@ -19,6 +19,75 @@ interface SelectedCategories {
 
 let currentRepoUrl = '';
 
+/**
+ * Load rulesets from API and populate radio buttons
+ */
+async function loadRulesetsFromAPI(): Promise<void> {
+  try {
+    const apiRoutes = (window as any).apiRoutes;
+    if (!apiRoutes?.rulesets) {
+      console.warn('[RulesetModal] API routes not available');
+      return;
+    }
+
+    const response = await fetch(apiRoutes.rulesets, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('github_token')}`,
+      },
+    });
+
+    if (!response.ok) {
+      console.warn('[RulesetModal] Failed to load rulesets:', response.status);
+      return;
+    }
+
+    const data = await response.json();
+    const rulesets = data.rulesets || [];
+
+    if (rulesets.length === 0) {
+      console.warn('[RulesetModal] No rulesets found in database');
+      return;
+    }
+
+    // Update the ruleset form with dynamic options
+    const form = document.getElementById('ruleset-form');
+    if (!form) return;
+
+    // Find the container for ruleset options (before custom-config-container)
+    const customContainer = form.querySelector('#custom-config-container');
+    if (!customContainer) return;
+
+    // Remove all existing radio groups except custom
+    const existingGroups = form.querySelectorAll('.form-group');
+    existingGroups.forEach(group => {
+      const input = group.querySelector('input[name="ruleset"]');
+      if (input && input.getAttribute('value') !== 'custom') {
+        group.remove();
+      }
+    });
+
+    // Add rulesets from database (before custom option)
+    rulesets.forEach((ruleset: any, index: number) => {
+      if (!ruleset.enabled) return; // Skip disabled rulesets
+
+      const formGroup = document.createElement('div');
+      formGroup.className = 'form-group';
+      formGroup.innerHTML = `
+        <label>
+          <input type="radio" name="ruleset" value="${sanitizeHtml(ruleset.name)}" ${index === 0 ? 'checked' : ''}>
+          <strong>${sanitizeHtml(ruleset.displayName || ruleset.name)}</strong>
+        </label>
+        <p class="ruleset-description">${sanitizeHtml(ruleset.description || '')}</p>
+      `;
+      customContainer.parentNode?.insertBefore(formGroup, customContainer);
+    });
+
+    console.log(`[RulesetModal] Loaded ${rulesets.length} rulesets from API`);
+  } catch (error) {
+    console.error('[RulesetModal] Error loading rulesets:', error);
+  }
+}
+
 export function initRulesetModal(): void {
   // Check if modal already exists
   if (document.getElementById('ruleset-modal')) {
@@ -128,6 +197,10 @@ export function initRulesetModal(): void {
 
   document.body.appendChild(modalDiv);
   setupModalHandlers();
+  
+  // Load rulesets from API after modal is created
+  loadRulesetsFromAPI();
+  
   console.log('[RulesetModal] Modal initialized');
 }
 

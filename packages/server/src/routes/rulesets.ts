@@ -2,12 +2,18 @@
  * Rulesets API Routes
  *
  * Provides endpoints to query and manage analysis rulesets from database
+ * 
+ * SECURITY: Requires authentication (used by both setup page and ruleset modal)
  */
 
 import { Router, Request, Response, NextFunction } from 'express';
 import { database } from '../services/database.js';
+import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
+
+// Apply authentication to ALL routes
+router.use(requireAuth);
 
 /**
  * GET /api/v4/rulesets

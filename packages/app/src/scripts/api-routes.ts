@@ -112,6 +112,7 @@ interface ApiRoutesGlobal {
     issueCreate: 'issue-create',
     githubOAuthToken: 'github-oauth-token',
     setup: 'setup',
+    rulesets: 'rulesets',
   };
 
   for (const [prop, path] of Object.entries(endpointMap)) {

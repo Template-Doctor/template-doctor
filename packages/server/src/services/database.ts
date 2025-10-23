@@ -155,6 +155,7 @@ export interface Ruleset {
     category?: string;
     description?: string;
   }>;
+  enabled?: boolean; // Whether the ruleset is enabled
   isDefault?: boolean;
   createdBy?: string;
   createdAt: Date;
