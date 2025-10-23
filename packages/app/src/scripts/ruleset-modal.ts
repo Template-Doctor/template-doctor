@@ -5,7 +5,7 @@ import { sanitizeHtml } from '../shared/sanitize';
 
 declare global {
   interface Window {
-    showRulesetModal?: (repoUrl: string) => void;
+    showRulesetModal?: (repoUrl: string, currentRuleset?: string) => void;
   }
 }
 
@@ -32,7 +32,7 @@ async function loadRulesetsFromAPI(): Promise<void> {
 
     const response = await fetch(apiRoutes.rulesets, {
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('github_token')}`,
+        'Authorization': `Bearer ${localStorage.getItem('gh_access_token')}`,
       },
     });
 
@@ -487,15 +487,28 @@ function setupModalHandlers(): void {
   }
 }
 
-export function showRulesetModal(repoUrl: string): void {
+export function showRulesetModal(repoUrl: string, currentRuleset?: string): void {
   currentRepoUrl = repoUrl;
   const modal = document.getElementById('ruleset-modal');
 
   if (!modal) {
     console.warn('[RulesetModal] Modal not initialized, initializing now');
     initRulesetModal();
-    setTimeout(() => showRulesetModal(repoUrl), 100);
+    setTimeout(() => showRulesetModal(repoUrl, currentRuleset), 100);
     return;
+  }
+
+  // Pre-select the current ruleset if provided
+  if (currentRuleset) {
+    const rulesetInput = modal.querySelector<HTMLInputElement>(
+      `input[name="ruleset"][value="${currentRuleset}"]`
+    );
+    if (rulesetInput) {
+      rulesetInput.checked = true;
+      console.log(`[RulesetModal] Pre-selected ruleset: ${currentRuleset}`);
+    } else {
+      console.warn(`[RulesetModal] Ruleset "${currentRuleset}" not found in modal options`);
+    }
   }
 
   // Refresh archive override visibility based on runtime config

@@ -133,8 +133,14 @@ export function renderOverview(data: AdaptedData): DocumentFragment {
     if (changeRulesetBtn) {
       changeRulesetBtn.addEventListener('click', () => {
         const repoUrl = data.repoUrl;
-        if (repoUrl && typeof (window as any).analyzeRepo === 'function')
-          (window as any).analyzeRepo(repoUrl, 'show-modal');
+        if (repoUrl) {
+          // Pass current ruleset to modal so it can be pre-selected
+          if (typeof (window as any).showRulesetModal === 'function') {
+            (window as any).showRulesetModal(repoUrl, ruleSet);
+          } else if (typeof (window as any).analyzeRepo === 'function') {
+            (window as any).analyzeRepo(repoUrl, 'show-modal');
+          }
+        }
       });
     }
   }, 100);
