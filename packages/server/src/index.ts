@@ -70,6 +70,7 @@ import { adminConfigRouter } from './routes/admin-config.js';
 import { adminRouter } from './routes/admin.js';
 import leaderboardsRouter from './routes/leaderboards.js';
 import { azdTestRouter } from './routes/azd-test.js';
+import { rulesetsRouter } from './routes/rulesets.js';
 
 // Initialize database connection
 import { database } from './services/database.js';
@@ -105,6 +106,7 @@ app.use('/api/v4', analysisRouter);
 app.use('/api/v4', actionsRouter);
 app.use('/api/v4', miscRouter);
 app.use('/api/v4', resultsRouter);
+app.use('/api/v4', rulesetsRouter); // Rulesets endpoints
 app.use('/api/v4', azdTestRouter); // AZD deployment test results
 app.use('/api/v4/admin', adminConfigRouter); // Admin configuration endpoints
 app.use('/api/admin', adminRouter); // Debug and inspection endpoints

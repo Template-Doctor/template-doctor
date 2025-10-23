@@ -476,6 +476,9 @@
                     throw new Error('No configuration data loaded');
                 }
                 
+                // Load rulesets from database
+                await loadRulesets();
+                
                 populateForm();
             } catch (error) {
                 console.error('Error loading configuration:', error);
@@ -513,6 +516,46 @@
                     ]
                 };
                 populateForm();
+            }
+        }
+        
+        async function loadRulesets() {
+            try {
+                const response = await fetch('/api/v4/rulesets');
+                if (response.ok) {
+                    const data = await response.json();
+                    const rulesets = data.rulesets || [];
+                    
+                    // Store rulesets in currentConfig for later use
+                    currentConfig.availableRulesets = rulesets;
+                    
+                    // Update the dropdown
+                    const select = document.getElementById('default-rule-set');
+                    if (select && rulesets.length > 0) {
+                        // Clear existing options
+                        select.innerHTML = '';
+                        
+                        // Add rulesets from database
+                        rulesets.forEach(ruleset => {
+                            const option = document.createElement('option');
+                            option.value = ruleset.name;
+                            option.textContent = `${ruleset.displayName || ruleset.name}${ruleset.isDefault ? ' (Default)' : ''}`;
+                            if (!ruleset.enabled) {
+                                option.textContent += ' [Disabled]';
+                                option.disabled = true;
+                            }
+                            select.appendChild(option);
+                        });
+                        
+                        console.log(`Loaded ${rulesets.length} rulesets from database`);
+                    }
+                } else {
+                    console.warn('Failed to load rulesets:', response.status, response.statusText);
+                    // Keep hardcoded options as fallback
+                }
+            } catch (error) {
+                console.warn('Error loading rulesets:', error.message);
+                // Keep hardcoded options as fallback
             }
         }
         
