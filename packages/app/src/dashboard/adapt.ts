@@ -83,11 +83,11 @@ function buildCategoriesFromData(
     agents: { enabled: true, issues: [], passed: [], percentage: 0 },
   };
 
-  // Distribute issues to categories
+  // Distribute issues to their categories (skip meta category)
   issues.forEach((issue) => {
     const cat = issue.category || 'general';
     const mappedCat = categoryMap[cat] || 'repositoryManagement';
-    if (categories[mappedCat]) {
+    if (mappedCat !== 'meta' && categories[mappedCat]) {
       categories[mappedCat].issues.push(issue);
     }
   });
