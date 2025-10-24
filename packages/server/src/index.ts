@@ -13,6 +13,10 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.join(__dirname, '../.env.local') });
 dotenv.config(); // Also load from root .env as fallback
 
+// Initialize Application Insights BEFORE creating Express app
+import { applicationInsights, telemetry } from './services/app-insights.js';
+applicationInsights.initialize();
+
 export const app: Express = express();
 const defaultPort = process.env.PORT || 3000; // Default to 3000 for OAuth compatibility
 
@@ -22,8 +26,12 @@ import { httpLogger } from './shared/logger.js';
 // Rate limiting middleware
 import { standardRateLimit } from "./middleware/rate-limit.js";
 
+// Application Insights middleware
+import { applicationInsightsMiddleware } from "./middleware/app-insights.js";
+
 // Middleware
 app.use(httpLogger); // HTTP request/response logging
+app.use(applicationInsightsMiddleware); // Application Insights telemetry tracking
 app.use(cors());
 app.use(express.json());
 
@@ -39,17 +47,20 @@ app.use(express.static(staticPath));
 app.get('/api/health', async (req: Request, res: Response) => {
   const { database } = await import('./services/database.js');
   const dbHealth = await database.healthCheck();
+  const appInsightsHealth = applicationInsights.getHealth();
 
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
     database: dbHealth,
+    telemetry: appInsightsHealth,
     env: {
       hasGitHubToken: !!process.env.GITHUB_TOKEN,
       hasWorkflowToken: !!process.env.GH_WORKFLOW_TOKEN,
       hasAnalyzerToken: !!process.env.GITHUB_TOKEN_ANALYZER,
       hasMongoDbUri: !!process.env.MONGODB_URI,
       hasCosmosEndpoint: !!process.env.COSMOS_ENDPOINT,
+      hasApplicationInsights: !!process.env.APPLICATIONINSIGHTS_CONNECTION_STRING,
       BUILD_TAG: process.env.BUILD_TAG || 'unknown',
       BUILD_TIMESTAMP: process.env.BUILD_TIMESTAMP || 'unknown',
     },
@@ -170,6 +181,38 @@ export function startServer(port: number = Number(defaultPort)): Promise<http.Se
       } catch (error) {
         startupLogger.error({ err: error }, 'Failed to initialize configuration');
       }
+
+      // Graceful shutdown handlers
+      const gracefulShutdown = async (signal: string) => {
+        startupLogger.info({ signal }, 'Received shutdown signal, closing server gracefully...');
+        
+        // Close HTTP server
+        server.close(() => {
+          startupLogger.info('HTTP server closed');
+        });
+
+        // Flush Application Insights telemetry
+        try {
+          await applicationInsights.flush();
+          startupLogger.info('Application Insights telemetry flushed');
+        } catch (error) {
+          startupLogger.error({ err: error }, 'Failed to flush Application Insights');
+        }
+
+        // Close database connection
+        try {
+          const { database } = await import('./services/database.js');
+          await database.disconnect();
+          startupLogger.info('Database disconnected');
+        } catch (error) {
+          startupLogger.error({ err: error }, 'Failed to close database');
+        }
+
+        process.exit(0);
+      };
+
+      process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+      process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
       resolve(server);
     });

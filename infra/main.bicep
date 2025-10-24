@@ -109,6 +109,10 @@ module app 'br/public:avm/ptn/azd/container-app-upsert:0.2.0' = {
         value: cosmos.outputs.databaseName
       }
       {
+        name: 'COSMOS_ENDPOINT'
+        value: cosmos.outputs.endpoint
+      }
+      {
         name: 'NODE_ENV'
         value: 'production'
       }
@@ -124,10 +128,6 @@ module app 'br/public:avm/ptn/azd/container-app-upsert:0.2.0' = {
         name: 'GITHUB_TOKEN'
         secretRef: 'github-token'
       }
-      {
-        name: 'MONGODB_URI'
-        secretRef: 'cosmos-connection-string'
-      }
     ]
     secrets: [
       {
@@ -141,10 +141,6 @@ module app 'br/public:avm/ptn/azd/container-app-upsert:0.2.0' = {
       {
         name: 'github-token'
         value: githubToken
-      }
-      {
-        name: 'cosmos-connection-string'
-        value: 'mongodb://${cosmosAccount.name}:${cosmosAccount.listKeys().primaryMasterKey}@${cosmosAccount.name}.mongo.cosmos.azure.com:10255/?ssl=true&retrywrites=false&replicaSet=globaldb&maxIdleTimeMS=120000&appName=@${cosmosAccount.name}@'
       }
     ]
     containerAppsEnvironmentName: containerApps.outputs.environmentName
@@ -174,19 +170,12 @@ module cosmos './app/db-avm.bicep' = {
   }
 }
 
-// Get reference to Cosmos DB account for connection strings
-resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' existing = {
-  name: !empty(cosmosAccountName) ? cosmosAccountName : '${abbrs.documentDBDatabaseAccounts}${resourceToken}'
-  scope: rg
-  dependsOn: [cosmos]
-}
-
 // Grant Container App Managed Identity access to Cosmos DB
 module cosmosRoleAssignment 'cosmos-role-assignment.bicep' = {
   name: 'cosmos-role-assignment'
   scope: rg
   params: {
-    cosmosAccountName: cosmosAccount.name
+    cosmosAccountName: !empty(cosmosAccountName) ? cosmosAccountName : '${abbrs.documentDBDatabaseAccounts}${resourceToken}'
     principalId: appIdentity.outputs.principalId
   }
   dependsOn: [

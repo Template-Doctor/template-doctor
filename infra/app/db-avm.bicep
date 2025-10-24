@@ -99,6 +99,17 @@ module cosmos 'br/public:avm/res/document-db/database-account:0.6.0' = {
         collections: collections
       }
     ]
+    // Security Configuration: Disable local auth, require Azure RBAC only
+    disableLocalAuth: true
+    // Network Security: Disable public network access completely
+    networkRestrictions: {
+      publicNetworkAccess: 'Disabled'
+      networkAclBypass: 'AzureServices'
+      ipRules: []
+      virtualNetworkRules: []
+    }
+    // Private endpoints will be configured in main.bicep to connect Container Apps subnet
+    privateEndpoints: []
   }
 }
 
