@@ -5,6 +5,7 @@ const appDir = __dirname; // packages/app
 // Use port 3000 (combined Docker container - production architecture)
 const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000';
 const serverCommand = `bash -c "cd '${appDir}' && npx vite"`;
+const useDocker = process.env.PLAYWRIGHT_USE_DOCKER !== 'false';
 
 /**
  * @see https://playwright.dev/docs/test-configuration

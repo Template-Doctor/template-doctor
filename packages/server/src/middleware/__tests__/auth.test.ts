@@ -69,7 +69,7 @@ describe('Authentication Middleware', () => {
 
       // Should create mock user and proceed
       expect(mockReq.user).toBeDefined();
-      expect(mockReq.user?.login).toBe('dev-user');
+      expect(mockReq.user?.login).toBe('test-user');
       expect(mockNext).toHaveBeenCalled();
       expect(statusMock).not.toHaveBeenCalled();
 
