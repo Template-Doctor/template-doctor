@@ -43,29 +43,26 @@ function buildCategoriesFromData(
   }
 > {
   // Category mapping - maps issue/compliant category prefixes to standard categories
-  const categoryMap: Record<string, string> = {
-    file: 'repositoryManagement',
-    folder: 'repositoryManagement',
-    missing: 'repositoryManagement',
-    required: 'repositoryManagement',
-    readme: 'functionalRequirements',
-    documentation: 'functionalRequirements',
-    workflow: 'deployment',
-    infra: 'deployment',
-    infrastructure: 'deployment',
-    azure: 'deployment',
-    bicep: 'deployment',
-    bicepFiles: 'deployment',
-    security: 'security',
-    auth: 'security',
-    authentication: 'security',
-    testing: 'testing',
-    test: 'testing',
-    agents: 'agents',
-    meta: 'meta',
-  };
-
-  // Initialize all categories
+    const categoryMap: Record<string, string> = {
+      file: 'repositoryManagement',
+      folder: 'repositoryManagement',
+      readme: 'functionalRequirements',
+      docs: 'functionalRequirements',
+      documentation: 'functionalRequirements',
+      workflow: 'deployment',
+      cicd: 'deployment',
+      'ci-cd': 'deployment',
+      deployment: 'deployment',
+      security: 'security',
+      'security-analysis': 'security',
+      testing: 'testing',
+      test: 'testing',
+      tests: 'testing',
+      agents: 'agents',
+      agent: 'agents',
+      ai: 'agents',
+      general: 'repositoryManagement',
+    };  // Initialize all categories
   const categories: Record<
     string,
     {
