@@ -1,4 +1,4 @@
-// Grant Managed Identity access to Cosmos DB
+// Grant Managed Identity access to Cosmos DB using Azure RBAC
 // Separated from main.bicep to avoid circular dependency
 
 param cosmosAccountName string
@@ -9,17 +9,18 @@ resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' existi
   name: cosmosAccountName
 }
 
-// Built-in Cosmos DB MongoDB Data Contributor Role
-var cosmosDataContributorRoleId = '00000000-0000-0000-0000-000000000002'
+// Built-in Cosmos DB Data Contributor Role ID (Azure RBAC)
+// This is the Azure RBAC role for Cosmos DB data plane access
+var cosmosBuiltinDataContributorRoleId = 'b24988ac-6180-42a0-ab88-20f7382dd24c'
 
-// Role Assignment for Container App Managed Identity
-resource roleAssignment 'Microsoft.DocumentDB/databaseAccounts/mongodbRoleAssignments@2024-05-15' = {
-  parent: cosmosAccount
-  name: guid(cosmosAccount.id, principalId, 'mongo-contributor')
+// Azure RBAC Role Assignment for Container App Managed Identity
+resource roleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(cosmosAccount.id, principalId, cosmosBuiltinDataContributorRoleId)
+  scope: cosmosAccount
   properties: {
-    roleDefinitionId: '${cosmosAccount.id}/mongodbRoleDefinitions/${cosmosDataContributorRoleId}'
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', cosmosBuiltinDataContributorRoleId)
     principalId: principalId
-    scope: cosmosAccount.id
+    principalType: 'ServicePrincipal'
   }
 }
 

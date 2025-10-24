@@ -1,203 +1,210 @@
-// Main infrastructure template for Template Doctor
-// Deploys Cosmos DB (MongoDB API) + Container App
-
 targetScope = 'subscription'
 
 @minLength(1)
 @maxLength(64)
-@description('Name of the environment (e.g., dev, test, prod)')
+@description('Name of the the environment which is used to generate a short unique hash used in all resources.')
 param environmentName string
 
 @minLength(1)
 @description('Primary location for all resources')
 param location string
 
-// GitHub configuration (read from .env file by azd)
+// Optional parameters to override the default azd resource naming conventions. Update the main.parameters.json file to provide values. e.g.,:
+// "resourceGroupName": {
+//      "value": "myGroupName"
+// }
+param appContainerAppName string = ''
+param applicationInsightsDashboardName string = ''
+param applicationInsightsName string = ''
+param containerAppsEnvironmentName string = ''
+param containerRegistryName string = ''
+param cosmosAccountName string = ''
+param logAnalyticsName string = ''
+param resourceGroupName string = ''
+param templateDoctorAppExists bool = false
+
+// GitHub configuration (stored as Container Apps secrets)
 @secure()
 @description('GitHub OAuth Client ID - set in .env as GITHUB_CLIENT_ID')
-param githubClientId string = ''
+param githubClientId string
 
 @secure()
 @description('GitHub OAuth Client Secret - set in .env as GITHUB_CLIENT_SECRET')
-param githubClientSecret string = ''
+param githubClientSecret string
 
 @secure()
-@description('GitHub Personal Access Token - set in .env as GITHUB_TOKEN (scopes: repo, workflow, read:org)')
-param githubToken string = ''
+@description('GitHub Personal Access Token - set in .env as GITHUB_TOKEN')
+param githubToken string
 
-@secure()
-@description('GitHub Workflow Token - set in .env as GH_WORKFLOW_TOKEN (for workflow dispatch)')
-param ghWorkflowToken string = ''
-
-@description('Comma-separated list of GitHub usernames with admin access')
-param adminGitHubUsers string = ''
-
-// Tags to apply to all resources
-var tags = {
-  'azd-env-name': environmentName
-  app: 'template-doctor'
-}
-
-// Generate abbreviated location name for resource naming
 var abbrs = loadJsonContent('./abbreviations.json')
 var resourceToken = toLower(uniqueString(subscription().id, environmentName, location))
+var tags = { 'azd-env-name': environmentName }
 
-// Resource Group
+// Organize resources in a resource group
 resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
-  name: '${abbrs.resourcesResourceGroups}${environmentName}'
+  name: !empty(resourceGroupName) ? resourceGroupName : '${abbrs.resourcesResourceGroups}${environmentName}'
   location: location
   tags: tags
 }
 
-// Cosmos DB Module - Deploy FIRST (no dependencies)
-module cosmos './database.bicep' = {
-  name: 'cosmos-db-deployment'
+// Monitor application with Azure Monitor
+module monitoring 'br/public:avm/ptn/azd/monitoring:0.1.0' = {
+  name: 'monitoring'
   scope: rg
   params: {
-    location: location
-    environmentName: environmentName
-    logAnalyticsWorkspaceId: containerAppsEnvironment.outputs.logAnalyticsWorkspaceId
-  }
-  dependsOn: [
-    containerAppsEnvironment
-  ]
-}
-
-// Container Apps Environment
-module containerAppsEnvironment 'core/host/container-apps-environment.bicep' = {
-  name: 'container-apps-environment'
-  scope: rg
-  params: {
-    name: '${abbrs.appManagedEnvironments}${resourceToken}'
+    applicationInsightsName: !empty(applicationInsightsName) ? applicationInsightsName : '${abbrs.insightsComponents}${resourceToken}'
+    logAnalyticsName: !empty(logAnalyticsName) ? logAnalyticsName : '${abbrs.operationalInsightsWorkspaces}${resourceToken}'
+    applicationInsightsDashboardName: !empty(applicationInsightsDashboardName) ? applicationInsightsDashboardName : '${abbrs.portalDashboards}${resourceToken}'
     location: location
     tags: tags
   }
 }
 
-// Container Registry
-module containerRegistry 'core/host/container-registry.bicep' = {
-  name: 'container-registry'
+// Container apps host (including container registry)
+module containerApps 'br/public:avm/ptn/azd/container-apps-stack:0.1.0' = {
+  name: 'container-apps'
   scope: rg
   params: {
-    name: '${abbrs.containerRegistryRegistries}${resourceToken}'
+    containerAppsEnvironmentName: !empty(containerAppsEnvironmentName) ? containerAppsEnvironmentName : '${abbrs.appManagedEnvironments}${resourceToken}'
+    containerRegistryName: !empty(containerRegistryName) ? containerRegistryName : '${abbrs.containerRegistryRegistries}${resourceToken}'
+    logAnalyticsWorkspaceResourceId: monitoring.outputs.logAnalyticsWorkspaceResourceId
+    appInsightsConnectionString: monitoring.outputs.applicationInsightsConnectionString
+    acrSku: 'Basic'
     location: location
+    acrAdminUserEnabled: true
+    zoneRedundant: false
     tags: tags
   }
 }
 
-// Container App
-module containerApp 'core/host/container-app.bicep' = {
-  name: 'container-app'
+//the managed identity for Template Doctor app
+module appIdentity 'br/public:avm/res/managed-identity/user-assigned-identity:0.2.1' = {
+  name: 'appidentity'
   scope: rg
   params: {
-    name: '${abbrs.appContainerApps}web-${resourceToken}'
+    name: '${abbrs.managedIdentityUserAssignedIdentities}app-${resourceToken}'
     location: location
-    tags: tags
-    containerAppsEnvironmentName: containerAppsEnvironment.outputs.name
-    containerRegistryName: containerRegistry.outputs.name
-    githubClientId: githubClientId
-    githubClientSecret: githubClientSecret
-    githubToken: githubToken
-    ghWorkflowToken: ghWorkflowToken
-    env: concat([
+  }
+}
+
+// Template Doctor app
+module app 'br/public:avm/ptn/azd/container-app-upsert:0.2.0' = {
+  name: 'template-doctor-container-app'
+  scope: rg
+  params: {
+    name: !empty(appContainerAppName) ? appContainerAppName : '${abbrs.appContainerApps}template-doctor-${resourceToken}'
+    tags: union(tags, { 'azd-service-name': 'template-doctor' })
+    location: location
+    env: [
       {
-        name: 'COSMOS_ENDPOINT'
-        value: 'https://${cosmos.outputs.cosmosAccountName}.documents.azure.com'
+        name: 'AZURE_CLIENT_ID'
+        value: appIdentity.outputs.clientId
       }
       {
-        name: 'COSMOS_DATABASE_NAME'
-        value: cosmos.outputs.cosmosDatabaseName
+        name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+        value: monitoring.outputs.applicationInsightsConnectionString
+      }
+      {
+        name: 'MONGODB_DATABASE'
+        value: cosmos.outputs.databaseName
       }
       {
         name: 'NODE_ENV'
         value: 'production'
       }
       {
-        name: 'PORT'
-        value: '3000'
+        name: 'GITHUB_CLIENT_ID'
+        secretRef: 'github-client-id'
       }
       {
-        name: 'FRONTEND_DIST_PATH'
-        value: '/app/app/dist'
+        name: 'GITHUB_CLIENT_SECRET'
+        secretRef: 'github-client-secret'
       }
       {
-        name: 'GITHUB_TOKEN_ANALYZER'
+        name: 'GITHUB_TOKEN'
         secretRef: 'github-token'
       }
       {
-        name: 'ADMIN_GITHUB_USERS'
-        value: adminGitHubUsers
+        name: 'MONGODB_URI'
+        secretRef: 'cosmos-connection-string'
+      }
+    ]
+    secrets: [
+      {
+        name: 'github-client-id'
+        value: githubClientId
       }
       {
-        name: 'DEFAULT_RULE_SET'
-        value: 'dod'
+        name: 'github-client-secret'  
+        value: githubClientSecret
       }
       {
-        name: 'REQUIRE_AUTH_FOR_RESULTS'
-        value: 'true'
+        name: 'github-token'
+        value: githubToken
       }
       {
-        name: 'AUTO_SAVE_RESULTS'
-        value: 'false'
+        name: 'cosmos-connection-string'
+        value: 'mongodb://${cosmosAccount.name}:${cosmosAccount.listKeys().primaryMasterKey}@${cosmosAccount.name}.mongo.cosmos.azure.com:10255/?ssl=true&retrywrites=false&replicaSet=globaldb&maxIdleTimeMS=120000&appName=@${cosmosAccount.name}@'
       }
-      {
-        name: 'ARCHIVE_ENABLED'
-        value: 'false'
-      }
-      {
-        name: 'ARCHIVE_COLLECTION'
-        value: 'aigallery'
-      }
-      {
-        name: 'DISPATCH_TARGET_REPO'
-        value: 'Template-Doctor/template-doctor'
-      }
-      {
-        name: 'ISSUE_AI_ENABLED'
-        value: 'false'
-      }
-    ], githubClientId != '' ? [{
-      name: 'GITHUB_CLIENT_ID'
-      secretRef: 'github-client-id'
-    }] : [], githubClientSecret != '' ? [{
-      name: 'GITHUB_CLIENT_SECRET'
-      secretRef: 'github-client-secret'
-    }] : [], githubToken != '' ? [{
-      name: 'GITHUB_TOKEN'
-      secretRef: 'github-token'
-    }] : [], ghWorkflowToken != '' ? [{
-      name: 'GH_WORKFLOW_TOKEN'
-      secretRef: 'gh-workflow-token'
-    }] : [])
-    secrets: []
+    ]
+    containerAppsEnvironmentName: containerApps.outputs.environmentName
+    containerRegistryName: containerApps.outputs.registryName
+    exists: templateDoctorAppExists
+    identityType: 'UserAssigned'
+    identityName: appIdentity.name
+    containerCpuCoreCount: '1.0'
+    containerMemory: '2.0Gi'
     targetPort: 3000
-    enableIngress: true
-    external: true
+    containerMinReplicas: 1
+    ingressEnabled: true
+    containerName: 'main'
+    userAssignedIdentityResourceId: appIdentity.outputs.resourceId
+    identityPrincipalId: appIdentity.outputs.principalId
   }
 }
 
-// Grant Container App's Managed Identity access to Cosmos DB
-// This must be a separate module to avoid circular dependency
-module cosmosRoleAssignment './cosmos-role-assignment.bicep' = {
+// The application database
+module cosmos './app/db-avm.bicep' = {
+  name: 'cosmos'
+  scope: rg
+  params: {
+    accountName: !empty(cosmosAccountName) ? cosmosAccountName : '${abbrs.documentDBDatabaseAccounts}${resourceToken}'
+    location: location
+    tags: tags
+  }
+}
+
+// Get reference to Cosmos DB account for connection strings
+resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' existing = {
+  name: !empty(cosmosAccountName) ? cosmosAccountName : '${abbrs.documentDBDatabaseAccounts}${resourceToken}'
+  scope: rg
+  dependsOn: [cosmos]
+}
+
+// Grant Container App Managed Identity access to Cosmos DB
+module cosmosRoleAssignment 'cosmos-role-assignment.bicep' = {
   name: 'cosmos-role-assignment'
   scope: rg
   params: {
-    cosmosAccountName: cosmos.outputs.cosmosAccountName
-    principalId: containerApp.outputs.principalId
+    cosmosAccountName: cosmosAccount.name
+    principalId: appIdentity.outputs.principalId
   }
+  dependsOn: [
+    cosmos
+  ]
 }
 
-// Outputs
+// Data outputs
+output AZURE_COSMOS_DATABASE_NAME string = cosmos.outputs.databaseName
+output AZURE_COSMOS_ENDPOINT string = cosmos.outputs.endpoint
+
+// App outputs
+output APPLICATIONINSIGHTS_CONNECTION_STRING string = monitoring.outputs.applicationInsightsConnectionString
+output APPLICATIONINSIGHTS_NAME string = monitoring.outputs.applicationInsightsName
+output AZURE_CONTAINER_ENVIRONMENT_NAME string = containerApps.outputs.environmentName
+output AZURE_CONTAINER_REGISTRY_ENDPOINT string = containerApps.outputs.registryLoginServer
+output AZURE_CONTAINER_REGISTRY_NAME string = containerApps.outputs.registryName
 output AZURE_LOCATION string = location
-output AZURE_RESOURCE_GROUP string = rg.name
-output AZURE_CONTAINER_REGISTRY_ENDPOINT string = containerRegistry.outputs.loginServer
-output AZURE_CONTAINER_REGISTRY_NAME string = containerRegistry.outputs.name
-output AZURE_CONTAINER_APPS_ENVIRONMENT_NAME string = containerAppsEnvironment.outputs.name
-output AZURE_CONTAINER_APPS_ENVIRONMENT_ID string = containerAppsEnvironment.outputs.id
-output SERVICE_WEB_NAME string = containerApp.outputs.name
-output SERVICE_WEB_URI string = containerApp.outputs.uri
-output SERVICE_WEB_IMAGE_NAME string = '${containerRegistry.outputs.loginServer}/template-doctor/web-${environmentName}:latest'
-output SERVICE_WEB_IDENTITY_PRINCIPAL_ID string = containerApp.outputs.principalId
-output COSMOS_ACCOUNT_NAME string = cosmos.outputs.cosmosAccountName
-output COSMOS_DATABASE_NAME string = cosmos.outputs.cosmosDatabaseName
-output COSMOS_ENDPOINT string = 'https://${cosmos.outputs.cosmosAccountName}.documents.azure.com'
+output AZURE_TENANT_ID string = tenant().tenantId
+output TEMPLATE_DOCTOR_BASE_URL string = app.outputs.uri
+output SERVICE_APP_NAME string = app.outputs.name
