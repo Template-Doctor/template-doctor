@@ -517,7 +517,7 @@ class DashboardRenderer {
       const enabled = catData.enabled !== false;
       // Support both 'passed' (frontend) and 'compliant' (backend) property names
       const passedArray = catData.passed || catData.compliant || [];
-      const passed = Array.isArray(passedArray) ? passedArray.length : passedArray || 0;
+      const passed = Array.isArray(passedArray) ? passedArray.length : (typeof passedArray === 'number' ? passedArray : 0);
       const issues = Array.isArray(catData.issues) ? catData.issues.length : catData.issues || 0;
       const total = passed + issues;
       const percentage = total > 0 ? Math.round((passed / total) * 100) : 0;
