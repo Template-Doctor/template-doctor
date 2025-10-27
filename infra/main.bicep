@@ -71,7 +71,7 @@ module containerApps 'br/public:avm/ptn/azd/container-apps-stack:0.1.0' = {
     appInsightsConnectionString: monitoring.outputs.applicationInsightsConnectionString
     acrSku: 'Basic'
     location: location
-    acrAdminUserEnabled: true
+    acrAdminUserEnabled: false
     zoneRedundant: false
     tags: tags
   }

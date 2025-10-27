@@ -80,39 +80,82 @@ param collections array = [
 var defaultDatabaseName = 'template-doctor'
 var actualDatabaseName = !empty(cosmosDatabaseName) ? cosmosDatabaseName : defaultDatabaseName
 
-module cosmos 'br/public:avm/res/document-db/database-account:0.6.0' = {
-  name: 'cosmos-mongo'
-  params: {
+// Direct Cosmos DB MongoDB Account resource definition (bypassing AVM limitations)
+resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' = {
+  name: accountName
+  location: location
+  tags: tags
+  kind: 'MongoDB'
+  properties: {
+    databaseAccountOfferType: 'Standard'
+    // Security Configuration: Disable local auth, require Azure RBAC only  
+    disableLocalAuth: true
+    disableKeyBasedMetadataWriteAccess: true
+    // Network Security: Disable public network access completely
+    publicNetworkAccess: 'Disabled'
+    networkAclBypass: 'AzureServices'
+    ipRules: []
+    virtualNetworkRules: []
+    isVirtualNetworkFilterEnabled: false
+    // Locations and failover
     locations: [
       {
+        locationName: location
         failoverPriority: 0
         isZoneRedundant: false
-        locationName: location
       }
     ]
-    name: accountName
-    location: location
-    mongodbDatabases: [
-      {
-        name: actualDatabaseName
-        tags: tags
-        collections: collections
-      }
-    ]
-    // Security Configuration: Disable local auth, require Azure RBAC only
-    disableLocalAuth: true
-    // Network Security: Disable public network access completely
-    networkRestrictions: {
-      publicNetworkAccess: 'Disabled'
-      networkAclBypass: 'AzureServices'
-      ipRules: []
-      virtualNetworkRules: []
+    enableAutomaticFailover: false
+    enableMultipleWriteLocations: false
+    // MongoDB specific settings
+    apiProperties: {
+      serverVersion: '4.2'
     }
-    // Private endpoints will be configured in main.bicep to connect Container Apps subnet
-    privateEndpoints: []
+    capabilities: [
+      {
+        name: 'EnableMongo'
+      }
+    ]
+    // Backup and consistency
+    backupPolicy: {
+      type: 'Continuous'
+      continuousModeProperties: {
+        tier: 'Continuous30Days'
+      }
+    }
+    consistencyPolicy: {
+      defaultConsistencyLevel: 'Session'
+    }
+    // Security and compliance
+    minimalTlsVersion: 'Tls12'
   }
 }
 
+// MongoDB database
+resource mongoDatabase 'Microsoft.DocumentDB/databaseAccounts/mongodbDatabases@2024-05-15' = {
+  parent: cosmosAccount
+  name: actualDatabaseName
+  tags: tags
+  properties: {
+    resource: {
+      id: actualDatabaseName
+    }
+  }
+}
+
+// MongoDB collections
+resource mongoCollections 'Microsoft.DocumentDB/databaseAccounts/mongodbDatabases/collections@2024-05-15' = [for collection in collections: {
+  parent: mongoDatabase
+  name: collection.name
+  properties: {
+    resource: {
+      id: collection.id
+      shardKey: collection.shardKey
+      indexes: collection.indexes
+    }
+  }
+}]
+
 output databaseName string = actualDatabaseName
-output endpoint string = cosmos.outputs.endpoint
-output accountName string = cosmos.outputs.name
+output endpoint string = cosmosAccount.properties.documentEndpoint
+output accountName string = cosmosAccount.name
